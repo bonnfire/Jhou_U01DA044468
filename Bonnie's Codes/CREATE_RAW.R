@@ -204,13 +204,11 @@ rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>%
          bintotal = rowSums(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]))
 rawfiles_locomotor_wide$labanimalid <- stringr::str_extract(rawfiles_locomotor_wide$filename, "U[[:digit:]]+[[:alpha:]]*")
 
-# rawfiles_locomotor_melt <- melt(rawfiles_locomotor_wide,  id.vars = 'filename', variable.name = 'animals')
-# ggplot(rawfiles_locomotor_melt, aes(filename,value)) + geom_line(aes(colour = animals))
-ggplot(data = rawfiles_locomotor_long, aes(x = minute, y = bincounts, color = filename, group = filename))+
-  geom_path(show.legend = FALSE) + geom_point(show.legend = F)
-
-
-### shocks (extract last and second to last for each session)
+### progressive punishment 
+# shocks (extract last and second to last for each session)
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Progressive punishment")
+startshock <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $4 \",\" $6 \",\" $13}' {} \\; > startshock.txt"
+system(startshock)
 rawfiles_shock <- read.csv("startshock.txt", head = F)
 colnames(rawfiles_shock) <- c("filename", "shocks") 
 extractfromfilename <- function(df){
@@ -221,67 +219,66 @@ extractfromfilename <- function(df){
   df$time <- gsub('([[:digit:]]{2})([[:digit:]]{2})', '\\1:\\2', df$time)
   df <- df[order(df$filename), ]
   return(df)
-}
-
+} 
 rawfiles_shock <- extractfromfilename(rawfiles_shock)
-rawfiles_shock$orderofshocks <- with(rawfiles_shock, ave(shocks, cumsum(shocks == 0), FUN = seq_along)) - 1
-head(rawfiles_shock, 20)
+# rawfiles_shock$orderofshocks <- with(rawfiles_shock, ave(shocks, cumsum(shocks == 0), FUN = seq_along)) - 1 # some cases in which shocks == 0 occurs consecutively
 
-# define session
-# XX 
-
-### lever presses (extract last active and inactive for each session)
+# lever presses (extract last attempted active and inactive for each session)
+levelpresses <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $4 \",\" $6}' {} \\; > leverpresses.txt"
+system(levelpresses)
 rawfiles_leverpresses <- read.csv("leverpresses.txt", head = F)
 colnames(rawfiles_leverpresses) <- c("filename", "activepresses", "inactivepresses") 
 rawfiles_leverpresses <- extractfromfilename(rawfiles_leverpresses)
-i <- 1
-j <- 0
-repeat {
-  rawfiles_leverpresses$trialorder[i] <- j
-  i = i + 1
-  j = j + 1
-  if (rawfiles_leverpresses$filename[i] != rawfiles_leverpresses$filename[i-1]){
-    j = 0
-  }
-}
-head(rawfiles_leverpresses, 20)
+rawfiles_leverpresses_attempted <- rawfiles_leverpresses %>% group_by(filename) %>% slice(tail(row_number(), 1))
+# i <- 1
+# j <- 0
+# repeat {
+#   rawfiles_leverpresses$session[i] <- j
+#   i = i + 1
+#   j = j + 1
+#   if (rawfiles_leverpresses$filename[i] != rawfiles_leverpresses$filename[i-1]){
+#     j = 0
+#   }
+# } #assign session numbers
 
-### box info (assign to each U animal)
+
+# box info (assign to each U animal)
+box <- "find -type f -iname \"*.txt\" -exec awk '/Started script/{print FILENAME \",\" $(NF-1) \" \" $NF}' {} \\; > box.txt"
+system(box)
 rawfiles_box <- read.csv("box.txt", head = F)
 colnames(rawfiles_box) <- c("filename", "box") 
-rawfiles_box$labanimalid <- stringr::str_extract(rawfiles_box$filename, "U[[:digit:]]+")
+rawfiles_box$labanimalid <- stringr::str_extract(rawfiles_box$filename, "U[[:digit:]]+[[:alpha:]]*")
 rawfiles_box <- rawfiles_box %>% 
   group_by(labanimalid) %>% 
   select(labanimalid, box) %>% 
   unique() 
-## XX BRING UP TO TOM JHOU #######################
-countid <- rawfiles_box %>% count(labanimalid)
-subset(countid, n != 1)
-##################################################
+rawfiles_box<- separate(rawfiles_box, col = box, into = c("boxorstation", "boxnumber"), sep = "[[:space:]]") # include box/station info just in case it is needed for future clarification
 
-# when all files are ready to be created into the prog punishment table 
-attemptedshocks <- rawfiles_shock %>% 
+# XXX concern: 
+morethanone <- rawfiles_box %>% count(labanimalid) %>% filter(n != 1)
+cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone$labanimalid)
+cases
+
+# merge all data to create final raw table
+rawfiles_pp <- rawfiles_shock %>%
   group_by(filename) %>% 
-  slice(which.max(orderofshocks)) %>% 
-  ungroup()
-attemptedshocks <- rename(attemptedshocks, attemptedshocks = shocks)  
-
-completedshocks <- rawfiles_shock %>% 
+  slice(tail(row_number(), 1))
+completedshocks <- rawfiles_shock %>%
   group_by(filename) %>% 
-  slice(which.max(orderofshocks)-1) %>% 
-  ungroup()
-completedshocks <- rename(completedshocks, completedshocks = shocks)  
+  slice(tail(row_number(), 2)) %>% 
+  group_by(filename) %>%
+  slice(head(row_number(), 1)) %>% 
+  select(filename, shocks)
+rawfiles_pp <- left_join(rawfiles_pp, completedshocks, by = "filename")  %>% 
+  rename(shocksattempted = shocks.x,
+         shockscompleted = shocks.y) 
 
-attemptedpresses <- rawfiles_leverpresses %>% 
-  group_by(filename) %>% 
-  slice(which.max(trialorder))
+#  %>% mutate(box = rawfiles_box[which(rawfiles_box$labanimalid == rawfiles_pp$labanimalid), ]$boxnumber) #cannot assign box numbers is more than one for every id
 
-rawfiles_pp <- merge(attemptedshocks, completedshocks[ , c("filename", "completedshocks")], by = "filename", all.x = T) %>% merge(attemptedpresses) 
-subset(rawfiles_pp, completedshocks < attemptedshocks) %>% dim() #complete number of completedshocks (=2781)
+subset(rawfiles_pp, shocksattempted > shockscompleted) %>% dim() #complete number of completedshocks (=2781) 
+# this code allows for those that don't have any more than just one value, so same value for completed and attempted
 
 # template if needed (unused function and data) 
-shocks_raw.UNUSED <- as.data.frame(setNames(replicate(7,numeric(0), simplify = F), c("session", "date", "lastcompletedintensity", "lastattempedintensity","numberoftrialsatlastshockintensity","attemptedactivepresses","attemptedinactivepresses")))
-# seems like it is completedactivepresses
 extract.raw.pp.UNUSED <- function(experiment_name) {
   setwd(paste0("/home/bonnie/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/", experiment_name,"/"))
   files <- list.files(path=".", pattern=".txt", full.names=T, recursive=TRUE)[1:100]
