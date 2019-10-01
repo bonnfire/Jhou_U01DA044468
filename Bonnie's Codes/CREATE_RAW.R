@@ -178,9 +178,9 @@ Tom_Jhou_U01$dir_filename
 
 #### FROM RAW FILES 
 ## Text file preparation
-### runway 
+### EXP 1: runway 
 
-### locomotor 
+### EXP 2: locomotor 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Locomotor")
 rawfiles_locomotor <- read.csv("bindata.txt", head = F)
 colnames(rawfiles_locomotor) <- c("filename", "bincounts") 
@@ -204,7 +204,7 @@ rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>%
          bintotal = rowSums(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]))
 rawfiles_locomotor_wide$labanimalid <- stringr::str_extract(rawfiles_locomotor_wide$filename, "U[[:digit:]]+[[:alpha:]]*")
 
-### progressive punishment 
+### EXP 3: progressive punishment 
 # shocks (extract last and second to last for each session)
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Progressive punishment")
 startshock <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $4 \",\" $6 \",\" $13}' {} \\; > startshock.txt"
@@ -230,17 +230,6 @@ rawfiles_leverpresses <- read.csv("leverpresses.txt", head = F)
 colnames(rawfiles_leverpresses) <- c("filename", "activepresses", "inactivepresses") 
 rawfiles_leverpresses <- extractfromfilename(rawfiles_leverpresses)
 rawfiles_leverpresses_attempted <- rawfiles_leverpresses %>% group_by(filename) %>% slice(tail(row_number(), 1))
-# i <- 1
-# j <- 0
-# repeat {
-#   rawfiles_leverpresses$session[i] <- j
-#   i = i + 1
-#   j = j + 1
-#   if (rawfiles_leverpresses$filename[i] != rawfiles_leverpresses$filename[i-1]){
-#     j = 0
-#   }
-# } #assign session numbers
-
 
 # box info (assign to each U animal)
 box <- "find -type f -iname \"*.txt\" -exec awk '/Started script/{print FILENAME \",\" $(NF-1) \" \" $NF}' {} \\; > box.txt"
@@ -277,38 +266,28 @@ rawfiles_pp <- left_join(rawfiles_pp, completedshocks, by = "filename")  %>%
 subset(rawfiles_pp, shocksattempted > shockscompleted) %>% dim() #complete number of completedshocks (=2781) 
 # this code allows for those that don't have any more than just one value, so same value for completed and attempted
 
-# template if needed (unused function and data) 
-extract.raw.pp.UNUSED <- function(experiment_name) {
-  setwd(paste0("/home/bonnie/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/", experiment_name,"/"))
-  files <- list.files(path=".", pattern=".txt", full.names=T, recursive=TRUE)[1:100]
-  files <- gsub(" ", "\\ ", files, fixed = T)
-  read_leverpresses<-function(x){
-    df <- fread(paste0("awk '/THIS TRIAL/{print $13}'", "'", x,"'","| tail -n 2 | head -n 1"), header=F, fill=T, sep = " ")
-    df$id <- x
-    return(df)
-  }
-  all <- lapply(files, read_leverpresses)
-  return(all)
-}
-
-# Progressive ratio
+### EXP 4: Progressive ratio
+# max ratio
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Progressive ratio")
+maxratio <- "find -type f -iname \"*.txt\" -print0 | xargs -0 awk '/TIMEOUT/{print a \",\" FILENAME}{a=$4}' | awk '!/IS/' > maxratio.txt"
+system(maxratio)
 rawfiles_maxratio <- read.csv("maxratio.txt", head = F)
 colnames(rawfiles_maxratio) <- c("maxratio", "filename") 
 rawfiles_maxratio <- extractfromfilename(rawfiles_maxratio)
 # rawfiles_maxratio %>% summary() seems like the machine generated two trials of data, so we will remove the initial one with the next line
 rawfiles_maxratio <- rawfiles_maxratio[!(rawfiles_maxratio$labanimalid=="U187" & rawfiles_maxratio$maxratio==2),]
 
+# presses
 rawfiles_randl <- read.csv("landrpresses.txt", head = F)
 colnames(rawfiles_randl) <- c("filename", "Lpresses", "Rpresses") 
-rawfiles_randl <- extractfromfilename(rawfiles_randl)
 
-rawfiles_pr <- merge(rawfiles_maxratio, rawfiles_randl[, c("filename", "Lpresses", "Rpresses")], by = "filename") 
-rawfiles_pr$labanimalid <- gsub('(U)([[:digit:]]{1})$', '\\10\\2', rawfiles_pr$labanimalid)
+# join to create final raw df
+rawfiles_pr <- left_join(rawfiles_maxratio, rawfiles_randl, by = "filename")
+rawfiles_pr$labanimalid <- gsub('(U)([[:digit:]]{1})$', '\\10\\2', rawfiles_pr$labanimalid) # better organizational for ordering and consider this for other files
 rawfiles_pr <- rawfiles_pr[order(rawfiles_pr$labanimalid), ]  
 
 
-# Delayed punishment
+# EXP 5: Delayed punishment
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Delayed punishment/")
 rawfiles_dpresses <- read.csv("delayed_presses.txt", head = F)
 colnames(rawfiles_dpresses) <- c("filename", "Lpresses", "Rpresses") 
@@ -344,5 +323,3 @@ WFUjoin.raw <- function(rawdf){
   joindf <- merge(x = DF1, y = DF2[ , c("Client", "LO")], by = "Client", all.x=TRUE)
   return(joindf)
 } 
-
-hist(iris$Sepal.Length)
