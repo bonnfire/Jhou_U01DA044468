@@ -272,9 +272,8 @@ completedshocks <- rawfiles_shock %>%
 rawfiles_pp <- left_join(rawfiles_pp, completedshocks, by = "filename")  %>% 
   rename(shocksattempted = shocks.x,
          shockscompleted = shocks.y) 
-
+# XX ATTACH CODE BACK IF APPLICABLE ONCE YOU GET THE OK FROM JHOU LAB
 #  %>% mutate(box = rawfiles_box[which(rawfiles_box$labanimalid == rawfiles_pp$labanimalid), ]$boxnumber) #cannot assign box numbers is more than one for every id
-
 subset(rawfiles_pp, shocksattempted > shockscompleted) %>% dim() #complete number of completedshocks (=2781) 
 # this code allows for those that don't have any more than just one value, so same value for completed and attempted
 
