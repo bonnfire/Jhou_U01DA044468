@@ -182,7 +182,7 @@ Tom_Jhou_U01$dir_filename
 #### FROM RAW FILES 
 ## Text file preparation
 ### EXP 1: runway 
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Runway")
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/Runway")
 # reach time 
 reachtime <- "find -type f -iname \"*.txt\" -print0 | xargs -0 awk '/REACHED/{print $1 \", \" FILENAME}' > reachrunway.txt"
 system(reachtime)
@@ -190,6 +190,7 @@ rawfiles_reach <- read.csv("reachrunway.txt", head = F)
 colnames(rawfiles_reach) <- c("reachtime", "filename") 
 rawfiles_reach$filename <- as.character(rawfiles_reach$filename)
 rawfiles_reach$filename <- sub(" ", "", rawfiles_reach$filename)
+rawfiles_reach$reachtime <- as.numeric(as.character(rawfiles_reach$reachtime))
 
 # location2.txt
 location2 <-"find -type f -iname \"*.txt\" -print0 | xargs -0 grep -P -m 1 \"LOCATION\\s\\t2\" > location2times.txt"
@@ -233,8 +234,9 @@ reversals <- "find -type f -iname \"*.txt\" -print0 | xargs -0 grep -c \"REVERSA
 system(reversals)
 reversals <- read.csv("reversals.txt", head = F)
 reversals <- separate(reversals, V1, into = c("filename", "reversals"), sep = "[:]")
-reversals <- extractfromfilename(reversals) 
-## XX SHOULD THIS BE IN A SEPARATE TABLE? SAME EXPERIMENT BUT DIFFERENT INFORMATION? 
+
+# bind reversals with runway data 
+runway <- left_join(rawfiles_prepcalc, reversals, by = "filename")
 
 ### EXP 2: locomotor 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Locomotor")
@@ -357,9 +359,6 @@ rawfiles_pr <- rawfiles_pr[order(rawfiles_pr$labanimalid), ]
 
 # EXP 5: Delayed punishment
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Delayed punishment/")
-dpresses <- ""
-system(dpresses)
-
 files <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # exclude existing txt files and include any corrective "qualifiers" 
 read_delayedpresses<-function(x){
   data = fread(paste0("tac ","'",x,"'", "| awk '/LEFTPRESSES/{print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F)  
