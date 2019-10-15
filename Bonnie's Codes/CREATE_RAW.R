@@ -212,6 +212,7 @@ rfidandid <- WFU_Jhou_test_df %>%
             rfid = rfid) # labanimalid vs labanimalnumber
 rawfiles_prepcalc <- left_join(rawfiles_prepcalc, rfidandid, by = "labanimalid") # add rfid column 
 
+# graphics for email: subset(rawfiles_prepcalc, is.na(rfid)) %>% select(labanimalid) %>% unique AND subset(rawfiles_prepcalc, is.na(loc2time))$filename
 
 # # make session variable to make into long data 
 # i <- 1
@@ -227,9 +228,18 @@ rawfiles_prepcalc <- left_join(rawfiles_prepcalc, rfidandid, by = "labanimalid")
 # 
 # rawfiles_prepcalc_wide <- spread(rawfiles_prepcalc, session, diff)
 
+## RUNWAY REVERSAL
+reversals <- "find -type f -iname \"*.txt\" -print0 | xargs -0 grep -c \"REVERSAL\" > reversals.txt"
+system(reversals)
+reversals <- read.csv("reversals.txt", head = F)
+reversals <- separate(reversals, V1, into = c("filename", "reversals"), sep = "[:]")
+reversals <- extractfromfilename(reversals) 
+## XX SHOULD THIS BE IN A SEPARATE TABLE? SAME EXPERIMENT BUT DIFFERENT INFORMATION? 
 
 ### EXP 2: locomotor 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Locomotor")
+bindata <- "find -type f -iname \"*.txt\" -exec awk '/^[1-9][0-9]*/{print FILENAME \",\" $2}' {} \; > bindata.txt" #extract the LOCOMOTOR COUNTS
+system(bindata)
 rawfiles_locomotor <- read.csv("bindata.txt", head = F)
 colnames(rawfiles_locomotor) <- c("filename", "bincounts") 
 rawfiles_locomotor_long <- rawfiles_locomotor[!grepl("[[:punct:]]", as.character(rawfiles_locomotor$bincounts)), ] # clean out invalid observations (timestamps) 
@@ -237,7 +247,7 @@ rawfiles_locomotor_long <- droplevels(rawfiles_locomotor_long) #(from 243 levels
 i <- 1
 j <- 1
 repeat {
-  rawfiles_locomotor_long$minute[i] <- j
+  rawfiles_locomotor_long$minute[i] <- paste("minute", j)
   i = i + 1
   j = j + 1
   if (rawfiles_locomotor_long$filename[i] != rawfiles_locomotor_long$filename[i-1]){
@@ -245,12 +255,15 @@ repeat {
   }
 } #add session information
 rawfiles_locomotor_wide <- spread(rawfiles_locomotor_long, minute, bincounts) # spread from long to wide
-cols.num <- c(1:30) %>% as.character()
+cols.num <- paste("minute", c(1:30) %>% as.character())
 rawfiles_locomotor_wide[cols.num] <- sapply(rawfiles_locomotor_wide[cols.num], function(x) { as.numeric(levels(x))[x]})
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
   mutate(binmeans = rowMeans(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]),
          bintotal = rowSums(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]))
 rawfiles_locomotor_wide$labanimalid <- stringr::str_extract(rawfiles_locomotor_wide$filename, "U[[:digit:]]+[[:alpha:]]*")
+# add rfid once I understand how TJ values are generated
+rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add rfid column
+rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add cohort column (xx WERE THESE DIVIDED INTO COHORTS)
 
 ### EXP 3: progressive punishment 
 # shocks (extract last and second to last for each session)
@@ -260,7 +273,9 @@ system(startshock)
 rawfiles_shock <- read.csv("startshock.txt", head = F)
 colnames(rawfiles_shock) <- c("filename", "shocks") 
 extractfromfilename <- function(df){
-  df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
+  if(df == "rawfiles_prepcalc"){
+    df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
+  }
   df$labanimalid <- stringr::str_extract(df$filename, "U[[:digit:]]+[[:alpha:]]*")
   df$date <- stringr::str_extract(df$filename, "[[:digit:]]{4}[-][[:digit:]]{4}")
   df$date <- as.Date(df$date, "%Y-%m%d") 
@@ -342,17 +357,30 @@ rawfiles_pr <- rawfiles_pr[order(rawfiles_pr$labanimalid), ]
 
 # EXP 5: Delayed punishment
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Delayed punishment/")
-dpresses <- 
+dpresses <- ""
 system(dpresses)
-rawfiles_dpresses <- read.csv("delayed_presses.txt", head = F)
-colnames(rawfiles_dpresses) <- c("filename", "Lpresses", "Rpresses") 
-rawfiles_dpresses <- extractfromfilename(rawfiles_dpresses)
 
+files <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # exclude existing txt files and include any corrective "qualifiers" 
+read_delayedpresses<-function(x){
+  data = fread(paste0("tac ","'",x,"'", "| awk '/LEFTPRESSES/{print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F)  
+  data$id<-x
+  data <- as.data.frame(data)
+  return(data)
+}
+rawfiles_dpresses <- lapply(files, read_delayedpresses)
+rawfiles_dpresses_test <- bind_rows(rawfiles_dpresses) 
+# rawfiles_dpresses <- read.csv("delayed_presses.txt", head = F) # no longer using this text file because it was based on the line above TIMEOUT
+colnames(rawfiles_dpresses_test) <- c("Lpresses", "Rpresses", "filename") 
+rawfiles_dpresses_test <- extractfromfilename(rawfiles_dpresses_test)
+
+
+dshocks <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $13}' {} + > alldelayed_shocks.txt"
+system(dshocks)
 rawfiles_dshocks <- read.csv("alldelayed_shocks.txt", head = F)
 colnames(rawfiles_dshocks) <- c("filename", "shocks")
 rawfiles_dshocks <- extractfromfilename(rawfiles_dshocks)
 rawfiles_dshocks_test <- rawfiles_dshocks %>%
-  group_by(filename) %>% do(tail(., n=2)) # extract interested shock values 
+  group_by(filename) %>% do(tail(., n=2)) # extract last two shock values in each file
 rawfiles_dshocks_test <- rawfiles_dshocks_test %>% 
   mutate(shocktype = rep(c("completed", "attempted"), length.out = n())) %>% 
   group_by(shocktype) %>%
