@@ -54,7 +54,8 @@ idqc("Delayed punishment") # done
 idqc("Lever training") # XX line 8 is a bigger problem
 
 
-
+# getting all letter id cases
+test <- stringr::str_match_all(files, "U[[:digit:]]+[[:alpha:]]+") %>% unlist() %>% unique()
 
   
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder")  

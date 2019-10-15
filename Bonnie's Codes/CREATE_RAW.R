@@ -2,6 +2,9 @@ setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox
 ### FROM EXCEL 
 
 library(stringr)
+library(dplyr)
+library(data.table)
+library(tidyr)
 
 ################################
 ##### Delayed punishment #######
@@ -179,6 +182,47 @@ Tom_Jhou_U01$dir_filename
 #### FROM RAW FILES 
 ## Text file preparation
 ### EXP 1: runway 
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Runway")
+# reach time 
+reachtime <- "find -type f -iname \"*.txt\" -print0 | xargs -0 awk '/REACHED/{print $1 \", \" FILENAME}' > reachrunway.txt"
+system(reachtime)
+rawfiles_reach <- read.csv("reachrunway.txt", head = F)
+colnames(rawfiles_reach) <- c("reachtime", "filename") 
+rawfiles_reach$filename <- as.character(rawfiles_reach$filename)
+rawfiles_reach$filename <- sub(" ", "", rawfiles_reach$filename)
+
+# location2.txt
+location2 <-"find -type f -iname \"*.txt\" -print0 | xargs -0 grep -P -m 1 \"LOCATION\\s\\t2\" > location2times.txt"
+system(location2)
+rawfiles_location2 <- read.csv("location2times.txt", head = F)
+rawfiles_location2_clean <- separate(rawfiles_location2, V1, into = c("filename", "loc2time"), sep = "[:]")
+rawfiles_location2_clean$loc2time <- gsub("\\t.+", "", rawfiles_location2_clean$loc2time, perl = T) %>% 
+  as.numeric()
+
+# join together and calculate 
+rawfiles_prepcalc <- left_join(rawfiles_reach, rawfiles_location2_clean, by = "filename")
+rawfiles_prepcalc$diff = trunc(rawfiles_prepcalc$reachtime) - trunc(rawfiles_prepcalc$loc2time)
+# sort by ascending filename and get animal id and exp date/time
+rawfiles_prepcalc <- arrange(rawfiles_prepcalc, filename)
+rawfiles_prepcalc <- extractfromfilename(rawfiles_prepcalc)
+# rfid and lab animal id 
+
+rawfiles_prepcalc # get rfid from wfu table
+
+# # make session variable to make into long
+# i <- 1
+# j <- 1
+# repeat {
+#   rawfiles_prepcalc$session[i] <- paste("session", j)
+#   i = i + 1
+#   j = j + 1
+#   if (rawfiles_prepcalc$labanimalid[i] != rawfiles_prepcalc$labanimalid[i-1]){
+#     j = 1
+#   }
+# } #add session information
+# 
+# rawfiles_prepcalc_wide <- spread(rawfiles_prepcalc, session, diff)
+
 
 ### EXP 2: locomotor 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Locomotor")
@@ -212,6 +256,7 @@ system(startshock)
 rawfiles_shock <- read.csv("startshock.txt", head = F)
 colnames(rawfiles_shock) <- c("filename", "shocks") 
 extractfromfilename <- function(df){
+  df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
   df$labanimalid <- stringr::str_extract(df$filename, "U[[:digit:]]+[[:alpha:]]*")
   df$date <- stringr::str_extract(df$filename, "[[:digit:]]{4}[-][[:digit:]]{4}")
   df$date <- as.Date(df$date, "%Y-%m%d") 
@@ -241,11 +286,15 @@ rawfiles_box <- rawfiles_box %>%
   group_by(labanimalid) %>% 
   select(labanimalid, box) %>% 
   unique() 
-rawfiles_box<- separate(rawfiles_box, col = box, into = c("boxorstation", "boxnumber"), sep = "[[:space:]]") # include box/station info just in case it is needed for future clarification
+rawfiles_box<- tidyr::separate(rawfiles_box, col = box, into = c("boxorstation", "boxnumber"), sep = "[[:space:]]") # include box/station info just in case it is needed for future clarification
 
 # XXX concern: 
-morethanone <- rawfiles_box %>% count(labanimalid) %>% filter(n != 1)
-cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone$labanimalid)
+morethanone <- rawfiles_box %>%
+  group_by(labanimalid) %>% 
+  select(labanimalid, boxnumber) %>% 
+  unique() 
+morethanone2 <- morethanone %>% count(labanimalid) %>% filter(n != 1)
+cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone2$labanimalid)
 cases
 
 # merge all data to create final raw table
@@ -289,6 +338,8 @@ rawfiles_pr <- rawfiles_pr[order(rawfiles_pr$labanimalid), ]
 
 # EXP 5: Delayed punishment
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Delayed punishment/")
+dpresses <- 
+system(dpresses)
 rawfiles_dpresses <- read.csv("delayed_presses.txt", head = F)
 colnames(rawfiles_dpresses) <- c("filename", "Lpresses", "Rpresses") 
 rawfiles_dpresses <- extractfromfilename(rawfiles_dpresses)
@@ -309,14 +360,17 @@ rawfiles_dshocks_check <- subset(rawfiles_dshocks_test2, attempted < completed);
 rawfiles_dboxes <- read.csv("delayed_boxes.txt", head = F)
 colnames(rawfiles_dboxes) <- c("filename", "box")
 
+delays <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $(NF-3) \" \" $(NF-2); exit}' {} \\; > delayed_delays.txt"
+system(delays)
 rawfiles_ddelays <- read.csv("delayed_delays.txt", head = F)
 colnames(rawfiles_ddelays) <- c("filename", "delay")
 rawfiles_ddelays$delay <- as.character(rawfiles_ddelays$delay)
 rawfiles_ddelays_test <- rawfiles_ddelays %>% 
-  mutate(delay2 = ifelse(grepl("\\d.*SEC", rawfiles_ddelays$delay), grep("\\d.*SEC$", rawfiles_ddelays$delay, value = T), NA))
+  mutate(delay2 = ifelse(grepl("\\d.*SEC", rawfiles_ddelays$delay), grep("\\d.*SEC$", rawfiles_ddelays$delay, value = T), NA)) # Clean up variable bc 'delay' variable takes messy data (like EARLYSHOCK _ SEC, 33 MS, etc.)
 # Clarify with Tom and then add these columns together
 
 rawfiles_ddelays_test <- extractfromfilename(rawfiles_ddelays_test)
+
 ## Appending info from WFU data 
 # Add rfid, sex, cohort
 WFUjoin.raw <- function(rawdf){
