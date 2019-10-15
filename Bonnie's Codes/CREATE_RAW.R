@@ -206,10 +206,14 @@ rawfiles_prepcalc$diff = trunc(rawfiles_prepcalc$reachtime) - trunc(rawfiles_pre
 rawfiles_prepcalc <- arrange(rawfiles_prepcalc, filename)
 rawfiles_prepcalc <- extractfromfilename(rawfiles_prepcalc)
 # rfid and lab animal id 
+rfidandid <- WFU_Jhou_test_df %>% 
+  select(labanimalnumber, rfid) %>% 
+  transmute(labanimalid = paste0("U", stringr::str_extract(labanimalnumber, "[1-9]+[0-9]*")),
+            rfid = rfid) # labanimalid vs labanimalnumber
+rawfiles_prepcalc <- left_join(rawfiles_prepcalc, rfidandid, by = "labanimalid") # add rfid column 
 
-rawfiles_prepcalc # get rfid from wfu table
 
-# # make session variable to make into long
+# # make session variable to make into long data 
 # i <- 1
 # j <- 1
 # repeat {
