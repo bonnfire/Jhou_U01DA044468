@@ -267,9 +267,14 @@ rawfiles_locomotor_wide$labanimalid <- stringr::str_extract(rawfiles_locomotor_w
 rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add rfid column
 rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add cohort column (xx WERE THESE DIVIDED INTO COHORTS)
 
+
+locomotorsessionstest <- rawfiles_locomotor_wide %>%
+  add_count(labanimalid) %>%
+  subset(n != 1) # XX see cases of 3 and 5 and need to know how to populate the session designation
+
 ### EXP 3: progressive punishment 
 # shocks (extract last and second to last for each session)
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Progressive punishment")
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/Progressive punishment")
 startshock <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $4 \",\" $6 \",\" $13}' {} \\; > startshock.txt"
 system(startshock)
 rawfiles_shock <- read.csv("startshock.txt", head = F)
@@ -289,12 +294,12 @@ extractfromfilename <- function(df){
 rawfiles_shock <- extractfromfilename(rawfiles_shock)
 # rawfiles_shock$orderofshocks <- with(rawfiles_shock, ave(shocks, cumsum(shocks == 0), FUN = seq_along)) - 1 # some cases in which shocks == 0 occurs consecutively
 
-# lever presses (extract last attempted active and inactive for each session)
+# lever presses (import all presses, but extract last attempted active and inactive for each session)
 levelpresses <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $4 \",\" $6}' {} \\; > leverpresses.txt"
 system(levelpresses)
 rawfiles_leverpresses <- read.csv("leverpresses.txt", head = F)
 colnames(rawfiles_leverpresses) <- c("filename", "activepresses", "inactivepresses") 
-rawfiles_leverpresses <- extractfromfilename(rawfiles_leverpresses)
+# rawfiles_leverpresses <- extractfromfilename(rawfiles_leverpresses)
 rawfiles_leverpresses_attempted <- rawfiles_leverpresses %>% group_by(filename) %>% slice(tail(row_number(), 1))
 
 # box info (assign to each U animal)
@@ -309,7 +314,7 @@ rawfiles_box <- rawfiles_box %>%
   unique() 
 rawfiles_box<- tidyr::separate(rawfiles_box, col = box, into = c("boxorstation", "boxnumber"), sep = "[[:space:]]") # include box/station info just in case it is needed for future clarification
 
-# XXX concern: 
+# XXX concern (some animals have more than one box designation): 
 morethanone <- rawfiles_box %>%
   group_by(labanimalid) %>% 
   select(labanimalid, boxnumber) %>% 
