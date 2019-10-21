@@ -180,11 +180,43 @@ Tom_Jhou_U01$dir_filename
 
 
 #### FROM RAW FILES 
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy")
+summaryall <- readxl::read_excel("U01 Master sheet_readonly.xlsx")
+names(summaryall) <- summaryall[1, ] %>% as.character()
+summaryall <- summaryall[-1, ]
+
+uniform.var.names.testingu01_df <- function(df) {
+  if(grepl("Parent", names(df)) %>% any()){
+    names(df)[1:2] <- df[1,][1:2] %>% as.character()
+    df <- df[-1, ]
+  }
+  names(df) <- mgsub::mgsub(names(df),
+                            c(" |\\.", "[(|)]", "#", "Transponder |16 digit", "Date of Wean|Wean Date","Animal"),
+                            c("", "_", "Number", "RF", "DOW","LabAnimal"))
+  names(df) <- mgsub::mgsub(names(df),
+                            c("DateofShipment", "LabAnimalID"), 
+                            c("ShipmentDate", "LabAnimalNumber"))
+  names(df) <- tolower(names(df))
+  df
+}
+summaryall <- uniform.var.names.testingu01_df(summaryall)
+# rfidandid <- dplyr::select(summaryall, jhoulabid, sex, rfid, shipmentcohort) # NOT SURE WHY DPLYR DOESN'T WORK
+rfidandid <- subset(summaryall, select = c("jhoulabid", "shipmentcohort", "wakeforestid", "sex", "rfid", "dob", "notesforhumans:", "resolution:")) # BASE SUBSET WORKS 
+rfidandid <- rfidandid %>% 
+  mutate(shipmentcohort = as.numeric(shipmentcohort) %>% as.character(),
+         dob = as.POSIXct(as.numeric(dob) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% 
+  rename(labanimalid = jhoulabid,
+         comment = `notesforhumans:`, 
+         resolution =`resolution:`) 
+# extracted the function from u01_qc file
+
+### Prepare comments and resolutions columns from Master sheet
+
 ## Text file preparation
 ### EXP 1: runway 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/Runway")
 # reach time 
-reachtime <- "find -type f -iname \"*.txt\" -print0 | xargs -0 awk '/REACHED/{print $1 \", \" FILENAME}' > reachrunway.txt"
+reachtime <- "find -type f -iname \"*RUNWAY*.txt\" -print0 | xargs -0 awk '/REACHED/{print $1 \", \" FILENAME}' > reachrunway.txt"
 system(reachtime)
 rawfiles_reach <- read.csv("reachrunway.txt", head = F)
 colnames(rawfiles_reach) <- c("reachtime", "filename") 
@@ -193,7 +225,7 @@ rawfiles_reach$filename <- sub(" ", "", rawfiles_reach$filename)
 rawfiles_reach$reachtime <- as.numeric(as.character(rawfiles_reach$reachtime))
 
 # location2.txt
-location2 <-"find -type f -iname \"*.txt\" -print0 | xargs -0 grep -P -m 1 \"LOCATION\\s\\t2\" > location2times.txt"
+location2 <-"find -type f -iname \"*RUNWAY*.txt\" -print0 | xargs -0 grep -P -m 1 \"LOCATION\\s\\t2\" > location2times.txt"
 system(location2)
 rawfiles_location2 <- read.csv("location2times.txt", head = F)
 rawfiles_location2_clean <- separate(rawfiles_location2, V1, into = c("filename", "loc2time"), sep = "[:]")
@@ -207,14 +239,32 @@ rawfiles_prepcalc$diff = trunc(rawfiles_prepcalc$reachtime) - trunc(rawfiles_pre
 rawfiles_prepcalc <- arrange(rawfiles_prepcalc, filename)
 rawfiles_prepcalc <- extractfromfilename(rawfiles_prepcalc)
 # rfid and lab animal id 
-rfidandid <- WFU_Jhou_test_df %>% 
-  select(labanimalnumber, rfid) %>% 
-  transmute(labanimalid = paste0("U", stringr::str_extract(labanimalnumber, "[1-9]+[0-9]*")),
-            rfid = rfid) # labanimalid vs labanimalnumber
-rawfiles_prepcalc <- left_join(rawfiles_prepcalc, rfidandid, by = "labanimalid") # add rfid column 
+# rfidandid <- WFU_Jhou_test_df %>% 
+#   select(labanimalnumber, rfid) %>% 
+#   transmute(labanimalid = paste0("U", stringr::str_extract(labanimalnumber, "[1-9]+[0-9]*")),
+#             rfid = rfid) # labanimalid vs labanimalnumber
 
+rawfiles_prepcalc <- left_join(rawfiles_prepcalc, rfidandid, by = "labanimalid") # add rfid column 
+rawfiles_prepcalc <- rawfiles_prepcalc %>% 
+  select(-c(reachtime, loc2time)) %>% 
+  rename(elapsedtime = diff) # get rid of the source values 
 # graphics for email: subset(rawfiles_prepcalc, is.na(rfid)) %>% select(labanimalid) %>% unique AND subset(rawfiles_prepcalc, is.na(loc2time))$filename
 
+## RUNWAY REVERSAL
+reversals <- "find -type f -iname \"*.txt\" -print0 | xargs -0 grep -c \"REVERSAL\" > reversals.txt"
+system(reversals)
+reversals <- read.csv("reversals.txt", head = F)
+reversals <- separate(reversals, V1, into = c("filename", "reversals"), sep = "[:]")
+
+# bind reversals with runway data 
+runway <- left_join(rawfiles_prepcalc, reversals, by = "filename") # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
+runway <- runway %>% 
+  mutate(age = as.numeric(date - dob)) %>%
+  select(-c(date, dob)) # calculate age and remove date 
+
+# unique resolutions are not very specific to runway data
+
+# *optional* add session info
 # # make session variable to make into long data 
 # i <- 1
 # j <- 1
@@ -229,18 +279,10 @@ rawfiles_prepcalc <- left_join(rawfiles_prepcalc, rfidandid, by = "labanimalid")
 # 
 # rawfiles_prepcalc_wide <- spread(rawfiles_prepcalc, session, diff)
 
-## RUNWAY REVERSAL
-reversals <- "find -type f -iname \"*.txt\" -print0 | xargs -0 grep -c \"REVERSAL\" > reversals.txt"
-system(reversals)
-reversals <- read.csv("reversals.txt", head = F)
-reversals <- separate(reversals, V1, into = c("filename", "reversals"), sep = "[:]")
-
-# bind reversals with runway data 
-runway <- left_join(rawfiles_prepcalc, reversals, by = "filename")
 
 ### EXP 2: locomotor 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Locomotor")
-bindata <- "find -type f -iname \"*.txt\" -exec awk '/^[1-9][0-9]*/{print FILENAME \",\" $2}' {} \; > bindata.txt" #extract the LOCOMOTOR COUNTS
+bindata <- "find -type f -iname \"*LOCOMOTOR*.txt\" -exec awk '/^[1-9][0-9]*/{print FILENAME \",\" $2}' {} \; > bindata.txt" #extract the LOCOMOTOR COUNTS
 system(bindata)
 rawfiles_locomotor <- read.csv("bindata.txt", head = F)
 colnames(rawfiles_locomotor) <- c("filename", "bincounts") 
@@ -263,14 +305,14 @@ rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>%
   mutate(binmeans = rowMeans(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]),
          bintotal = rowSums(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]))
 rawfiles_locomotor_wide$labanimalid <- stringr::str_extract(rawfiles_locomotor_wide$filename, "U[[:digit:]]+[[:alpha:]]*")
-# add rfid once I understand how TJ values are generated
-rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add rfid column
-rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add cohort column (xx WERE THESE DIVIDED INTO COHORTS)
+rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS)
 
 
 locomotorsessionstest <- rawfiles_locomotor_wide %>%
   add_count(labanimalid) %>%
-  subset(n != 1) # XX see cases of 3 and 5 and need to know how to populate the session designation
+  subset(n != 1) # XX see cases of 3 and 5 and need to know how to populate the session designation; expected pairs, 2 for 1 and 2 and 4 for 1a 2a and 1b 2b
+
+# XX only missing session (see above issue) and bodyweightperc
 
 ### EXP 3: progressive punishment 
 # shocks (extract last and second to last for each session)
@@ -284,8 +326,8 @@ extractfromfilename <- function(df){
     df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
   }
   df$labanimalid <- stringr::str_extract(df$filename, "U[[:digit:]]+[[:alpha:]]*")
-  df$date <- stringr::str_extract(df$filename, "[[:digit:]]{4}[-][[:digit:]]{4}")
-  df$date <- as.Date(df$date, "%Y-%m%d") 
+  df$date <- gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(df$filename, "[[:digit:]]{4}[-][[:digit:]]{4}"))
+  df$date <- as.POSIXct(df$date, tz = "UTC")
   df$time <- stringr::str_extract(df$filename, "[[:digit:]]{4}(?=_)")
   df$time <- gsub('([[:digit:]]{2})([[:digit:]]{2})', '\\1:\\2', df$time)
   df <- df[order(df$filename), ]
@@ -295,7 +337,7 @@ rawfiles_shock <- extractfromfilename(rawfiles_shock)
 # rawfiles_shock$orderofshocks <- with(rawfiles_shock, ave(shocks, cumsum(shocks == 0), FUN = seq_along)) - 1 # some cases in which shocks == 0 occurs consecutively
 
 # lever presses (import all presses, but extract last attempted active and inactive for each session)
-levelpresses <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $4 \",\" $6}' {} \\; > leverpresses.txt"
+levelpresses <- "find -type f -iname \"*CONFLICT*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $4 \",\" $6}' {} \\; > leverpresses.txt"
 system(levelpresses)
 rawfiles_leverpresses <- read.csv("leverpresses.txt", head = F)
 colnames(rawfiles_leverpresses) <- c("filename", "activepresses", "inactivepresses") 
@@ -303,7 +345,7 @@ colnames(rawfiles_leverpresses) <- c("filename", "activepresses", "inactivepress
 rawfiles_leverpresses_attempted <- rawfiles_leverpresses %>% group_by(filename) %>% slice(tail(row_number(), 1))
 
 # box info (assign to each U animal)
-box <- "find -type f -iname \"*.txt\" -exec awk '/Started script/{print FILENAME \",\" $(NF-1) \" \" $NF}' {} \\; > box.txt"
+box <- "find -type f -iname \"*CONFLICT*.txt\" -exec awk '/Started script/{print FILENAME \",\" $(NF-1) \" \" $NF}' {} \\; > box.txt"
 system(box)
 rawfiles_box <- read.csv("box.txt", head = F)
 colnames(rawfiles_box) <- c("filename", "box") 
@@ -341,10 +383,12 @@ rawfiles_pp <- left_join(rawfiles_pp, completedshocks, by = "filename")  %>%
 subset(rawfiles_pp, shocksattempted > shockscompleted) %>% dim() #complete number of completedshocks (=2781) 
 # this code allows for those that don't have any more than just one value, so same value for completed and attempted
 
+rawfiles_pp <- left_join(rawfiles_pp, rawfiles_leverpresses_attempted, by = "filename") # add left and right presses 
+
 ### EXP 4: Progressive ratio
 # max ratio
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Progressive ratio")
-maxratio <- "find -type f -iname \"*.txt\" -print0 | xargs -0 awk '/TIMEOUT/{print a \",\" FILENAME}{a=$4}' | awk '!/IS/' > maxratio.txt"
+maxratio <- "find -type f -iname \"*RATIO*.txt\" -print0 | xargs -0 awk '/TIMEOUT/{print a \",\" FILENAME}{a=$4}' | awk '!/IS/' > maxratio.txt"
 system(maxratio)
 rawfiles_maxratio <- read.csv("maxratio.txt", head = F)
 colnames(rawfiles_maxratio) <- c("maxratio", "filename") 
@@ -353,6 +397,7 @@ rawfiles_maxratio <- extractfromfilename(rawfiles_maxratio)
 rawfiles_maxratio <- rawfiles_maxratio[!(rawfiles_maxratio$labanimalid=="U187" & rawfiles_maxratio$maxratio==2),]
 
 # presses
+presses <- "find -type f -iname \"*RATIO*.txt\" -print0 | xargs -0 awk '/TIMEOUT/{print FILENAME \",\" $7 \"\" $9}' | awk '!/IS/' > landrpresses.txt"
 rawfiles_randl <- read.csv("landrpresses.txt", head = F)
 colnames(rawfiles_randl) <- c("filename", "Lpresses", "Rpresses") 
 
@@ -363,19 +408,32 @@ rawfiles_pr <- rawfiles_pr[order(rawfiles_pr$labanimalid), ]
 
 
 # EXP 5: Delayed punishment
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Delayed punishment/")
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/Delayed punishment/")
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Delayed punishment") # while dropbox is updating the clone
+
+# find -type f -iname "*PUNISHMENT*.txt" ! -path "*error*" -exec awk '/ENDING/{print FILENAME}' {} \; 
+
 files <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # exclude existing txt files and include any corrective "qualifiers" 
+files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team)
 read_delayedpresses<-function(x){
   data = fread(paste0("tac ","'",x,"'", "| awk '/LEFTPRESSES/{print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F)  
   data$id<-x
   data <- as.data.frame(data)
   return(data)
 }
-rawfiles_dpresses <- lapply(files, read_delayedpresses)
-rawfiles_dpresses_test <- bind_rows(rawfiles_dpresses) 
+rawfiles_dpresses <- lapply(files_clean, read_delayedpresses)
+rawfiles_dpresses_df <- bind_rows(rawfiles_dpresses) 
 # rawfiles_dpresses <- read.csv("delayed_presses.txt", head = F) # no longer using this text file because it was based on the line above TIMEOUT
-colnames(rawfiles_dpresses_test) <- c("Lpresses", "Rpresses", "filename") 
-rawfiles_dpresses_test <- extractfromfilename(rawfiles_dpresses_test)
+colnames(rawfiles_dpresses_df) <- c("Lpresses", "Rpresses", "filename") 
+#  rawfiles_dpresses_test <- extractfromfilename(rawfiles_dpresses_df) # do this at the very end
+
+read_delayedshocks <- function(x){
+  data = fread(paste0("tac ","'",x,"'", "| grep -m2 \"MA\" | awk '{print $13}'"), header=F, fill=T, showProgress = F)  
+  data$id<-x
+  data <- as.data.frame(data)
+  return(data)
+} #get shocks 
+rawfiles_dpresses <- lapply(files_clean, read_delayedpresses)
 
 
 dshocks <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $13}' {} + > alldelayed_shocks.txt"
@@ -396,7 +454,7 @@ rawfiles_dshocks_check <- subset(rawfiles_dshocks_test2, attempted < completed);
 rawfiles_dboxes <- read.csv("delayed_boxes.txt", head = F)
 colnames(rawfiles_dboxes) <- c("filename", "box")
 
-delays <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $(NF-3) \" \" $(NF-2); exit}' {} \\; > delayed_delays.txt"
+delays <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $(NF-3) \",\" $(NF-2); exit}' {} \\; > delayed_delays.txt"
 system(delays)
 rawfiles_ddelays <- read.csv("delayed_delays.txt", head = F)
 colnames(rawfiles_ddelays) <- c("filename", "delay")
@@ -405,7 +463,102 @@ rawfiles_ddelays_test <- rawfiles_ddelays %>%
   mutate(delay2 = ifelse(grepl("\\d.*SEC", rawfiles_ddelays$delay), grep("\\d.*SEC$", rawfiles_ddelays$delay, value = T), NA)) # Clean up variable bc 'delay' variable takes messy data (like EARLYSHOCK _ SEC, 33 MS, etc.)
 # Clarify with Tom and then add these columns together
 
+
+
+## retake on prog punishment data
+# get row numbers from awk nr 
+# use in sed to find the number of 
+# assign yes or no to complete or attempt columns 
+# group by and tail
 rawfiles_ddelays_test <- extractfromfilename(rawfiles_ddelays_test)
+
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive punishment") # using their copy to prevent any copy issues
+files <- list.files(path=".", pattern=".*CONFLICT.*.txt", full.names=TRUE, recursive=TRUE)
+files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] # clean out errors # XX DO LATER, CREATE SUBSET OF ONES THAT DON'T FOLLOW FORMAT
+create_progpuntable <- function(x){
+  thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
+  thistrialrownumandshock$filename<-x
+  thistrialrownumandshock <- as.data.frame(thistrialrownumandshock)
+  thistrialrownumandshock <- bind_rows(thistrialrownumandshock)
+  colnames(thistrialrownumandshock) = c("trialnum", "shockma", "rownum", "filename")
+  thistrialrownumandshock %>% 
+    group_by(filename) %>% 
+    tail(2) #limit the calculations of the number of LEFTPRESSES to two per filename 
+  # numofsessions <- list() #create empty list to populate and then turn into dataframe
+}
+
+# before they respond, just exclude those files 
+data = lapply(files_clean, create_progpuntable) 
+
+data2 <- data %>% 
+  group_by(filename) %>% 
+  do(tail(., 2))
+oneobservation <- data2 %>% count(filename) %>% subset(n!=2)
+
+data2_valid <- data2 %>% 
+  group_by(filename) %>%
+  mutate(count = n()) %>% 
+  ungroup() %>% 
+  filter(count == 2)
+
+  # numofsessions <- matrix(ncol=2, nrow=18162)
+  
+  for(i in 1:length(thistrialrownumandshock$rownum)){
+    numofsessions = fread(paste0("sed -n ", thistrialrownumandshock$rownum[i], ",",  thistrialrownumandshock$rownum[i+1], "p", "'",x,"'", " | grep -c \"LEFTPRESSES\""))
+    numofsessions$filename<-x                      
+  }
+  # data2 <- 
+  # data <- cbind(data2)
+  numofsessions <- data.frame(numofsessions)
+  return(numofsessions)
+ #get shocks 
+
+
+
+numofsessions <- list()
+
+data2_valid_subset <- data2_valid[1:100,]
+create_progpuntable_tocategorize <- function(x){
+  numofsessions <- list()
+  for(i in seq(1,nrow(x),2)){
+
+    numleftpressesbwlasttwo = fread(paste0("sed -n ", x$rownum[i], ",", x$rownum[i+1], "p ", "'", x$filename[i], "'", " | grep -c \"LEFTPRESSES\""), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+    numleftpressesbwlasttwo$filename <-x$filename[i]   
+    
+    numleftpresseslast = fread(paste0("sed -n '", x$rownum[i + 1] , ",/ENDING/p' ", "'", x$filename[i], "'", " | grep -c \"LEFTPRESSES\""), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+    numleftpresseslast$filename <-x$filename[i] 
+    
+    secondtolastshock = fread(paste0("awk 'NR == " , x$rownum[i]," {print $13}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+      # might use reg exp (?:([1-9]?[0-9])[a-zA-Z ]{0,20}(?:arrests|arrested))
+    secondtolastshock$filename <-x$filename[i] 
+    
+    
+    lastshock = fread(paste0("awk 'NR == " , x$rownum[i+1]," {print $13}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+    # might use reg exp (?:([1-9]?[0-9])[a-zA-Z ]{0,20}(?:arrests|arrested))
+    lastshock$filename <-x$filename[i] 
+    
+    
+    filelasttwoandlast <- merge(numleftpressesbwlasttwo,numleftpresseslast, by = "filename") # for each file, merge the count of LEFTPRESSES occurences
+    filelasttwoandlast <- merge(filelasttwoandlast, secondtolastshock, by = "filename") # for each file, merge the MA value (last two)
+    filelasttwoandlast <- merge(filelasttwoandlast, lastshock, by = "filename")
+    
+    names(filelasttwoandlast) = c("filename", "numleftpressesbwlasttwo","numleftpresseslast", "secondtolastshock", "lastshock")
+    numofsessions[[i]] <- filelasttwoandlast # add to list 
+  }
+  numofsessions_df = do.call(rbind, numofsessions)
+  # numofsessions <- as.data.frame(numofsessions)
+  return(numofsessions_df)
+}
+
+
+data_categories = create_progpuntable_tocategorize(data2_valid_subset) 
+ 
+data_categories <- data_categories %>% 
+  mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
+         lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
+
+
+
 
 ## Appending info from WFU data 
 # Add rfid, sex, cohort
