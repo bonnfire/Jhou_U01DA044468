@@ -337,6 +337,12 @@ runway_loc2 <- lapply(runwayfiles_clean, function(x){
 
 runway_loc2_df <- rbindlist(runway_loc2, fill = T) 
 
+
+# redo reversals since it is only the number of lines of reversals between start and reaching goalbox 
+
+
+
+
 # reversals <- "find -type f -iname \"*.txt\" -print0 | xargs -0 grep -c \"REVERSAL\" > reversals.txt" ## XX PICK UP AND CONFIRM ONLY REVERSALS BEFORE REACH
 # system(reversals)
 # reversals <- read.csv("reversals.txt", head = F)
