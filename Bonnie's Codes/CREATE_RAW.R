@@ -321,7 +321,7 @@ rawfiles_prepcalc <- left_join(rawfiles_prepcalc, rfidandid, by = "labanimalid")
 
 # graphics for email: subset(rawfiles_prepcalc, is.na(rfid)) %>% select(labanimalid) %>% unique AND subset(rawfiles_prepcalc, is.na(loc2time))$filename
 
-## RUNWAY REVERSAL
+
 
 readrunwayloc2 <- function(x){
   runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
@@ -337,19 +337,25 @@ runway_loc2 <- lapply(runwayfiles_clean, function(x){
 
 runway_loc2_df <- rbindlist(runway_loc2, fill = T) 
 
-
+## RUNWAY REVERSAL
 # redo reversals since it is only the number of lines of reversals between start and reaching goalbox 
 
+read_runwayrevs <- function(x){
+  reversals <- fread(paste0("sed -n '/OPENING/,/REACHED/p' ", "'", x, "'", " | grep -c \"REVERSAL\""))
+  reversals$filename <- x 
+  return(reversals)
+  }
 
-
-
-# reversals <- "find -type f -iname \"*.txt\" -print0 | xargs -0 grep -c \"REVERSAL\" > reversals.txt" ## XX PICK UP AND CONFIRM ONLY REVERSALS BEFORE REACH
+runway_reversals <- lapply(runwayfiles_clean, read_runwayrevs) %>% rbindlist(fill = T)
+names(runway_reversals) <- c("reversals", "filename")
+  
+# reversals <- "find -type f -iname \"*.txt\" -print0 | xargs -0 grep -c \"REVERSAL\" > reversals.txt"
 # system(reversals)
 # reversals <- read.csv("reversals.txt", head = F)
 # reversals <- separate(reversals, V1, into = c("filename", "reversals"), sep = "[:]")
 
 # bind reversals with runway data 
-runway <- left_join(rawfiles_prepcalc, reversals, by = "filename") # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
+runway <- left_join(rawfiles_prepcalc, runway_reversals, by = "filename") # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
 runway <- runway %>% 
   mutate(age = as.numeric(date - dob)) %>%
   select(-c(date, dob)) # calculate age and remove date 
@@ -530,7 +536,7 @@ morethanone <- boxesandstations_df %>%
   unique() 
 morethanone2 <- morethanone %>% count(labanimalid) %>% filter(n != 1)
 cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone2$labanimalid)
-cases # just 6 and 8 now
+cases # just 6 and 8 now XX already made note to Tom Jhou's team
 
 
 left_join(data_categories_wcat, progpun_presses, by = filename)  
@@ -553,18 +559,18 @@ rawfiles_box<- tidyr::separate(rawfiles_box, col = box, into = c("boxorstation",
 
 
 # merge all data to create final raw table
-rawfiles_pp <- rawfiles_shock %>%
-  group_by(filename) %>% 
-  slice(tail(row_number(), 1))
-completedshocks <- rawfiles_shock %>%
-  group_by(filename) %>% 
-  slice(tail(row_number(), 2)) %>% 
-  group_by(filename) %>%
-  slice(head(row_number(), 1)) %>% 
-  select(filename, shocks)
-rawfiles_pp <- left_join(rawfiles_pp, completedshocks, by = "filename")  %>% 
-  rename(shocksattempted = shocks.x,
-         shockscompleted = shocks.y) 
+# rawfiles_pp <- rawfiles_shock %>%
+#   group_by(filename) %>% 
+#   slice(tail(row_number(), 1))
+# completedshocks <- rawfiles_shock %>%
+#   group_by(filename) %>% 
+#   slice(tail(row_number(), 2)) %>% 
+#   group_by(filename) %>%
+#   slice(head(row_number(), 1)) %>% 
+#   select(filename, shocks)
+# rawfiles_pp <- left_join(rawfiles_pp, completedshocks, by = "filename")  %>% 
+#   rename(shocksattempted = shocks.x,
+#          shockscompleted = shocks.y) 
 # XX ATTACH CODE BACK IF APPLICABLE ONCE YOU GET THE OK FROM JHOU LAB
 #  %>% mutate(box = rawfiles_box[which(rawfiles_box$labanimalid == rawfiles_pp$labanimalid), ]$boxnumber) #cannot assign box numbers is more than one for every id
 subset(rawfiles_pp, shocksattempted > shockscompleted) %>% dim() #complete number of completedshocks (=2781) 
