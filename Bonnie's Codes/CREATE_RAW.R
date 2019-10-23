@@ -6,6 +6,7 @@ library(dplyr)
 library(data.table)
 library(tidyr)
 library(tidyxl)
+library(readxl)
 
 ################################
 ##### Delayed punishment #######
@@ -179,8 +180,9 @@ Tom_Jhou_U01$dir_filename
 #column7: cohort
 #count number of unique files for each animals
 
-
-#### FROM RAW FILES 
+##########################
+#### FROM RAW FILES ######
+##########################
 
 # self defined functions 
 
@@ -218,32 +220,51 @@ uniform.var.names.testingu01_df <- function(df) {
 # using Dropbox copy setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy")
 
 # process the master excel file (mainly for comments and resolutions columns)
-# summaryall <- readxl::read_excel("U01 Master sheet_readonly.xlsx")
-# names(summaryall) <- summaryall[1, ] %>% as.character()
-# summaryall <- summaryall[-1, ]
-# summaryall <- uniform.var.names.testingu01_df(summaryall)
-# # rfidandid <- dplyr::select(summaryall, jhoulabid, sex, rfid, shipmentcohort) # NOT SURE WHY DPLYR DOESN'T WORK
-# rfidandid <- subset(summaryall, select = c("jhoulabid", "shipmentcohort", "wakeforestid", "sex", "rfid", "dob", "notesforhumans:", "resolution:")) # BASE SUBSET WORKS 
-# rfidandid <- rfidandid %>% 
-#   mutate(shipmentcohort = as.numeric(shipmentcohort) %>% as.character(),
-#          dob = as.POSIXct(as.numeric(dob) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% 
-#   rename(labanimalid = jhoulabid,
-#          comment = `notesforhumans:`, 
-#          resolution =`resolution:`) 
-# 
+setwd("~/Dropbox (Palmer Lab)/U01 folder")
+summaryall <- readxl::read_excel("U01 Master sheet_readonly.xlsx")
+names(summaryall) <- summaryall[1, ] %>% as.character()
+summaryall <- summaryall[-1, ]
+summaryall <- uniform.var.names.testingu01_df(summaryall)
+# rfidandid <- dplyr::select(summaryall, jhoulabid, sex, rfid, shipmentcohort) # NOT SURE WHY DPLYR DOESN'T WORK
+rfidandid <- subset(summaryall, select = c("jhoulabid", "shipmentcohort", "wakeforestid", "sex", "rfid", "dob", "notesforhumans:", "resolution:")) # BASE SUBSET WORKS
+rfidandid <- rfidandid %>%
+  mutate(shipmentcohort = as.numeric(shipmentcohort) %>% as.character(),
+         dob = as.POSIXct(as.numeric(dob) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>%
+  rename(labanimalid = jhoulabid,
+         comment = `notesforhumans:`,
+         resolution =`resolution:`)
+
 
 # using original copy latest updates 
 
 # trying to get the color formats 
 setwd("~/Dropbox (Palmer Lab)/U01 folder")
-Jhou_Master <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx")
-Jhou_Master$local_format_id %>% head()
-Jhou_Master_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
+Jhou_Master <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx", sheets = NA) # read all sheets, sheets = NA
+Jhou_Master_formats<-tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
+# Jhou_Master_formats$local$font$color$rgb %>% unique shades of pink, orange, and red
+red_index<-which(Jhou_Master_formats$local$font$color$rgb=="FF000000")
+# Jhou_Master_formats$local$font$color$rgb %>% as.factor() %>% summary() used the most frequent to query
+redJhou_Master <- Jhou_Master[ Jhou_Master$local_format_id %in% red_index,  ]
+redJhou_Progpun <- redJhou_Master %>% 
+  filter(sheet == "Progressive Punishment")
+# redJhou_Progpun$data_type %>% as.factor() %>% summary()
+
+
+# use the red value from excel sheet to find patterns and omit values from the raw files
+
+# read in all sheets 
+master_sheetnames <- excel_sheets("U01 Master sheet_readonly.xlsx")
+Jhou_master_filelist <- lapply(master_sheetnames, read_excel, path = "U01 Master sheet_readonly.xlsx")
+names(Jhou_master_filelist) <- master_sheetnames
+redJhou_Master_df <- Jhou_master_filelist$`Progressive Punishment`[redJhou_Progpun$row, redJhou_Progpun$col] # don't run, may not work
+
+
+
+
 
 ## Text file preparation
 ### EXP 1: runway 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
-list.files()
 
 # reach time 
 readrunway <- function(x){
@@ -254,34 +275,32 @@ readrunway <- function(x){
 
 runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) # note the 4221 id in one file, but seems to be no error files so below code is unneeded
 # files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] 
+# runwayfiles_clean <- gsub(" ", "\\\\ ", runwayfiles_clean) # not the issue for not being able to access the files
 
-
-runway_reach <- lapply(runwayfiles_clean, function(x){
-  data <- readrunway(x)
-  data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
-  return(data)
-}) # cannot assign the colnames in fxn bc of one vs two column setup 
+runway_reach <- lapply(runwayfiles_clean, readrunway)
+  # data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
+ #  return(data)
+# }) # cannot assign the colnames in fxn bc of one vs two column setup 
 
 runway_reach_df <- rbindlist(runway_reach, fill = T) 
 runway_reach_df <- runway_reach_df %>% 
-  select(-RUNWAY) %>% 
-  rename("reachtime" = "V1") # remove RUNWAY bc df has 3187 rows and RUNWAY holds 3187 NA's 
+ #  select(-RUNWAY) %>% 
+  rename("reachtime" = "V1") # remove RUNWAY bc df has 3187 rows and RUNWAY holds 3187 NA's # this iteration didn't have RUNWAY variable 
 
 # evaluate NA reachtime cases
 runway_reachtimeNA <- subset(runway_reach_df, is.na(reachtime)==T) ## XX Made note to Maya already
 
-# location2.txt
+# location2 time 
 readrunwayloc2 <- function(x){
   runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
   runwayloc2$filename <- x
   return(runwayloc2)
 }
 
-runway_loc2 <- lapply(runwayfiles_clean, function(x){
-  data <- readrunwayloc2(x)
-  data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
-  return(data)
-}) # cannot assign the colnames in fxn bc of one vs two column setup 
+runway_loc2 <- lapply(runwayfiles_clean, readrunwayloc2)
+  # data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
+#   return(data)
+# }) # cannot assign the colnames in fxn bc of one vs two column setup 
 
 runway_loc2_df <- rbindlist(runway_loc2, fill = T) 
 runway_loc2_df <- runway_loc2_df %>% 
@@ -292,7 +311,8 @@ runway_loc2_df <- runway_loc2_df %>%
   mutate(loc2time = as.numeric(as.character(loc2time)))
 
 # evaluate non location 2 cases 
-loc2non2 <- subset(runway_loc2_df, locationnum != 2) # Noted to Maya and Alen 
+
+loc2non2 <- subset(runway_loc2_df, is.na(locationnum)) # Noted to Maya and Alen # originally != 2 but changed to is.na because of summary(runway_loc2_df$locationnum) 
 
 # location2 <-"find -type f -iname \"*RUNWAY*.txt\" -print0 | xargs -0 grep -P -m 1 \"LOCATION\\s\\t2\" > location2times.txt"
 # system(location2)
@@ -304,38 +324,20 @@ loc2non2 <- subset(runway_loc2_df, locationnum != 2) # Noted to Maya and Alen
 # join together loc2 and reach, calculate elapsed time, and join to shipping data
 
 # rawfiles_prepcalc <- left_join(rawfiles_reach, rawfiles_location2_clean, by = "filename")
-rawfiles_prepcalc <- left_join(runway_reach_df, runway_loc2_df, by = "filename")
-rawfiles_prepcalc <- rawfiles_prepcalc %>% 
+rawfiles_calc <- left_join(runway_reach_df, runway_loc2_df, by = "filename") %>% 
   #filter(locationnum == 2) %>% 
   mutate(elapsedtime = trunc(reachtime) - trunc(loc2time)) %>%  # turn to transmute once all edges are smooth 
   arrange(filename) %>% 
-  extractfromfilename # sort by ascending filename and get animal id and exp date/time
+  extractfromfilename %>%  # sort by ascending filename and get animal id and exp date/time 
+  left_join(., rfidandid, by = "labanimalid") # add rfid column # created rfidandid from the master shipment file, the first page -- summaryall
 
-# rfid and lab animal id 
+# rfid and lab animal id ## NO LONGER USING BC IT IS NOT A DIRECT TRANSLATION
 # rfidandid <- WFU_Jhou_test_df %>% 
 #   select(labanimalnumber, rfid) %>% 
 #   transmute(labanimalid = paste0("U", stringr::str_extract(labanimalnumber, "[1-9]+[0-9]*")),
 #             rfid = rfid) # labanimalid vs labanimalnumber
 
-rawfiles_prepcalc <- left_join(rawfiles_prepcalc, rfidandid, by = "labanimalid") # add rfid column 
-
 # graphics for email: subset(rawfiles_prepcalc, is.na(rfid)) %>% select(labanimalid) %>% unique AND subset(rawfiles_prepcalc, is.na(loc2time))$filename
-
-
-
-readrunwayloc2 <- function(x){
-  runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
-  runwayloc2$filename <- x
-  return(runwayloc2)
-}
-
-runway_loc2 <- lapply(runwayfiles_clean, function(x){
-  data <- readrunwayloc2(x)
-  data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
-  return(data)
-}) # cannot assign the colnames in fxn bc of one vs two column setup 
-
-runway_loc2_df <- rbindlist(runway_loc2, fill = T) 
 
 ## RUNWAY REVERSAL
 # redo reversals since it is only the number of lines of reversals between start and reaching goalbox 
@@ -355,11 +357,14 @@ names(runway_reversals) <- c("reversals", "filename")
 # reversals <- separate(reversals, V1, into = c("filename", "reversals"), sep = "[:]")
 
 # bind reversals with runway data 
-runway <- left_join(rawfiles_prepcalc, runway_reversals, by = "filename") # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
-runway <- runway %>% 
-  mutate(age = as.numeric(date - dob)) %>%
+runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>% # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
+  mutate(experimentage = as.numeric(date - dob)) %>%
   select(-c(date, dob)) # calculate age and remove date 
 
+# observations from the plots
+# outlier in cohort 7
+summary(runway$elapsedtime)
+runway %>% filter(elapsedtime > 1500)
 # unique resolutions are not very specific to runway data
 
 # *optional* add session info

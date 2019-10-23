@@ -1,4 +1,4 @@
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy")
+setwd("~/Dropbox (Palmer Lab)/U01 folder")
 
 # Load libraries
 library(tidyverse) #loads dplyr, tidyr, ggplot2, purrr, etc
