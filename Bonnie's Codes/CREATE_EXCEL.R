@@ -33,8 +33,8 @@ colnames(tJhou_Runway) <- as.character(tJhou_Runway[1,])
 tJhou_Runway <- tJhou_Runway[-1,] # data.table cannot delete rows by reference with tJhou_Runway[1 := NULL,]  
 
 # append reversals to column names
-reversalstartindex <- which(grepl("^Hab", colnames(tJhou_Runway)))[3]
-reversalendindex <- which(grepl("^Coc.*12$", colnames(tJhou_Runway)))[2]
+reversalstartindex <- which(grepl("^Hab", colnames(tJhou_Runway)))[3] # find the third occurence of habituation 1,2,1,2
+reversalendindex <- which(grepl("^Coc.*12$", colnames(tJhou_Runway)))[2] # find the second occurence of cocaine12 (1, 2)
 
 colnames(tJhou_Runway)[reversalstartindex:reversalendindex] <- paste0(colnames(tJhou_Runway)[reversalstartindex:reversalendindex], "Reversals") # append reversals
 
@@ -42,15 +42,33 @@ colnames(tJhou_Runway)[reversalstartindex:reversalendindex] <- paste0(colnames(t
 # separate reversals from elapsed time information
 
 tJhou_Runway_vars_nonrevers <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) %>% 
-  grep('\\d+(?!Reversals)$', . , value = T, perl=T)
+  grep('\\d+(?!Reversals)$', . , value = T, perl=T) 
 tJhou_Runway_nonreverswide <- tJhou_Runway[, tJhou_Runway_vars_nonrevers, with=FALSE]
+names(tJhou_Runway_nonreverswide) <- ifelse(str_count(tJhou_Runway_vars_nonrevers, "\\d")==1, gsub(" (\\d)", "0\\1", tJhou_Runway_vars_nonrevers), gsub(" ", "", tJhou_Runway_vars_nonrevers))
 tJhou_Runway_nonreverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id element but retain the animal ids for the data
+
 
 tJhou_Runway_vars_reversals <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) %>% 
   grep('\\d+(?=Reversals)', . , value = T, perl=T)
 tJhou_Runway_reverswide <- tJhou_Runway[, tJhou_Runway_vars_reversals, with=FALSE]
+names(tJhou_Runway_reverswide) <- ifelse(str_count(tJhou_Runway_vars_reversals, "\\d")==1, gsub(" (\\d)", "0\\1", tJhou_Runway_vars_reversals), gsub(" ", "", tJhou_Runway_vars_reversals))
 tJhou_Runway_reverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id element but retain the animal ids for the data
+
 
 # convert wide to long formats for both reversals and elapsed time datasets 
 
-tJhou_Runway_long <- gather(tJhou_Runway_wide, session, elapsedtime, control:cond2, factor_key=TRUE)
+tJhou_Runway_nonreverslong <- gather(tJhou_Runway_nonreverswide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) 
+tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numreversals, `Habituation01Reversals`:`Cocaine12Reversals`, factor_key=F) 
+
+tJhou_Runway <- left_join(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong, by = "animalid") %>% 
+  arrange(animalid, session)
+
+# attempt at not separating, needs to do above and cbind 
+# tJhou_Runway_vars <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) 
+# tJhou_Runway_wide <- tJhou_Runway[, tJhou_Runway_vars, with=FALSE]
+# names(tJhou_Runway_wide) <- ifelse(str_count(tJhou_Runway_vars, "\\d")==1, gsub(" (\\d)", "0\\1", tJhou_Runway_vars), gsub(" ", "", tJhou_Runway_vars))
+# 
+# tJhou_Runway_long <- gather(tJhou_Runway_wide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) %>% 
+#   gather(., reversalsessions, numreversals, `Habituation01Reversals`:`Cocaine12Reversals`, factor_key = F) %>% 
+#   arrange(AnimalID, session)
+
