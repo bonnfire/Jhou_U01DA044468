@@ -60,15 +60,7 @@ tJhou_Runway_reverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id
 tJhou_Runway_nonreverslong <- gather(tJhou_Runway_nonreverswide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) 
 tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numreversals, `Habituation01Reversals`:`Cocaine12Reversals`, factor_key=F) 
 
-tJhou_Runway <- left_join(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong, by = "animalid") %>% 
-  arrange(animalid, session)
+tJhou_Runway <- cbind(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong %>% select(-animalid)) %>% 
+  arrange(animalid, session) # all ids are represented 14 times
 
-# attempt at not separating, needs to do above and cbind 
-# tJhou_Runway_vars <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) 
-# tJhou_Runway_wide <- tJhou_Runway[, tJhou_Runway_vars, with=FALSE]
-# names(tJhou_Runway_wide) <- ifelse(str_count(tJhou_Runway_vars, "\\d")==1, gsub(" (\\d)", "0\\1", tJhou_Runway_vars), gsub(" ", "", tJhou_Runway_vars))
-# 
-# tJhou_Runway_long <- gather(tJhou_Runway_wide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) %>% 
-#   gather(., reversalsessions, numreversals, `Habituation01Reversals`:`Cocaine12Reversals`, factor_key = F) %>% 
-#   arrange(AnimalID, session)
 
