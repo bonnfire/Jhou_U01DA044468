@@ -25,7 +25,7 @@ runway_wholenumbercohorts <- runway %>%
 
 # process the runway_excel data to make shipment cohorts (reorder and WFU); append shipment cohort information from summaryall
 
-tJhou_Runway_graph <- tJhou_Runway %>% 
+tJhou_Runway_graph <- tJhou_Runway_data %>% 
   rename(labanimalid = animalid) %>%
   merge(x = ., y = rfidandid[, c("labanimalid", "shipmentcohort")], by = "labanimalid", all.x=T) %>%
   mutate(shipmentcohort = shipmentcohort %>% as.numeric() %>% sort(decreasing = F) %>% factor) # NA shippment cohort
@@ -33,7 +33,7 @@ tJhou_Runway_graph <- tJhou_Runway %>%
  # check if all missing shipping information correlates to dead animals (check in runway table as well)
 
 
-tJhou_Runway_wholenumbercohorts <- tJhou_Runway %>% 
+tJhou_Runway_wholenumbercohorts <- tJhou_Runway_data %>% 
   mutate(shipmentcohort = as.numeric(as.character(shipmentcohort)) %>% trunc() %>% sort(decreasing = F) %>% as.factor())
 
 

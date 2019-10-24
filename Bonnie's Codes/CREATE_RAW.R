@@ -364,15 +364,6 @@ runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>% # clea
   select(-c(date, dob)) # calculate age and remove date 
 
 
-# gives counts of sessions counts 
-runway %>% group_by(labanimalid) %>% count() %>% group_by(n) %>% count()
-
-# observations from the plots
-# outlier in cohort 7
-summary(runway$elapsedtime)
-runway %>% filter(elapsedtime > 1500)
-# unique resolutions are not very specific to runway data
-
 # *optional* add session info
 # # make session variable to make into long data 
 # i <- 1
