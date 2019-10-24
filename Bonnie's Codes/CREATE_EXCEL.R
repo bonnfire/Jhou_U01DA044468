@@ -19,6 +19,11 @@ u01.importxlsx <- function(xlname){
 Jhou_Excel <- u01.importxlsx("U01 Master sheet_readonly.xlsx")
 
 ################################
+########### Summary All ########
+################################
+# see summaryall from CREATE_RAW.R
+
+################################
 ########### Runway #############
 ################################
 
@@ -63,4 +68,4 @@ tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numr
 tJhou_Runway <- cbind(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong %>% select(-animalid)) %>% 
   arrange(animalid, session) # all ids are represented 14 times
 
-
+tJhou_Runway

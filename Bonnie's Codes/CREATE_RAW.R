@@ -225,14 +225,16 @@ summaryall <- readxl::read_excel("U01 Master sheet_readonly.xlsx")
 names(summaryall) <- summaryall[1, ] %>% as.character()
 summaryall <- summaryall[-1, ]
 summaryall <- uniform.var.names.testingu01_df(summaryall)
+
 # rfidandid <- dplyr::select(summaryall, jhoulabid, sex, rfid, shipmentcohort) # NOT SURE WHY DPLYR DOESN'T WORK
 rfidandid <- subset(summaryall, select = c("jhoulabid", "shipmentcohort", "wakeforestid", "sex", "rfid", "dob", "notesforhumans:", "resolution:")) # BASE SUBSET WORKS
 rfidandid <- rfidandid %>%
-  mutate(shipmentcohort = as.numeric(shipmentcohort) %>% as.character(),
+  mutate(shipmentcohort = shipmentcohort %>% as.numeric() %>% round(digits = 3),
          dob = as.POSIXct(as.numeric(dob) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>%
   rename(labanimalid = jhoulabid,
          comment = `notesforhumans:`,
          resolution =`resolution:`)
+
 
 
 # using original copy latest updates 
@@ -360,6 +362,10 @@ names(runway_reversals) <- c("reversals", "filename")
 runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>% # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
   mutate(experimentage = as.numeric(date - dob)) %>%
   select(-c(date, dob)) # calculate age and remove date 
+
+
+# gives counts of sessions counts 
+runway %>% group_by(labanimalid) %>% count() %>% group_by(n) %>% count()
 
 # observations from the plots
 # outlier in cohort 7
