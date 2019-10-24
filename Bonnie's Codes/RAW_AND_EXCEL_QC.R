@@ -4,6 +4,8 @@ library(dplyr)
 library(tidyverse)
 library(stringr)
 library(data.table)
+library(ggplot2)
+
 ################################
 ########### Runway #############
 ################################
@@ -29,8 +31,14 @@ readrunwayweight <- function(x){
 runway_weight <- lapply(runwayfiles_clean, readrunwayweight) %>% rbindlist(., fill = T) 
 runway_weight <- runway_weight %>% 
   rename("weight" = "V1") %>% 
-  extractfromfilename()
+  extractfromfilename() %>%
+  merge(x = ., y = rfid[ , c("labanimalid", "sex", "dob")], by = "labanimal", all.x=TRUE) %>% 
+  mutate(experimentage = as.numeric(runway_weight$date - runway_weight$dob),
+         cohort = stringr::str_match(filename, "Cohort \\d+"))
 
+ggplot(runway_weight %>% filter(sex != "```", experimentage > 0), aes(x = experimentage, y = weight)) +
+  geom_jitter(aes(color = sex)) + 
+  facet_wrap( ~ cohort)
 
 # extract cohort information from directories
 
