@@ -13,6 +13,8 @@ library(ggplot2)
 # gives counts of sessions counts 
 # runway %>% group_by(labanimalid) %>% count() %>% group_by(n) %>% count()
 
+# add more columns
+
 # check for duplicates 
 
 # # by filename
@@ -32,7 +34,7 @@ runway_weight <- lapply(runwayfiles_clean, readrunwayweight) %>% rbindlist(., fi
 runway_weight <- runway_weight %>% 
   rename("weight" = "V1") %>% 
   extractfromfilename() %>%
-  merge(x = ., y = rfid[ , c("labanimalid", "sex", "dob")], by = "labanimal", all.x=TRUE) %>% 
+  merge(x = ., y = rfid[ , c("labanimalid", "sex", "dob")], by = "labanimalid", all.x=TRUE) %>% 
   mutate(experimentage = as.numeric(runway_weight$date - runway_weight$dob),
          cohort = stringr::str_match(filename, "Cohort \\d+"))
 
@@ -64,3 +66,24 @@ not7or12wnotes <- left_join(not7or12, tJhou_Runway_notes, by = c("labanimalid" =
 summary(runway$elapsedtime)
 runway %>% filter(elapsedtime > 1500)
 # unique resolutions are not very specific to runway data
+
+# # add raw box information to raw files 
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
+readrunwayboxes <- function(x){
+  boxes <- fread(paste0("awk '/Started/{print $(NF-1) \" \" $NF}' ", "'", x, "'"))
+  boxes$filename <- x
+  return(boxes)
+}
+
+
+# CLEAN UP FILENAME.X VS FILENAME.Y HERE
+runway_boxes <- lapply(runwayfiles_clean, readrunwayboxes) %>% rbindlist(., fill = T) 
+runway_boxes <- runway_boxes %>% 
+  rename("boxstation" = "V1", 
+         "boxstationnumber" = "V2") %>% 
+  mutate(labanimalid = stringr::str_extract(filename.x, "U[[:digit:]]+[[:alpha:]]*",),
+         cohort = stringr::str_match(filename, "Cohort \\d+")) %>% 
+  merge(x = runway, y = ., by = "labanimalid", all.x=TRUE) 
+# # check if boxes are being used by different sexes within a cohort 
+
+boxqc_bycohort <- runway_boxes %>% group_by(cohort, boxstationnumber, boxstation) %>% count
