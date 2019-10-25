@@ -81,7 +81,6 @@ readrunwayboxes <- function(x){
 }
 
 
-# CLEAN UP FILENAME.X VS FILENAME.Y HERE
 runway_boxes <- lapply(runwayfiles_clean, readrunwayboxes) %>% rbindlist(., fill = T) 
 runway_boxes_df <- runway_boxes %>% 
   rename("boxstation" = "V1", 
