@@ -34,13 +34,18 @@ runway_weight <- lapply(runwayfiles_clean, readrunwayweight) %>% rbindlist(., fi
 runway_weight <- runway_weight %>% 
   rename("weight" = "V1") %>% 
   extractfromfilename() %>%
-  merge(x = ., y = rfid[ , c("labanimalid", "sex", "dob")], by = "labanimalid", all.x=TRUE) %>% 
-  mutate(experimentage = as.numeric(runway_weight$date - runway_weight$dob),
+  merge(x = ., y = rfidandid[ , c("labanimalid", "sex", "dob")], by = "labanimalid", all.x=TRUE) %>% 
+  mutate(experimentage = as.numeric(date - dob),
          cohort = stringr::str_match(filename, "Cohort \\d+"))
 
 ggplot(runway_weight %>% filter(sex != "```", experimentage > 0), aes(x = experimentage, y = weight)) +
-  geom_jitter(aes(color = sex)) + 
+  geom_jitter(aes(color = sex), size = 0.5) + 
   facet_wrap( ~ cohort)
+
+# # generate information for email about outliers 
+outliers <- runway_weight %>% filter(sex == "```" | experimentage < 0 | weight < 100)
+# ggplot(outliers) + geom_histogram(aes(x = weight))
+# generate for email outliers %>% group_by(labanimalid, cohort) %>% count() %>% print.data.frame() 
 
 # extract cohort information from directories
 
@@ -78,12 +83,19 @@ readrunwayboxes <- function(x){
 
 # CLEAN UP FILENAME.X VS FILENAME.Y HERE
 runway_boxes <- lapply(runwayfiles_clean, readrunwayboxes) %>% rbindlist(., fill = T) 
-runway_boxes <- runway_boxes %>% 
+runway_boxes_df <- runway_boxes %>% 
   rename("boxstation" = "V1", 
          "boxstationnumber" = "V2") %>% 
-  mutate(labanimalid = stringr::str_extract(filename.x, "U[[:digit:]]+[[:alpha:]]*",),
-         cohort = stringr::str_match(filename, "Cohort \\d+")) %>% 
-  merge(x = runway, y = ., by = "labanimalid", all.x=TRUE) 
+  mutate(labanimalid = stringr::str_extract(filename, "U[[:digit:]]+[[:alpha:]]*"),
+         cohort = stringr::str_match(filename, "Cohort \\d+"),
+         boxstation = paste(boxstation, boxstationnumber)) %>% 
+  select(-c(filename, boxstationnumber)) %>% # replace sex information from wfu (because ``` existence makes me question the validity of the data `) 
+  merge(x = runway, y = ., by = "labanimalid", all.x=TRUE) %>% 
+  select(-sex) %>% 
+  left_join(., y = WFU_Jhou_test_df[, c("labanimalnumber", "sex")], by = c("wakeforestid" = "labanimalnumber")) # WFU_Jhou_test_df from u01_qc from WFU github
+
 # # check if boxes are being used by different sexes within a cohort 
 
-boxqc_bycohort <- runway_boxes %>% group_by(cohort, boxstationnumber, boxstation) %>% count
+boxqc_bycohort <- runway_boxes_df %>% group_by(cohort, boxstation, sex) %>% count()
+
+ggplot(boxqc_bycohort, aes(x = boxstation, y = n, group = 1)) + geom_line() + facet_grid(. ~ cohort)
