@@ -88,14 +88,14 @@ runway_boxes_df <- runway_boxes %>%
          "boxstationnumber" = "V2") %>% 
   mutate(labanimalid = stringr::str_extract(filename, "U[[:digit:]]+[[:alpha:]]*"),
          cohort = stringr::str_match(filename, "Cohort \\d+"),
-         boxstation = paste(boxstation, boxstationnumber)) %>% 
-  select(-c(filename, boxstationnumber)) %>% # replace sex information from wfu (because ``` existence makes me question the validity of the data `) 
-  merge(x = runway, y = ., by = "labanimalid", all.x=TRUE) %>% 
-  select(-sex) %>% 
+         boxstation = paste(boxstation, boxstationnumber),
+         boxstation = replace(boxstation, boxstation == "NA NA", NA)) %>% 
+  merge(x = runway, y = ., by = "filename", all.x=F) %>% 
+  select(-c(sex,boxstationnumber)) %>% # replace sex information from wfu (because ``` existence makes me question the validity of the data `) 
   left_join(., y = WFU_Jhou_test_df[, c("labanimalnumber", "sex")], by = c("wakeforestid" = "labanimalnumber")) # WFU_Jhou_test_df from u01_qc from WFU github
 
 # # check if boxes are being used by different sexes within a cohort 
 
 boxqc_bycohort <- runway_boxes_df %>% group_by(cohort, boxstation, sex) %>% count()
 
-ggplot(boxqc_bycohort, aes(x = boxstation, y = n, group = 1)) + geom_line() + facet_grid(. ~ cohort)
+ggplot(boxqc_bycohort, aes(x = boxstation, y = n, color = sex)) + geom_point() + facet_grid(. ~ cohort) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
