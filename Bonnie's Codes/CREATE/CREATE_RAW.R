@@ -401,43 +401,54 @@ read_locomotor <- function(x){
 
 # sed -n /MINUTE/,/END/p 2019-1016-1111_456_LOCOMOTOR_BASIC.txt | awk '/^[0-9]/{print $2}'
 
-
-
 locomotorfiles <- list.files(path=".", pattern=".*LOCOMOTOR.*.txt", full.names=TRUE, recursive=TRUE) # note the 4221 id in one file, but seems to be no error files so below code is unneeded
-locomotorfiles_clean <-  locomotorfiles[ ! grepl("error", locomotorfiles, ignore.case = TRUE) ] 
+locomotorfiles_clean <-  locomotorfiles[ ! grepl("error", locomotorfiles, ignore.case = TRUE) ]
+locomotorfiles_clean[grepl("[(]", locomotorfiles_clean)] # there is one duplicate file
+
+
+duplicatedfiles <- grep("[(]\\d[)]", locomotorfiles_clean, value = T) %>% 
+  gsub(" [(]\\d[)]", "", .) # go through 764 all files; create 1 files that have duplicates
+removeduplicatefiles <- subset(locomotorfiles_clean, !(locomotorfiles_clean %in% duplicatedfiles)) #763, found 1 to remove
+
 rawfiles_locomotor <- lapply(locomotorfiles_clean, read_locomotor) %>% 
   rbindlist(fill = T) %>%
   select(V1, filename) %>%
   rename("bincounts" = "V1") %>%
-  mutate(bincounts = as.numeric(bincounts)) # using sed rather than awk results in less NA (only 26 here)
+  mutate(bincounts = as.numeric(bincounts)) # using sed rather than awk results in less NA (only 26 here); XX 10/29 ADDED TO DOCUMENT FILE NA IS COMING FROM FILES NOT HAVING END SESSION
+
 # rawfiles_locomotor %>% filter(is.na(bincounts)) %>% count(filename) %>% summary(n) some are missing one and other files are missing all data
 
-rawfiles_locomotor_long <- rawfiles_locomotor[!grepl("[[:punct:]]", as.character(rawfiles_locomotor$bincounts)), ] # clean out invalid observations (timestamps) 
-rawfiles_locomotor_long <- droplevels(rawfiles_locomotor_long) #(from 243 levels to 117)
+# rawfiles_locomotor_long <- rawfiles_locomotor[!grepl("[[:punct:]]", as.character(rawfiles_locomotor$bincounts)), ] # clean out invalid observations (timestamps) 
+# rawfiles_locomotor_long <- droplevels(rawfiles_locomotor_long) #(from 243 levels to 117)
 i <- 1
 j <- 1
 repeat {
-  rawfiles_locomotor_long$minute[i] <- paste("minute", j)
+  rawfiles_locomotor$minute[i] <- paste("minute", j)
   i = i + 1
   j = j + 1
-  if (rawfiles_locomotor_long$filename[i] != rawfiles_locomotor_long$filename[i-1]){
+  if (rawfiles_locomotor$filename[i] != rawfiles_locomotor$filename[i-1]){
     j = 1
   }
 } #add session information
 
-library(tidyverse)
-rawfiles_locomotor_wide <- spread(rawfiles_locomotor_long, minute, bincounts) # spread from long to wide
-# cols.num <- paste("minute", c(1:30) %>% as.character()) # reorder the sessions
-# cols.num <- paste(c(1:31) %>% as.character())
-# rawfiles_locomotor_wide[,2:32] <- rawfiles_locomotor_wide[,..cols.num]
-# rawfiles_locomotor_wide[,sort(names(rawfiles_locomotor_wide))]
-#names(rawfiles_locomotor_wide)[2:32] <- factor(names(rawfiles_locomotor_wide), levels = as.character(1:31))
-# rawfiles_locomotor_wide[cols.num] <- sapply(rawfiles_locomotor_wide[cols.num], function(x) { as.numeric(levels(x))[x]})
-rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
-  mutate(binmeans = rowMeans(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]),
-         bintotal = rowSums(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"])) # add means and sums as jhou's lab does
-rawfiles_locomotor_wide$labanimalid <- stringr::str_extract(rawfiles_locomotor_wide$filename, "U[[:digit:]]+[[:alpha:]]*")
-rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS)
+# library(tidyverse)
+rawfiles_locomotor_wide <- spread(rawfiles_locomotor, minute, bincounts) %>% # spread from long to wide
+  as.data.table()
+# get code from https://stackoverflow.com/questions/57037860/how-to-reorder-column-names-in-r-numerically
+# reorder the columns
+setcolorder(rawfiles_locomotor_wide, c(1, order(as.numeric(gsub("minute", "", names(rawfiles_locomotor_wide)[-1]))) + 1))
+# add means and sums as jhou's lab does
+rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
+                               binmeans = rowMeans(.SD, na.rm=T)), .SDcols=names(rawfiles_locomotor_wide)[-1]]
+
+# only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
+rawfiles_locomotor_wide <- #left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") %>% 
+  extractfromfilename(rawfiles_locomotor_wide) %>% # extract file information for preparation for appending to rfid
+  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
+
+# ASK ALEN HOW SESSIONS ARE ASSIGNED 
+# rawfiles_locomotor <- rawfiles_locomotor_wide %>% 
+#   mutate(session = ___ ) 
 
 
 locomotorsessionstest <- rawfiles_locomotor_wide %>%
