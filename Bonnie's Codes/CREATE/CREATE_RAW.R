@@ -534,12 +534,13 @@ create_progpuntable_tocategorize <- function(x){
     # names(filelasttwoandlast) = c("filename", "numleftpressesbwlasttwo","numleftpresseslast", "secondtolastshock", "lastshock")
     # numofsessions[[i]] <- filelasttwoandlast # add to list 
     
-    if(grepl("delayed", filelasttwoandlast$filename, ignore.case = T)){
-      delay = fread(paste0("awk 'NR == " , x$rownum[i]," {print $18}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
-      delay$filename <-x$filename[i]
-      filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>%
-        rename("delay" = "V1")
-    }
+    # turning off this part of function because functions with blank spaces there are messing up the function
+    # if(grepl("delayed", filelasttwoandlast$filename, ignore.case = T)){
+    #   delay = fread(paste0("awk 'NR == " , x$rownum[i]," {print $18}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) 
+    #   delay$filename <-x$filename[i]
+    #   filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>%
+    #     rename("delay" = "V1")
+    # }
 
     numofsessions[[i]] <- filelasttwoandlast
   }
@@ -665,7 +666,8 @@ create_delayedpuntable <- function(x){
 
 
 delayedpunishment_df <- lapply(delayed_punishmentfiles_clean, create_delayedpuntable) %>% 
-  rbindlist(fill = T)
+  rbindlist(fill = T) %>% 
+  mutate(delay = str_extract(delayed_data_df_valid$delay, "[0-9]{1,2}") %>% as.numeric)
 # delayedpunishment_df <- rbindlist(delayedpunishment, fill = T)
 colnames(delayedpunishment_df) = c("trialnum", "shockma", "delay", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 10/28 WORKING 
 delayedpunishment_df <- delayedpunishment_df %>% 
@@ -677,30 +679,28 @@ delayed_data_df_valid <- delayedpunishment_df %>%
   group_by(filename) %>%
   mutate(count = n()) %>% 
   ungroup() %>% 
-  filter(count == 2)
+  dplyr::filter(count == 2)
 
-# prog pun function seems to work for delayed prog categories, presses, (test box)
+# prog pun function seems to work for delayed prog categories, presses, and box
 delayed_data_categories = create_progpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment (cannot use odd numbers as subset!! )
+
 
 delayed_data_categories_wcats <- delayed_data_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
          lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
 
-delayedpresses_df = lapply(head(delayed_punishmentfiles_clean, 20), progpun_presses) %>% rbindlist(fill = T)
-presses_df <- do.call(rbind, presses) # summary looks okay, no na and left presses min 55 max 130
+delayedpresses_df = lapply(delayed_punishmentfiles_clean, progpun_presses) %>% rbindlist(fill = T) # summary looks okay, no na and left presses min 55 max 130
 colnames(presses_df) = c("activepresses", "inactivepresses", "filename")
 
-rawfiles_ddelays$delay <- as.character(rawfiles_ddelays$delay)
-rawfiles_ddelays_test <- rawfiles_ddelays %>% 
-  mutate(delay2 = ifelse(grepl("\\d.*SEC", rawfiles_ddelays$delay), grep("\\d.*SEC$", rawfiles_ddelays$delay, value = T), NA)) # Clean up variable bc 'delay' variable takes messy data (like EARLYSHOCK _ SEC, 33 MS, etc.)
-# Clarify with Tom and then add these columns together
+delayedboxesandstations_df = lapply(delayed_punishmentfiles_clean, progpun_boxes) %>% 
+  rbindlist(fill = T)
+colnames(boxesandstations_df) = c("boxorstation", "boxorstationumber", "filename")
 
-
-# extract box information
-## try prog pun function
 
 # extract file information for preparation for appending to rfid
 rawfiles_ddelays_test <- extractfromfilename(rawfiles_ddelays_test)
+
+# to do: check the validity of the columns and the cell formatting 
 
 
 
