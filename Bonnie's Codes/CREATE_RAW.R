@@ -446,6 +446,9 @@ locomotorsessionstest <- rawfiles_locomotor_wide %>%
 
 # XX only missing session (see above issue) and bodyweightperc
 
+################################
+### RAW TEXT  Prog punish ######
+################################
 ### EXP 3: progressive punishment 
 # shocks (extract last and second to last for each session)
 
@@ -474,25 +477,25 @@ create_progpuntable <- function(x){
 
 # before they respond, just exclude those files 
 
-files_clean_subset <- files_clean[1:5]
-data_subset = lapply(files_clean_subset, create_progpuntable)
-data_subset_df <- do.call(rbind, data_subset)
+# files_clean_subset <- files_clean[1:5]
+# data_subset = lapply(files_clean_subset, create_progpuntable)
+# data_subset_df <- do.call(rbind, data_subset)
 
-data = lapply(files_clean, create_progpuntable) 
-data_df <- do.call(rbind, c(data, fill = T))
-colnames(data_df) = c("trialnum", "shockma", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 
-data_df <- data_df %>% 
+progpunishment = lapply(files_clean, create_progpuntable) 
+progpunishment_df <- do.call(rbind, c(progpunishment, fill = T))
+colnames(progpunishment_df) = c("trialnum", "shockma", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 10/28 WORKING 
+progpunishment_df <- progpunishment_df %>% 
   group_by(filename) %>% 
   do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to two per filename 
 
-oneobservation <- data_df %>% count(filename) %>% subset(n!=2) # XX made note to Alen 10/18, follow up again 
-oneobservation_details <- data_df %>% 
+progpunishment_df %>% count(filename) %>% subset(n!=2) # XX made note to Alen 10/18, follow up again 
+oneobservation_details <- progpunishment_df %>% 
   group_by(filename) %>%
   mutate(count = n()) %>% 
   ungroup() %>% 
   filter(count != 2); head(oneobservation_details) # 96 observations
 
-data_df_valid <- data_df %>% 
+data_df_valid <- progpunishment_df %>% 
   group_by(filename) %>%
   mutate(count = n()) %>% 
   ungroup() %>% 
@@ -578,91 +581,114 @@ left_join(data_categories_wcat, progpun_presses, by = filename)
 rawfiles_shock <- extractfromfilename(rawfiles_shock)
 # rawfiles_shock$orderofshocks <- with(rawfiles_shock, ave(shocks, cumsum(shocks == 0), FUN = seq_along)) - 1 # some cases in which shocks == 0 occurs consecutively
 
-# box info (assign to each U animal)
-box <- "find -type f -iname \"*CONFLICT*.txt\" -exec awk '/Started script/{print FILENAME \",\" $(NF-1) \" \" $NF}' {} \\; > box.txt"
-system(box)
-rawfiles_box <- read.csv("box.txt", head = F)
-colnames(rawfiles_box) <- c("filename", "box") 
-rawfiles_box$labanimalid <- stringr::str_extract(rawfiles_box$filename, "U[[:digit:]]+[[:alpha:]]*")
-rawfiles_box <- rawfiles_box %>% 
-  group_by(labanimalid) %>% 
-  select(labanimalid, box) %>% 
-  unique() 
-rawfiles_box<- tidyr::separate(rawfiles_box, col = box, into = c("boxorstation", "boxnumber"), sep = "[[:space:]]") # include box/station info just in case it is needed for future clarification
 
-
-
-# merge all data to create final raw table
-# rawfiles_pp <- rawfiles_shock %>%
-#   group_by(filename) %>% 
-#   slice(tail(row_number(), 1))
-# completedshocks <- rawfiles_shock %>%
-#   group_by(filename) %>% 
-#   slice(tail(row_number(), 2)) %>% 
-#   group_by(filename) %>%
-#   slice(head(row_number(), 1)) %>% 
-#   select(filename, shocks)
-# rawfiles_pp <- left_join(rawfiles_pp, completedshocks, by = "filename")  %>% 
-#   rename(shocksattempted = shocks.x,
-#          shockscompleted = shocks.y) 
-# XX ATTACH CODE BACK IF APPLICABLE ONCE YOU GET THE OK FROM JHOU LAB
-#  %>% mutate(box = rawfiles_box[which(rawfiles_box$labanimalid == rawfiles_pp$labanimalid), ]$boxnumber) #cannot assign box numbers is more than one for every id
-subset(rawfiles_pp, shocksattempted > shockscompleted) %>% dim() #complete number of completedshocks (=2781) 
-# this code allows for those that don't have any more than just one value, so same value for completed and attempted
-
-rawfiles_pp <- left_join(rawfiles_pp, rawfiles_leverpresses_attempted, by = "filename") # add left and right presses 
+################################
+### RAW TEXT  Prog ratio #######
+################################
 
 ### EXP 4: Progressive ratio
 # max ratio
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/U01 folder/Progressive ratio")
-maxratio <- "find -type f -iname \"*RATIO*.txt\" -print0 | xargs -0 awk '/TIMEOUT/{print a \",\" FILENAME}{a=$4}' | awk '!/IS/' > maxratio.txt"
-system(maxratio)
-rawfiles_maxratio <- read.csv("maxratio.txt", head = F)
-colnames(rawfiles_maxratio) <- c("maxratio", "filename") 
-rawfiles_maxratio <- extractfromfilename(rawfiles_maxratio)
-# rawfiles_maxratio %>% summary() seems like the machine generated two trials of data, so we will remove the initial one with the next line
-rawfiles_maxratio <- rawfiles_maxratio[!(rawfiles_maxratio$labanimalid=="U187" & rawfiles_maxratio$maxratio==2),]
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive ratio")
+progratiofiles_clean <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) 
+progratiofiles_clean <- progratiofiles_clean[ ! grepl("error", progratiofiles_clean, ignore.case = TRUE) ] 
+readmaxratio <- function(x){
+  maxratio <- fread(paste0("grep -B1 \"TIMEOUT\\\\s\\\\s\" " , "'", x, "'", " | awk '{print $4; exit}'"))
+  maxratio$filename <- x
+  return(maxratio)
+}
+# get the max ratio from the line before TIMEOUT
+progratio_maxratio <- lapply(progratiofiles_clean, readmaxratio) 
+progratio_maxratio_df <- rbindlist(progratio_maxratio, fill = T) %>%
+  rename("maxratio" = "V1") %>% 
+  select(-NUMBER) %>%
+  mutate(maxratio = as.numeric(maxratio)) # XX why are there 30 NA's
 
-# presses
-presses <- "find -type f -iname \"*RATIO*.txt\" -print0 | xargs -0 awk '/TIMEOUT/{print FILENAME \",\" $7 \"\" $9}' | awk '!/IS/' > landrpresses.txt"
-rawfiles_randl <- read.csv("landrpresses.txt", head = F)
-colnames(rawfiles_randl) <- c("filename", "Lpresses", "Rpresses") 
+# rawfiles_maxratio <- extractfromfilename(rawfiles_maxratio)
+# rawfiles_maxratio %>% summary() seems like the machine generated two trials of data, so we will remove the initial one with the next line
+# rawfiles_maxratio <- rawfiles_maxratio[!(rawfiles_maxratio$labanimalid=="U187" & rawfiles_maxratio$maxratio==2),]
+
+# presses get the left and right values at the last trial
+readpresses <- function(x){
+  presses <- fread(paste0("grep \"TIMEOUT\\\\s\\\\s\" " , "'", x, "'", " | awk '{print $7 \",\" $9; exit}'"))
+  presses$filename <- x
+  return(presses)
+}
+# get the max ratio from the line before TIMEOUT
+progratio_presses <- lapply(progratiofiles_clean, readpresses) 
+progratio_presses_df <- rbindlist(progratio_presses, fill = T) %>%
+  rename("activepresses" = "V1",
+         "inactivepresses" = "V2") # again there are 30 NA's  
 
 # join to create final raw df
-rawfiles_pr <- left_join(rawfiles_maxratio, rawfiles_randl, by = "filename")
-rawfiles_pr$labanimalid <- gsub('(U)([[:digit:]]{1})$', '\\10\\2', rawfiles_pr$labanimalid) # better organizational for ordering and consider this for other files
-rawfiles_pr <- rawfiles_pr[order(rawfiles_pr$labanimalid), ]  
+progratio <- left_join(progratio_maxratio_df, progratio_presses_df, by = "filename") # 10/28 bring to Alen's attention -- these cases for which there are only timeout lines and no pre-timeout value so no maxratio value 
+progratio <- extractfromfilename(progratio)
+progratio$labanimalid <- gsub('(U)([[:digit:]]{1})$', '\\10\\2', progratio$labanimalid) # better organizational for ordering and consider this for other files; ADD BEGINNING ZEROES TO COHORT/ID'S
+progratio <- progratio[order(progratio$labanimalid), ] # reorder based on labanimalid  
 
+################################
+### RAW TEXT  Delayed pun ######
+################################
 
 # EXP 5: Delayed punishment
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/Delayed punishment/")
+# setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/Delayed punishment/")
+# find -type f -iname "*PUNISHMENT*.txt" ! -path "*error*" -exec awk '/ENDING/{print FILENAME}' {} \; 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Delayed punishment") # while dropbox is updating the clone
 
-# find -type f -iname "*PUNISHMENT*.txt" ! -path "*error*" -exec awk '/ENDING/{print FILENAME}' {} \; 
+delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # exclude existing txt files and include any corrective "qualifiers" # 5670 counts
+delayed_punishmentfiles_clean <-  delayed_punishmentfiles[ ! grepl("error", delayed_punishmentfiles, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team) # 3168 counts
+# read_delayedpresses<-function(x){
+#   data = fread(paste0("tac ","'",x,"'", "| awk '/LEFTPRESSES/{print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F)  
+#   data$id<-x
+#   return(data)
+# } # trying prog pun function; doesn't work because we need to add a function to extract the time delay
 
-files <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # exclude existing txt files and include any corrective "qualifiers" 
-files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team)
-read_delayedpresses<-function(x){
-  data = fread(paste0("tac ","'",x,"'", "| awk '/LEFTPRESSES/{print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F)  
-  data$id<-x
-  data <- as.data.frame(data)
-  return(data)
+
+create_delayedpuntable <- function(x){
+  thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" $18 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
+  thistrialrownumandshock$filename<-x
+  return(thistrialrownumandshock)
 }
-rawfiles_dpresses <- lapply(files_clean, read_delayedpresses)
-rawfiles_dpresses_df <- bind_rows(rawfiles_dpresses) 
-# rawfiles_dpresses <- read.csv("delayed_presses.txt", head = F) # no longer using this text file because it was based on the line above TIMEOUT
-colnames(rawfiles_dpresses_df) <- c("Lpresses", "Rpresses", "filename") 
-#  rawfiles_dpresses_test <- extractfromfilename(rawfiles_dpresses_df) # do this at the very end
-
-read_delayedshocks <- function(x){
-  data = fread(paste0("tac ","'",x,"'", "| grep -m2 \"MA\" | awk '{print $13}'"), header=F, fill=T, showProgress = F)  
-  data$id<-x
-  data <- as.data.frame(data)
-  return(data)
-} #get shocks 
-rawfiles_dpresses <- lapply(files_clean, read_delayedpresses)
 
 
+delayedpunishment_df <- lapply(delayed_punishmentfiles_clean, create_delayedpuntable) %>% 
+  rbindlist(fill = T)
+# delayedpunishment_df <- rbindlist(delayedpunishment, fill = T)
+colnames(delayedpunishment_df) = c("trialnum", "shockma", "delay", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 10/28 WORKING 
+delayedpunishment_df <- delayedpunishment_df %>% 
+  group_by(filename) %>% 
+  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to two per filename 
+
+
+delayed_data_df_valid <- delayedpunishment_df %>% 
+  group_by(filename) %>%
+  mutate(count = n()) %>% 
+  ungroup() %>% 
+  filter(count == 2)
+
+# prog pun function seems to work for delayed prog
+delayed_data_categories = create_progpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment 
+
+delayed_data_categories_wcats <- delayed_data_categories %>% 
+  mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
+         lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
+
+
+delayedpun_presses <- function(x){
+  dpresses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFT/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
+  dpresses$V1[length(dpresses$V1) == 0] <- NA
+  dpresses$V2[length(dpresses$V2) == 0] <- NA
+  dpresses$filename <- x
+  return(dpresses)
+}
+delayedpresses_df = lapply(delayed_punishmentfiles_clean, delayedpun_presses) %>% rbindlist(fill = T)
+presses_df <- do.call(rbind, presses) # summary looks okay, no na and left presses min 55 max 130
+colnames(presses_df) = c("activepresses", "inactivepresses", "filename")
+
+
+# extract delay for each session
+readdelay <- function(x){
+  delay <- fread(paste0)
+}
 dshocks <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $13}' {} + > alldelayed_shocks.txt"
 system(dshocks)
 rawfiles_dshocks <- read.csv("alldelayed_shocks.txt", head = F)
