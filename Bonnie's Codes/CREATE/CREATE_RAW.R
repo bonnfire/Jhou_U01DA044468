@@ -536,7 +536,7 @@ create_progpuntable_tocategorize <- function(x){
     
     # turning off this part of function because functions with blank spaces there are messing up the function
     # if(grepl("delayed", filelasttwoandlast$filename, ignore.case = T)){
-    #   delay = fread(paste0("awk 'NR == " , x$rownum[i]," {print $18}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) 
+    #   delay = fread(paste0("awk 'NR == " , x$rownum[i]," {print $18}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F,blank.lines.skip=TRUE)
     #   delay$filename <-x$filename[i]
     #   filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>%
     #     rename("delay" = "V1")
@@ -560,9 +560,9 @@ data_categories_wcat <- data_categories %>%
 
 # need to write another function to extract the number of presses because it is not always at a shift in shock intensity step
 progpun_presses <- function(x){
-  presses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFTPRESSES/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
-  # presses$V1[length(presses$V1) == 0] <- NA
-  # presses$V2[length(presses$V2) == 0] <- NA
+  presses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFTPRESSES/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F)
+  presses$V1[nrow(presses) == 0] <- NA
+  presses$V2[nrow(presses) == 0] <- NA
   presses$filename <- x
   return(presses)
 }
@@ -683,19 +683,24 @@ delayed_data_df_valid <- delayedpunishment_df %>%
 
 # prog pun function seems to work for delayed prog categories, presses, and box
 delayed_data_categories = create_progpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment (cannot use odd numbers as subset!! )
-
+# summary looks ok; 5478 files
 
 delayed_data_categories_wcats <- delayed_data_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
          lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
 
-delayedpresses_df = lapply(delayed_punishmentfiles_clean, progpun_presses) %>% rbindlist(fill = T) # summary looks okay, no na and left presses min 55 max 130
-colnames(presses_df) = c("activepresses", "inactivepresses", "filename")
+# there are files within the clean file names that are EMPTY
+duplicatedfiles <- grep("[(]\\d[)]", delayed_punishmentfiles_clean, value = T) %>% 
+  gsub(" [(]\\d[)]", "", .) # 5574 all files; create 26 files that have duplicates
+removeduplicatefiles <- subset(delayed_punishmentfiles_clean, !(delayed_punishmentfiles_clean %in% duplicatedfiles)) #5555, found 19 to remove
+delayedpresses_df = lapply(removeduplicatefiles, progpun_presses) %>% rbindlist(fill = T) # summary looks okay, no na and left presses min 55 max 130
+colnames(delayedpresses_df) = c("activepresses", "inactivepresses", "filename") # 38 NA's, 5574 files ; was 50 NA without the removal of the duplicated, empty files
 
-delayedboxesandstations_df = lapply(delayed_punishmentfiles_clean, progpun_boxes) %>% 
+delayedboxesandstations_df = lapply(removeduplicatefiles, progpun_boxes) %>% 
   rbindlist(fill = T)
-colnames(boxesandstations_df) = c("boxorstation", "boxorstationumber", "filename")
+colnames(delayedboxesandstations_df) = c("boxorstation", "boxorstationumber", "filename") # 5555 boxes found
 
+# dim is all over the place 
 
 # extract file information for preparation for appending to rfid
 rawfiles_ddelays_test <- extractfromfilename(rawfiles_ddelays_test)
