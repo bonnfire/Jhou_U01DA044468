@@ -450,8 +450,8 @@ locomotorsessionstest <- rawfiles_locomotor_wide %>%
 ### RAW TEXT  Prog punish ######
 ################################
 ### EXP 3: progressive punishment 
-# shocks (extract last and second to last for each session)
 
+# shocks (extract last and second to last for each session)
 # get row numbers from awk nr (create_progpuntable function)
 # use in sed to find the number of LEFTPRESSES
 # assign yes or no to complete or attempt columns 
@@ -465,22 +465,6 @@ create_progpuntable <- function(x){
   thistrialrownumandshock$filename<-x
   return(thistrialrownumandshock)
 }
-
-# thistrialrownumandshock <- as.data.frame(thistrialrownumandshock)
-# thistrialrownumandshock <- bind_rows(thistrialrownumandshock)
-# if(nrow(thistrialrownumandshock) != 0)
-#   colnames(thistrialrownumandshock) = c("trialnum", "shockma", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 
-#   thistrialrownumandshock <- thistrialrownumandshock %>% 
-#     group_by(filename) %>% 
-#     tail(2) #limit the calculations of the number of LEFTPRESSES to two per filename 
-#   return(thistrialrownumandshock)
-# }
-
-# before they respond, just exclude those files 
-
-# files_clean_subset <- files_clean[1:5]
-# data_subset = lapply(files_clean_subset, create_progpuntable)
-# data_subset_df <- do.call(rbind, data_subset)
 
 progpunishment_df = lapply(files_clean, create_progpuntable) %>%
   rbindlist(fill = T)
