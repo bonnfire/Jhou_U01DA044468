@@ -457,17 +457,18 @@ locomotorsessionstest <- rawfiles_locomotor_wide %>%
 # assign yes or no to complete or attempt columns 
 # group by and tail
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive punishment") # using their copy to prevent any copy issues
-files <- list.files(path=".", pattern=".*CONFLICT.*.txt", full.names=TRUE, recursive=TRUE) # some don't have the U designation bc they are not placed into the folders yet
-files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] # clean out errors # XX DO LATER, CREATE SUBSET OF ONES THAT DON'T FOLLOW FORMAT
-
+progpunfiles <- list.files(path=".", pattern=".*CONFLICT.*.txt", full.names=TRUE, recursive=TRUE) # some don't have the U designation bc they are not placed into the folders yet
+progpunfiles_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] # clean out errors # XX DO LATER, CREATE SUBSET OF ONES THAT DON'T FOLLOW FORMAT
+# no results for grepl("[(]) so no duplicate files? 
 create_progpuntable <- function(x){
   thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
   thistrialrownumandshock$filename<-x
   return(thistrialrownumandshock)
-  }
-  # thistrialrownumandshock <- as.data.frame(thistrialrownumandshock)
-  # thistrialrownumandshock <- bind_rows(thistrialrownumandshock)
-  # if(nrow(thistrialrownumandshock) != 0)
+}
+
+# thistrialrownumandshock <- as.data.frame(thistrialrownumandshock)
+# thistrialrownumandshock <- bind_rows(thistrialrownumandshock)
+# if(nrow(thistrialrownumandshock) != 0)
 #   colnames(thistrialrownumandshock) = c("trialnum", "shockma", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 
 #   thistrialrownumandshock <- thistrialrownumandshock %>% 
 #     group_by(filename) %>% 
@@ -481,12 +482,16 @@ create_progpuntable <- function(x){
 # data_subset = lapply(files_clean_subset, create_progpuntable)
 # data_subset_df <- do.call(rbind, data_subset)
 
-progpunishment = lapply(files_clean, create_progpuntable) 
-progpunishment_df <- do.call(rbind, c(progpunishment, fill = T))
+progpunishment_df = lapply(files_clean, create_progpuntable) %>%
+  rbindlist(fill = T)
 colnames(progpunishment_df) = c("trialnum", "shockma", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 10/28 WORKING 
-progpunishment_df <- progpunishment_df %>% 
+# summary(progpunishment_df) # 60 NA's
+# progpunishment_df
+
+progpunishment_df_complete <- progpunishment_df %>% 
+  dplyr::filter(complete.cases(.)) %>%  
   group_by(filename) %>% 
-  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to two per filename 
+  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to two per filename # XX SCREENSHOT ADDED TO DOCUMENT ONLY ON CASES THAT HAVE THE VALUES WE NEED; 6193 cases
 
 progpunishment_df %>% count(filename) %>% subset(n!=2) # XX made note to Alen 10/18, follow up again 
 oneobservation_details <- progpunishment_df %>% 
@@ -495,16 +500,13 @@ oneobservation_details <- progpunishment_df %>%
   ungroup() %>% 
   filter(count != 2); head(oneobservation_details) # 96 observations
 
-data_df_valid <- progpunishment_df %>% 
+data_df_valid <- progpunishment_df_complete %>% 
   group_by(filename) %>%
   mutate(count = n()) %>% 
   ungroup() %>% 
-  dplyr::filter(count == 2) # use the valid files before they respond about the other ones
+  dplyr::filter(count == 2) # use the valid files before they respond about the other ones 6170
 
 # create categorization table 
-
-# numofsessions <- list() # test if inside or outside function
-
 create_progpuntable_tocategorize <- function(x){
   numofsessions <- list()
   for(i in seq(1,nrow(x),2)){
@@ -552,13 +554,12 @@ create_progpuntable_tocategorize <- function(x){
 # data2_valid_subset <- data2_valid[1:100,]
 # data_categories_test = create_progpuntable_tocategorize(data2_valid_subset) # test subset 
 
-data_categories = create_progpuntable_tocategorize(data_df_valid) # test on valid datapoints until Jhou team returns comment 
+progpundata_categories = create_progpuntable_tocategorize(data_df_valid) # test on valid datapoints until Jhou team returns comment 
 
-data_categories_wcat <- data_categories %>% 
+progpundata_categories_wcat <- progpundata_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
-         lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
+         lastshock_cat = ifelse(numleftpresseslast >= 3, "Complete", "Attempt"))
 
-# need to write another function to extract the number of presses because it is not always at a shift in shock intensity step
 progpun_presses <- function(x){
   presses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFTPRESSES/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F)
   presses$V1[nrow(presses) == 0] <- NA
@@ -566,9 +567,9 @@ progpun_presses <- function(x){
   presses$filename <- x
   return(presses)
 }
-presses = lapply(files_clean, progpun_presses)
-presses_df <- do.call(rbind, presses) # summary looks okay, no na and left presses min 55 max 130
-colnames(presses_df) = c("activepresses", "inactivepresses", "filename")
+progpun_presses_df = lapply(files_clean, progpun_presses) %>% 
+  rbindlist(fill = T) # 3168 cases, 47 na and left presses min 55 max 434
+colnames(progpun_presses_df) = c("activepresses", "inactivepresses", "filename")
 
 
 progpun_boxes <- function(x){
@@ -577,24 +578,26 @@ progpun_boxes <- function(x){
   return(boxandstations)
 }
 
-boxesandstations = lapply(files_clean, progpun_boxes)
-boxesandstations_df <- do.call(rbind, boxesandstations) # summary looks okay, no na and left presses min 55 max 130
-colnames(boxesandstations_df) = c("boxorstation", "boxorstationumber", "filename")
+progpun_boxesandstations_df = lapply(files_clean, progpun_boxes) %>% 
+  rbindlist(fill = T) # 3168 cases, no na, and left presses min 1 max 8
+colnames(progpun_boxesandstations_df) = c("boxorstation", "boxorstationumber", "filename")
 
 # XXX concern (some animals have more than one box designation): 
-boxesandstations_df$labanimalid <- stringr::str_extract(boxesandstations_df$filename, "U[[:digit:]]+[[:alpha:]]*")
-morethanone <- boxesandstations_df %>%
-  select(labanimalid, boxorstationumber) %>% 
-  unique() 
-morethanone2 <- morethanone %>% count(labanimalid) %>% filter(n != 1)
-cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone2$labanimalid)
-cases # just 6 and 8 now XX already made note to Tom Jhou's team
+# boxesandstations_df$labanimalid <- stringr::str_extract(boxesandstations_df$filename, "U[[:digit:]]+[[:alpha:]]*")
+# morethanone <- boxesandstations_df %>%
+#   select(labanimalid, boxorstationumber) %>% 
+#   unique() 
+# morethanone2 <- morethanone %>% count(labanimalid) %>% filter(n != 1)
+# cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone2$labanimalid)
+# cases # just 6 and 8 now XX already made note to Tom Jhou's team
 
-
-left_join(data_categories_wcat, progpun_presses, by = filename)  
-
-rawfiles_shock <- extractfromfilename(rawfiles_shock)
-# rawfiles_shock$orderofshocks <- with(rawfiles_shock, ave(shocks, cumsum(shocks == 0), FUN = seq_along)) - 1 # some cases in which shocks == 0 occurs consecutively
+delayedpunishment <- left_join(x = progpundata_categories_wcat, y = progpun_presses_df, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
+  left_join(., progpun_boxesandstations_df, by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
+  extractfromfilename() %>% # extract file information for preparation for appending to rfid
+  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
+  mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
+         shockoflastattemptedblock = lastshock) %>%
+  select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock))
 
 
 ################################
@@ -708,7 +711,7 @@ delays <- delayed_data_df_valid %>%
   group_by(filename, delay) %>% 
   unique()
 
-delayedpunishment_test <- left_join(x = delayed_data_categories_wcats, y = delays, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
+delayedpunishment <- left_join(x = delayed_data_categories_wcats, y = delays, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
   left_join(., delayedpresses_df, by = "filename") %>% 
   left_join(., delayedboxesandstations_df, by = "filename") %>% # dim is all over the place 
   extractfromfilename() %>% # extract file information for preparation for appending to rfid
@@ -725,10 +728,12 @@ delayedpunishment_test <- left_join(x = delayed_data_categories_wcats, y = delay
 
 
 
-
+##################################
 # Create list of all experiments
+##################################
 Jhou_raw <- list(
   "runway" = runway,
+  "progratio" = progratio,
   "delayedpunishment" = delaypunishment,
 )
 
