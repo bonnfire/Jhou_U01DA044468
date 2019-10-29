@@ -499,7 +499,7 @@ data_df_valid <- progpunishment_df %>%
   group_by(filename) %>%
   mutate(count = n()) %>% 
   ungroup() %>% 
-  filter(count == 2) # use the valid files before they respond about the other ones
+  dplyr::filter(count == 2) # use the valid files before they respond about the other ones
 
 # create categorization table 
 
@@ -521,14 +521,23 @@ create_progpuntable_tocategorize <- function(x){
     
     lastshock = fread(paste0("awk 'NR == " , x$rownum[i+1]," {print $13}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
     # might use reg exp (?:([1-9]?[0-9])[a-zA-Z ]{0,20}(?:arrests|arrested))
-    lastshock$filename <-x$filename[i] 
-    
-    filelasttwoandlast <- merge(numleftpressesbwlasttwo,numleftpresseslast, by = "filename") # for each file, merge the count of LEFTPRESSES occurences
-    filelasttwoandlast <- merge(filelasttwoandlast, secondtolastshock, by = "filename") # for each file, merge the MA value (last two)
-    filelasttwoandlast <- merge(filelasttwoandlast, lastshock, by = "filename")
-    
+    lastshock$filename <-x$filename[i]
+
+    filelasttwoandlast <- merge(numleftpressesbwlasttwo,numleftpresseslast, by = "filename") %>% # for each file, merge the count of LEFTPRESSES occurences
+      merge(., secondtolastshock, by = "filename") %>% # for each file, merge the count of LEFTPRESSES occurences
+      merge(., lastshock, by = "filename") # for each file, merge the MA value (last two)
+
     names(filelasttwoandlast) = c("filename", "numleftpressesbwlasttwo","numleftpresseslast", "secondtolastshock", "lastshock")
-    numofsessions[[i]] <- filelasttwoandlast # add to list 
+    # numofsessions[[i]] <- filelasttwoandlast # add to list 
+    
+    if(grepl("delayed", filelasttwoandlast$filename, ignore.case = T)){
+      delay = fread(paste0("awk 'NR == " , x$rownum[i]," {print $18}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+      delay$filename <-x$filename[i] 
+      filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>% 
+        rename("delay" = "V1")
+    }
+    
+    numofsessions[[i]] <- filelasttwoandlast
   }
   numofsessions_df = do.call(rbind, numofsessions)
   # numofsessions <- as.data.frame(numofsessions)
@@ -544,6 +553,7 @@ data_categories_wcat <- data_categories %>%
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
          lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
 
+# need to write another function to extract the number of presses because it is not always at a shift in shock intensity step
 progpun_presses <- function(x){
   presses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFT/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
   presses$V1[length(presses$V1) == 0] <- NA
@@ -656,7 +666,7 @@ delayedpunishment_df <- lapply(delayed_punishmentfiles_clean, create_delayedpunt
 colnames(delayedpunishment_df) = c("trialnum", "shockma", "delay", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 10/28 WORKING 
 delayedpunishment_df <- delayedpunishment_df %>% 
   group_by(filename) %>% 
-  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to two per filename 
+  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES/SESSIONS to two per filename 
 
 
 delayed_data_df_valid <- delayedpunishment_df %>% 
@@ -665,44 +675,18 @@ delayed_data_df_valid <- delayedpunishment_df %>%
   ungroup() %>% 
   filter(count == 2)
 
-# prog pun function seems to work for delayed prog
-delayed_data_categories = create_progpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment 
+# prog pun function seems to work for delayed prog categories, presses, (test box)
+delayed_data_categories = create_progpuntable_tocategorize(head(delayed_data_df_valid,25)) # test on valid datapoints until Jhou team returns comment 
 
 delayed_data_categories_wcats <- delayed_data_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
          lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
 
-
-delayedpun_presses <- function(x){
-  dpresses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFT/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
-  dpresses$V1[length(dpresses$V1) == 0] <- NA
-  dpresses$V2[length(dpresses$V2) == 0] <- NA
-  dpresses$filename <- x
-  return(dpresses)
-}
-delayedpresses_df = lapply(delayed_punishmentfiles_clean, delayedpun_presses) %>% rbindlist(fill = T)
+delayedpresses_df = lapply(head(delayed_punishmentfiles_clean, 10), progpun_presses) %>% rbindlist(fill = T)
 presses_df <- do.call(rbind, presses) # summary looks okay, no na and left presses min 55 max 130
 colnames(presses_df) = c("activepresses", "inactivepresses", "filename")
 
 
-# extract delay for each session
-readdelay <- function(x){
-  delay <- fread(paste0)
-}
-dshocks <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $13}' {} + > alldelayed_shocks.txt"
-system(dshocks)
-rawfiles_dshocks <- read.csv("alldelayed_shocks.txt", head = F)
-colnames(rawfiles_dshocks) <- c("filename", "shocks")
-rawfiles_dshocks <- extractfromfilename(rawfiles_dshocks)
-rawfiles_dshocks_test <- rawfiles_dshocks %>%
-  group_by(filename) %>% do(tail(., n=2)) # extract last two shock values in each file
-rawfiles_dshocks_test <- rawfiles_dshocks_test %>% 
-  mutate(shocktype = rep(c("completed", "attempted"), length.out = n())) %>% 
-  group_by(shocktype) %>%
-  mutate(id = row_number()) %>%
-  spread(shocktype, shocks) %>% 
-  select(-id) #separate every other row to two columns
-rawfiles_dshocks_check <- subset(rawfiles_dshocks_test2, attempted < completed); rawfiles_dshocks_check # check for no cases of completed > attempted (0 cases)
 
 rawfiles_dboxes <- read.csv("delayed_boxes.txt", head = F)
 colnames(rawfiles_dboxes) <- c("filename", "box")
@@ -717,6 +701,15 @@ rawfiles_ddelays_test <- rawfiles_ddelays %>%
 # Clarify with Tom and then add these columns together
 
 rawfiles_ddelays_test <- extractfromfilename(rawfiles_ddelays_test)
+
+
+
+
+
+
+
+
+# Create list of all experiments
 
 
 ## Appending info from WFU data 
