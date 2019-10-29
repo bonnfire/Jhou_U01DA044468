@@ -392,34 +392,50 @@ runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>% # clea
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Locomotor") 
 # extract bincounts from second column with data
 read_locomotor <- function(x){
-  locomotor <- fread(paste0("awk '/^[1-9][0-9]*/{print FILENAME \",\" $2}' ", "'", x, "'"))
+  # locomotor <- fread(paste0("awk '/^[1-9][0-9]*/{print $2}' ", "'", x, "'"))
+  locomotor <- fread(paste0("sed -n /MINUTE/,/END/p ", "'", x, "'", " | awk '/^[0-9]/{print $2}'"))
   locomotor$filename <- x
   return(locomotor)
 }
 
+
+# sed -n /MINUTE/,/END/p 2019-1016-1111_456_LOCOMOTOR_BASIC.txt | awk '/^[0-9]/{print $2}'
+
+
+
 locomotorfiles <- list.files(path=".", pattern=".*LOCOMOTOR.*.txt", full.names=TRUE, recursive=TRUE) # note the 4221 id in one file, but seems to be no error files so below code is unneeded
 locomotorfiles_clean <-  locomotorfiles[ ! grepl("error", locomotorfiles, ignore.case = TRUE) ] 
-runway_reach <- lapply(locomotorfiles_clean, read_locomotor) %>% 
-  rename("bincounts" = "V1")
+rawfiles_locomotor <- lapply(locomotorfiles_clean, read_locomotor) %>% 
+  rbindlist(fill = T) %>%
+  select(V1, filename) %>%
+  rename("bincounts" = "V1") %>%
+  mutate(bincounts = as.numeric(bincounts)) # using sed rather than awk results in less NA (only 26 here)
+# rawfiles_locomotor %>% filter(is.na(bincounts)) %>% count(filename) %>% summary(n) some are missing one and other files are missing all data
 
 rawfiles_locomotor_long <- rawfiles_locomotor[!grepl("[[:punct:]]", as.character(rawfiles_locomotor$bincounts)), ] # clean out invalid observations (timestamps) 
 rawfiles_locomotor_long <- droplevels(rawfiles_locomotor_long) #(from 243 levels to 117)
-# i <- 1
-# j <- 1
-# repeat {
-#   rawfiles_locomotor_long$minute[i] <- paste("minute", j)
-#   i = i + 1
-#   j = j + 1
-#   if (rawfiles_locomotor_long$filename[i] != rawfiles_locomotor_long$filename[i-1]){
-#     j = 1
-#   }
-# } #add session information
+i <- 1
+j <- 1
+repeat {
+  rawfiles_locomotor_long$minute[i] <- paste("minute", j)
+  i = i + 1
+  j = j + 1
+  if (rawfiles_locomotor_long$filename[i] != rawfiles_locomotor_long$filename[i-1]){
+    j = 1
+  }
+} #add session information
+
+library(tidyverse)
 rawfiles_locomotor_wide <- spread(rawfiles_locomotor_long, minute, bincounts) # spread from long to wide
-cols.num <- paste("minute", c(1:30) %>% as.character())
-rawfiles_locomotor_wide[cols.num] <- sapply(rawfiles_locomotor_wide[cols.num], function(x) { as.numeric(levels(x))[x]})
+# cols.num <- paste("minute", c(1:30) %>% as.character()) # reorder the sessions
+# cols.num <- paste(c(1:31) %>% as.character())
+# rawfiles_locomotor_wide[,2:32] <- rawfiles_locomotor_wide[,..cols.num]
+# rawfiles_locomotor_wide[,sort(names(rawfiles_locomotor_wide))]
+#names(rawfiles_locomotor_wide)[2:32] <- factor(names(rawfiles_locomotor_wide), levels = as.character(1:31))
+# rawfiles_locomotor_wide[cols.num] <- sapply(rawfiles_locomotor_wide[cols.num], function(x) { as.numeric(levels(x))[x]})
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
   mutate(binmeans = rowMeans(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]),
-         bintotal = rowSums(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"]))
+         bintotal = rowSums(rawfiles_locomotor_wide[, names(rawfiles_locomotor_wide) != "filename"])) # add means and sums as jhou's lab does
 rawfiles_locomotor_wide$labanimalid <- stringr::str_extract(rawfiles_locomotor_wide$filename, "U[[:digit:]]+[[:alpha:]]*")
 rawfiles_locomotor_wide <- left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS)
 
