@@ -523,20 +523,24 @@ create_progpuntable_tocategorize <- function(x){
     # might use reg exp (?:([1-9]?[0-9])[a-zA-Z ]{0,20}(?:arrests|arrested))
     lastshock$filename <-x$filename[i]
 
-    filelasttwoandlast <- merge(numleftpressesbwlasttwo,numleftpresseslast, by = "filename") %>% # for each file, merge the count of LEFTPRESSES occurences
-      merge(., secondtolastshock, by = "filename") %>% # for each file, merge the count of LEFTPRESSES occurences
-      merge(., lastshock, by = "filename") # for each file, merge the MA value (last two)
+    filelasttwoandlast <- merge(numleftpressesbwlasttwo,numleftpresseslast, by = "filename") %>% 
+      rename("numleftpressesbwlasttwo" = "V1.x", 
+             "numleftpresseslast" = "V1.y") %>% # for each file, merge the count of LEFTPRESSES occurences
+      merge(., secondtolastshock, by = "filename") %>% # %>% # for each file, merge the count of LEFTPRESSES occurences
+      merge(., lastshock, by = "filename") %>% 
+      rename("secondtolastshock" = "V1.x", 
+             "lastshock" = "V1.y") # for each file, merge the MA value (last two)
 
-    names(filelasttwoandlast) = c("filename", "numleftpressesbwlasttwo","numleftpresseslast", "secondtolastshock", "lastshock")
+    # names(filelasttwoandlast) = c("filename", "numleftpressesbwlasttwo","numleftpresseslast", "secondtolastshock", "lastshock")
     # numofsessions[[i]] <- filelasttwoandlast # add to list 
     
     if(grepl("delayed", filelasttwoandlast$filename, ignore.case = T)){
       delay = fread(paste0("awk 'NR == " , x$rownum[i]," {print $18}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
-      delay$filename <-x$filename[i] 
-      filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>% 
+      delay$filename <-x$filename[i]
+      filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>%
         rename("delay" = "V1")
     }
-    
+
     numofsessions[[i]] <- filelasttwoandlast
   }
   numofsessions_df = do.call(rbind, numofsessions)
@@ -555,9 +559,9 @@ data_categories_wcat <- data_categories %>%
 
 # need to write another function to extract the number of presses because it is not always at a shift in shock intensity step
 progpun_presses <- function(x){
-  presses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFT/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
-  presses$V1[length(presses$V1) == 0] <- NA
-  presses$V2[length(presses$V2) == 0] <- NA
+  presses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFTPRESSES/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
+  # presses$V1[length(presses$V1) == 0] <- NA
+  # presses$V2[length(presses$V2) == 0] <- NA
   presses$filename <- x
   return(presses)
 }
@@ -676,30 +680,26 @@ delayed_data_df_valid <- delayedpunishment_df %>%
   filter(count == 2)
 
 # prog pun function seems to work for delayed prog categories, presses, (test box)
-delayed_data_categories = create_progpuntable_tocategorize(head(delayed_data_df_valid,25)) # test on valid datapoints until Jhou team returns comment 
+delayed_data_categories = create_progpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment (cannot use odd numbers as subset!! )
 
 delayed_data_categories_wcats <- delayed_data_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
          lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
 
-delayedpresses_df = lapply(head(delayed_punishmentfiles_clean, 10), progpun_presses) %>% rbindlist(fill = T)
+delayedpresses_df = lapply(head(delayed_punishmentfiles_clean, 20), progpun_presses) %>% rbindlist(fill = T)
 presses_df <- do.call(rbind, presses) # summary looks okay, no na and left presses min 55 max 130
 colnames(presses_df) = c("activepresses", "inactivepresses", "filename")
 
-
-
-rawfiles_dboxes <- read.csv("delayed_boxes.txt", head = F)
-colnames(rawfiles_dboxes) <- c("filename", "box")
-
-delays <- "find -type f -iname \"*.txt\" -exec awk '/THIS TRIAL/{print FILENAME \",\" $(NF-3) \",\" $(NF-2); exit}' {} \\; > delayed_delays.txt"
-system(delays)
-rawfiles_ddelays <- read.csv("delayed_delays.txt", head = F)
-colnames(rawfiles_ddelays) <- c("filename", "delay")
 rawfiles_ddelays$delay <- as.character(rawfiles_ddelays$delay)
 rawfiles_ddelays_test <- rawfiles_ddelays %>% 
   mutate(delay2 = ifelse(grepl("\\d.*SEC", rawfiles_ddelays$delay), grep("\\d.*SEC$", rawfiles_ddelays$delay, value = T), NA)) # Clean up variable bc 'delay' variable takes messy data (like EARLYSHOCK _ SEC, 33 MS, etc.)
 # Clarify with Tom and then add these columns together
 
+
+# extract box information
+## try prog pun function
+
+# extract file information for preparation for appending to rfid
 rawfiles_ddelays_test <- extractfromfilename(rawfiles_ddelays_test)
 
 
