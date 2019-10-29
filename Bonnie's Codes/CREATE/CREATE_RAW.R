@@ -681,13 +681,15 @@ delayed_data_df_valid <- delayedpunishment_df %>%
   ungroup() %>% 
   dplyr::filter(count == 2)
 
+# 10/29 SAVE SCREENSHOT IN DOCUMENT FOR TOM delayed_data_df_valid %>% dplyr::filter(is.na(delay)) %>% group_by(filename) %>% mutate(count = n()) %>% as.data.frame() 
+
 # prog pun function seems to work for delayed prog categories, presses, and box
 delayed_data_categories = create_progpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment (cannot use odd numbers as subset!! )
 # summary looks ok; 5478 files
 
 delayed_data_categories_wcats <- delayed_data_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
-         lastshock_cat = ifelse(numleftpresseslast == 3, "Complete", "Attempt"))
+         lastshock_cat = ifelse(numleftpresseslast >= 3, "Complete", "Attempt"))
 
 # there are files within the clean file names that are EMPTY
 duplicatedfiles <- grep("[(]\\d[)]", delayed_punishmentfiles_clean, value = T) %>% 
@@ -698,12 +700,22 @@ colnames(delayedpresses_df) = c("activepresses", "inactivepresses", "filename") 
 
 delayedboxesandstations_df = lapply(removeduplicatefiles, progpun_boxes) %>% 
   rbindlist(fill = T)
-colnames(delayedboxesandstations_df) = c("boxorstation", "boxorstationumber", "filename") # 5555 boxes found
+colnames(delayedboxesandstations_df) = c("boxorstation", "boxorstationumber", "filename") # 5555 boxes found, no NA's
 
-# dim is all over the place 
+delays <- delayed_data_df_valid %>% 
+  select(delay, filename) %>% 
+  dplyr::filter(!is.na(delay)) %>% 
+  group_by(filename, delay) %>% 
+  unique()
 
-# extract file information for preparation for appending to rfid
-rawfiles_ddelays_test <- extractfromfilename(rawfiles_ddelays_test)
+delayedpunishment_test <- left_join(x = delayed_data_categories_wcats, y = delays, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
+  left_join(., delayedpresses_df, by = "filename") %>% 
+  left_join(., delayedboxesandstations_df, by = "filename") %>% # dim is all over the place 
+  extractfromfilename() %>% # extract file information for preparation for appending to rfid
+  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
+  mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
+            shockoflastattemptedblock = lastshock) %>%
+  select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock))
 
 # to do: check the validity of the columns and the cell formatting 
 
@@ -715,7 +727,10 @@ rawfiles_ddelays_test <- extractfromfilename(rawfiles_ddelays_test)
 
 
 # Create list of all experiments
-
+Jhou_raw <- list(
+  "runway" = runway,
+  "delayedpunishment" = delaypunishment,
+)
 
 ## Appending info from WFU data 
 # Add rfid, sex, cohort
