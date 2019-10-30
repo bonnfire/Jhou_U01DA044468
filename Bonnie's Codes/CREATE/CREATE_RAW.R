@@ -423,7 +423,7 @@ rawfiles_locomotor <- lapply(locomotorfiles_clean, read_locomotor) %>%
 i <- 1
 j <- 1
 repeat {
-  rawfiles_locomotor$minute[i] <- paste("minute", j)
+  rawfiles_locomotor$minute[i] <- paste0("minute", j)
   i = i + 1
   j = j + 1
   if (rawfiles_locomotor$filename[i] != rawfiles_locomotor$filename[i-1]){
@@ -442,8 +442,10 @@ rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
                                binmeans = rowMeans(.SD, na.rm=T)), .SDcols=names(rawfiles_locomotor_wide)[-1]]
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
-rawfiles_locomotor_wide <- #left_join(rawfiles_locomotor_wide, rfidandid, by = "labanimalid") %>% 
-  extractfromfilename(rawfiles_locomotor_wide) %>% # extract file information for preparation for appending to rfid
+rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>% 
+  mutate(labanimalid = gsub('/u', '/U', filename),
+         labanimalid = str_extract(labanimalid, '(U[[:digit:]]+)')) %>%
+  left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
 
 # ASK ALEN HOW SESSIONS ARE ASSIGNED 
