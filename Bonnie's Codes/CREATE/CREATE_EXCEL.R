@@ -72,3 +72,44 @@ tJhou_Runway_data <- cbind(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong %
 # extract the notes (create specific comments table)
 tJhou_Runway_notes <- tJhou_Runway[, "notes", with = FALSE]
 tJhou_Runway_notes[, animalid := names(Jhou_Runway)[-1]]
+
+################################
+########### LOCOMOTOR ##########
+################################
+
+Jhou_Locomotor <- Jhou_Excel[["Locomotor"]] %>% as.data.table
+Jhou_Locomotor <- Jhou_Locomotor[,1:39] 
+Jhou_Locomotor[, paste0("...", c(32,34,37)) := NULL][] # remove all na columns
+setnames(Jhou_Locomotor, c("labanimalid", paste0("minute", 1:30),"Date", "first15avg_beforefooddep", "last15avg_beforefooddep", "first15avg_afterfooddep","last15avg_afterfooddep") )
+Jhou_Locomotor_ID <- Jhou_Locomotor[grepl("^U", labanimalid), labanimalid] # hold vector of the labanimalids
+Jhou_Locomotor <- Jhou_Locomotor[grepl("^u|binned", labanimalid, ignore.case = T) & !is.na(minute1) & !is.na(labanimalid),] # create the minute data first and then cbind to the total and averages data
+# Jhou_Locomotor_df <- Jhou_Locomotor %>% as.data.frame() 
+
+# get the minute count 
+#add id based on session information
+Jhou_Locomotor$labanimalidsession <- NA
+
+i <- 1
+j <- 1
+repeat {
+  Jhou_Locomotor$labanimalidsession[i] <- Jhou_Locomotor_ID[j]
+  i = i + 1
+  j = j 
+  if (grepl("^U", Jhou_Locomotor$labanimalid[i])){
+    j = j + 1
+  }
+} 
+Jhou_Locomotor <- Jhou_Locomotor[grepl("^binned", labanimalid, ignore.case = T),] %>% 
+  rename("session" = "labanimalid",
+         "labanimalid" = "labanimalidsession")
+
+
+
+# get the total counts 
+# get the average counts 
+# assign the session information
+
+
+<- Jhou_Locomotor[grepl("count", labanimalid, ignore.case = T),] 
+
+

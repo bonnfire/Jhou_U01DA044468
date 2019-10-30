@@ -440,6 +440,8 @@ setcolorder(rawfiles_locomotor_wide, c(1, order(as.numeric(gsub("minute", "", na
 # add means and sums as jhou's lab does
 rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
                                binmeans = rowMeans(.SD, na.rm=T)), .SDcols=names(rawfiles_locomotor_wide)[-1]]
+# starting U294, add the first 15 minutes average and last 15 minutes average
+# for U311, U312 and starting U315 to U328, take the same two averages for the second session
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
 rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>% 
