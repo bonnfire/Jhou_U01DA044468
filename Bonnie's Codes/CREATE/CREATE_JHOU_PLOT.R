@@ -2,6 +2,8 @@
 
 # Runway
 # Locomotor 
+
+# TO DO: GET THE NUMBER OF LAB ANIMAL ID'S IN THE WFU DATA, ID'S IN THE RAW, AND ID'S IN THE EXCEL 
 pdf("jhou_locomotor_compare.pdf", onefile = T)
 plot_list = list()
 plot_compare_list = list()
@@ -32,15 +34,12 @@ for (i in seq_along(onlymins)){
   #   theme(axis.text.x = element_text(angle = 45))
 
   plot_compare_list[[i]] <- ggplot(test, aes_string( onlymins_excel[i], onlymins_raw[i])) + 
-                                     geom_point() +
+                                     geom_point(aes(color = shipmentcohort_excel)) +
     labs(title = paste0("Comparison of ", onlymins_excel[i], "_locomotor_U01_Jhou"),
          y = onlymins_raw[i], x = onlymins_excel[i])
   
   #plot_compare_list[[i]] <- ggplot(data = test, aes(x=minute1.x, y = minute1.y)) + geom_point()
   
-  
-  # test <- setdiff(x = rawfiles_locomotor_wide_graph[onlymins[-31]], y = Jhou_Locomotor_Excel_graph[onlymins[-31]])
- 
   #  print(plot_list[[i]])
   print(plot_compare_list[[i]])
   

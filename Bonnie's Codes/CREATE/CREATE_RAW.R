@@ -444,16 +444,54 @@ rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
 # for U311, U312 and starting U315 to U328, take the same two averages for the second session
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
-rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>% 
-  mutate(labanimalid = gsub('/u', '/U', filename),
-         labanimalid = str_extract(labanimalid, '(U[[:digit:]]+)')) %>%
-  left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
-  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
+# rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
+#   mutate(labanimalid = gsub('/u', '/U', filename),
+#          labanimalid = str_extract(labanimalid, '(U[[:digit:]]+)')) %>%
+#   left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
+#   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
+
+# use to merge but extract labanimalid NOT FROM U
+rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
+  mutate(labanimalid = str_extract(filename, '(_[[:digit:]]+)'),
+         labanimalid = gsub('_', 'U', labanimalid)) %>% 
+  left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid  # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
+  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid))
 
 # ASK ALEN HOW SESSIONS ARE ASSIGNED 
 # rawfiles_locomotor <- rawfiles_locomotor_wide %>% 
 #   mutate(session = ___ ) 
 
+rawfiles_locomotor_wide$session <- NA 
+bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Counts1a","Binned Counts1b","Binned Counts2a","Binned Counts2b")
+
+
+# add count and assigning the session based on the number of counts
+rawfiles_locomotor_wide
+# fix the labanimalid # extract from between _id_ rather than from Uid
+# rawfiles_locomotor_wide 
+test <- rawfiles_locomotor_wide %>%
+  dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", rawfiles_locomotor_wide$resolution, perl = T),
+                minute1 != 0 & minute2 != 0, !is.na(minute3))
+
+rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4) %>% View()
+
+
+# get the files that were in the wrong place
+
+i <- 1
+j <- 1
+repeat {
+  rawfiles_locomotor_wide$session[i] <- paste0("minute", j)
+  i = i + 1
+  j = j + 1
+  if (rawfiles_locomotor$filename[i] != rawfiles_locomotor$filename[i-1]){
+    j = 1
+  }
+} #add session information
+
+
+rawfiles_locomotor_wide_test <- rawfiles_locomotor_wide %>% 
+  arrange(labanimalid, date, time)
 
 locomotorsessionstest <- rawfiles_locomotor_wide %>%
   add_count(labanimalid) %>%

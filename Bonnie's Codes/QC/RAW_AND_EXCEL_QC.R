@@ -98,3 +98,11 @@ runway_boxes_df <- runway_boxes %>%
 boxqc_bycohort <- runway_boxes_df %>% group_by(cohort, boxstation, sex) %>% count()
 
 ggplot(boxqc_bycohort, aes(x = boxstation, y = n, color = sex)) + geom_point() + facet_grid(. ~ cohort) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+#### COMPARING THE RAW AND EXCEL FILES 
+test[as.numeric(test$shipmentcohort_excel) > 8, ][onlymins[-31]]
+test <- setdiff(x = test[which(as.numeric(test$shipmentcohort_excel) > 8), 2:31], y = test[which(as.numeric(test$shipmentcohort_excel) > 8), 46:75])
+
+
