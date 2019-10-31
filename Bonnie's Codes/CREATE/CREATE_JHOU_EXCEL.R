@@ -8,6 +8,7 @@ library(lubridate)
 library(openxlsx)
 library(stringr)
 library(data.table)
+library(tidyxl)
 
 u01.importxlsx <- function(xlname){
   path_sheetnames <- excel_sheets(xlname)
@@ -109,7 +110,33 @@ Jhou_Locomotor <- Jhou_Locomotor[grepl("^binned", labanimalid, ignore.case = T),
 # get the average counts 
 # assign the session information
 
+################################
+#### PROGRESSIVE PUNISHMENT ####
+################################
 
-<- Jhou_Locomotor[grepl("count", labanimalid, ignore.case = T),] 
+# repeat sessions are in red to remove, use format to remove 
 
+Jhou_ProgPun <- Jhou_Excel[["Progressive Punishment"]] %>% as.data.table
+Jhou_ProgPun <- Jhou_ProgPun[, 1:13] 
+setnames(Jhou_ProgPun, c("labanimalid", as.character(Jhou_ProgPun[2, 2:13])) )
+# check if structure is consistent (it isn't)
+idindex <- grep("^U", Jhou_ProgPun$labanimalid)
+zeroindex <- grep("^0", Jhou_ProgPun$labanimalid)
+zeroindex - idindex
+
+Jhou_Excel_ProgressivePunishment_formats_cellbycell <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx") %>% 
+  dplyr::filter(sheet == "Progressive Punishment")
+Jhou_Excel_ProgressivePunishment_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
+Jhou_Excel_ProgressivePunishment_formats$local$font$bold[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id]
+
+# get the information about the red point; get the hexademical string
+redexample <- Jhou_Excel_ProgressivePunishment_formats_cellbycell %>% dplyr::filter(row == 351, col == 1)
+wantedhexa <- Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb[redexample$local_format_id]
+wantedhexa_indices <- which(Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb == wantedhexa)
+redrows <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% 
+  dplyr::filter(!is.na(numeric), grepl("^A",address))
+redrows <- 
+# To look up the local formatting of a given cell
+# my_cells$Sheet1[1, "local_format_id"]`
+# my_formats$local$font$size[local_format_id]
 

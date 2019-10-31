@@ -56,6 +56,9 @@ for (i in seq_along(onlymins)){
 
 dev.off()
 
+# for min19 which has weird axes for some reason
+# ggplot(test, aes(minute19_excel, minute19_raw)) + geom_point() + coord_cartesian(xlim = c(0, 80), ylim = c(0, 80))
+
 # Progressive punishment
 # Progressive ratio
 # Delayed punishment

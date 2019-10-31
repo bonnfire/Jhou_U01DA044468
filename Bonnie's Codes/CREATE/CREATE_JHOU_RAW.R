@@ -637,7 +637,7 @@ colnames(progpun_boxesandstations_df) = c("boxorstation", "boxorstationumber", "
 # cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone2$labanimalid)
 # cases # just 6 and 8 now XX already made note to Tom Jhou's team
 
-delayedpunishment <- left_join(x = progpundata_categories_wcat, y = progpun_presses_df, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
+progressivepunishment <- left_join(x = progpundata_categories_wcat, y = progpun_presses_df, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
   left_join(., progpun_boxesandstations_df, by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
   extractfromfilename() %>% # extract file information for preparation for appending to rfid
   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
