@@ -462,40 +462,48 @@ rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
 #   mutate(session = ___ ) 
 
 rawfiles_locomotor_wide$session <- NA 
-bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Counts1a","Binned Counts1b","Binned Counts2a","Binned Counts2b")
+bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Counts1a","Binned Counts1b","Binned Counts2a","Binned Counts2b") %>% as.character() %>% data.frame()
 
 
 # add count and assigning the session based on the number of counts
 rawfiles_locomotor_wide
-# fix the labanimalid # extract from between _id_ rather than from Uid
+# fix the labanimalid # extract from between _id_ rather than from Uid # exclude those that are resolved to be exclude
 # rawfiles_locomotor_wide 
 test <- rawfiles_locomotor_wide %>%
   dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", rawfiles_locomotor_wide$resolution, perl = T),
-                minute1 != 0 & minute2 != 0, !is.na(minute3))
+                minute1 != 0 & minute2 != 0, !is.na(minute3)) # 717 cases
 
-rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4) %>% View()
+## XX NOTE THIS TO JHOU'S LAB (ALLEN)
+exclude_cases <- test %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4)
 
+test_withexcluded_locomotor <-  test %>% 
+  dplyr::filter(!labanimalid %in% exclude_cases$labanimalid) # 692 files
+# test_withexcluded_locomotor$session <- NA  
 
-# get the files that were in the wrong place
+#add session information
 
-i <- 1
-j <- 1
-repeat {
-  rawfiles_locomotor_wide$session[i] <- paste0("minute", j)
-  i = i + 1
-  j = j + 1
-  if (rawfiles_locomotor$filename[i] != rawfiles_locomotor$filename[i-1]){
-    j = 1
+test__split <- split(test_withexcluded_locomotor, test_withexcluded_locomotor$labanimalid)
+test__split_session <- lapply(test__split, function(x){
+  x <- x %>% 
+    arrange(date, time)
+    if(nrow(x) == 2){
+      cbind(x, tail(head(bincounts,3),2))
+    }
+  else if(nrow(x) == 4){
+    cbind(x, tail(bincounts,4))
   }
-} #add session information
+  else{
+    # print("one row")
+    cbind(x,head(bincounts,1))
+  }
+}) %>% 
+  rbindlist() %>% 
+  rename("session" = ".")
 
 
-rawfiles_locomotor_wide_test <- rawfiles_locomotor_wide %>% 
-  arrange(labanimalid, date, time)
-
-locomotorsessionstest <- rawfiles_locomotor_wide %>%
-  add_count(labanimalid) %>%
-  subset(n != 1) # XX see cases of 3 and 5 and need to know how to populate the session designation; expected pairs, 2 for 1 and 2 and 4 for 1a 2a and 1b 2b
+# locomotorsessionstest <- rawfiles_locomotor_wide %>%
+#   add_count(labanimalid) %>%
+#   subset(n != 1) # XX see cases of 3 and 5 and need to know how to populate the session designation; expected pairs, 2 for 1 and 2 and 4 for 1a 2a and 1b 2b
 
 # XX only missing session (see above issue) and bodyweightperc
 
