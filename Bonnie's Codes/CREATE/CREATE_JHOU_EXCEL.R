@@ -135,7 +135,7 @@ wantedhexa <- Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb[rede
 wantedhexa_indices <- which(Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb == wantedhexa)
 redrows <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% 
   dplyr::filter(!is.na(numeric), grepl("^A",address))
-redrows <- 
+# redrows <- # 
 # To look up the local formatting of a given cell
 # my_cells$Sheet1[1, "local_format_id"]`
 # my_formats$local$font$size[local_format_id]

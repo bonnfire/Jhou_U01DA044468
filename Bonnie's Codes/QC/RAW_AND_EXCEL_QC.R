@@ -102,7 +102,24 @@ ggplot(boxqc_bycohort, aes(x = boxstation, y = n, color = sex)) + geom_point() +
 
 
 #### COMPARING THE RAW AND EXCEL FILES 
+
+# for email 
+# generate the missing files again 
+# row exists in raw but not in excel
 test[as.numeric(test$shipmentcohort_excel) > 8, ][onlymins[-31]]
 test <- setdiff(x = test[which(as.numeric(test$shipmentcohort_excel) > 8), 2:31], y = test[which(as.numeric(test$shipmentcohort_excel) > 8), 46:75])
 
+# generate the lowercase filename
+rawfiles_locomotor_wide[grep("u", rawfiles_locomotor_wide$filename),]
+# generate the mislabelled files
+rawfiles_locomotor_wide %>% 
+  mutate(labanimalidU = gsub('/u', '/U', filename), 
+         labanimalidU = str_extract(labanimalidU, '(U[[:digit:]]+)'), 
+         labanimalid_ = str_extract(filename, '(_[[:digit:]]+)'),
+         labanimalid_ = gsub('_', 'U', labanimalid_)) %>% 
+  dplyr::filter(labanimalidU != labanimalid_)
+
+# generate the all zeroes files and the na files
+rawfiles_locomotor_wide %>%
+  dplyr::filter(minute1 == 0 & minute2 == 0 | is.na(minute3)) # 717 cases
 
