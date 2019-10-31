@@ -4,13 +4,16 @@
 # Locomotor 
 
 # TO DO: GET THE NUMBER OF LAB ANIMAL ID'S IN THE WFU DATA, ID'S IN THE RAW, AND ID'S IN THE EXCEL 
-pdf("jhou_locomotor_compare.pdf", onefile = T)
-plot_list = list()
-plot_compare_list = list()
 
-rawfiles_locomotor_wide_graph <- rawfiles_locomotor_wide %>% 
-  mutate(shipmentcohort = trunc(as.numeric(rawfiles_locomotor_wide$shipmentcohort)) %>% as.character(),
-         shipmentcohort = factor(rawfiles_locomotor_wide_graph$shipmentcohort, levels=sort(as.numeric(unique(rawfiles_locomotor_wide_graph$shipmentcohort))), ordered=TRUE))
+# rawfiles_locomotor_wide_graph <- rawfiles_locomotor_wide %>% 
+#   mutate(shipmentcohort = trunc(as.numeric(rawfiles_locomotor_wide$shipmentcohort)) %>% as.character(),
+#          shipmentcohort = factor(rawfiles_locomotor_wide_graph$shipmentcohort, levels=sort(as.numeric(unique(rawfiles_locomotor_wide_graph$shipmentcohort))), ordered=TRUE))
+
+# trying with split data
+rawfiles_locomotor_wide_graph <- test__split_session %>% 
+  mutate(shipmentcohort = trunc(as.numeric(test__split_session$shipmentcohort)) %>% as.character(),
+         shipmentcohort = factor(test__split_session$shipmentcohort, levels=sort(as.numeric(unique(test__split_session$shipmentcohort))), ordered=TRUE))
+
 
 Jhou_Locomotor_Excel_graph <- Jhou_Locomotor %>%  
   left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
@@ -21,9 +24,14 @@ onlymins <-  grep(pattern = "^(min)", names(rawfiles_locomotor_wide_graph), perl
 onlymins_excel <- paste0(onlymins, "_excel")
 onlymins_raw <- paste0(onlymins, "_raw")
 
-test <- left_join(Jhou_Locomotor_Excel_graph,rawfiles_locomotor_wide_graph,  by = "labanimalid")
+test <- left_join(Jhou_Locomotor_Excel_graph,rawfiles_locomotor_wide_graph,  by = c("labanimalid", "session"))
 names(test) <- gsub(".x", "_excel", names(test))
 names(test) <- gsub(".y", "_raw", names(test))
+
+
+pdf("jhou_locomotor_compare.pdf", onefile = T)
+plot_list = list()
+plot_compare_list = list()
 
 for (i in seq_along(onlymins)){
   # 

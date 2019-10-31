@@ -462,11 +462,13 @@ rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
 #   mutate(session = ___ ) 
 
 rawfiles_locomotor_wide$session <- NA 
-bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Counts1a","Binned Counts1b","Binned Counts2a","Binned Counts2b") %>% as.character() %>% data.frame()
-
+bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Counts1a","Binned Counts1b","Binned Counts2a","Binned Counts2b") %>% 
+  data.frame() %>% 
+  rename("session" = ".") %>%
+  mutate(session = as.character(session))
 
 # add count and assigning the session based on the number of counts
-rawfiles_locomotor_wide
+# rawfiles_locomotor_wide
 # fix the labanimalid # extract from between _id_ rather than from Uid # exclude those that are resolved to be exclude
 # rawfiles_locomotor_wide 
 test <- rawfiles_locomotor_wide %>%
@@ -497,8 +499,7 @@ test__split_session <- lapply(test__split, function(x){
     cbind(x,head(bincounts,1))
   }
 }) %>% 
-  rbindlist() %>% 
-  rename("session" = ".")
+  rbindlist() 
 
 
 # locomotorsessionstest <- rawfiles_locomotor_wide %>%
