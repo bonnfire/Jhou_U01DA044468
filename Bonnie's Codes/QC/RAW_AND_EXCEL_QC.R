@@ -119,10 +119,16 @@ excelhasbutnotraw <- anti_join(Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)
 # variable by variable 
 locomotor_nonmatches_excelhasbutnotraw <- list()
 for(i in 1:length(onlymins)){
-  locomotor_nonmatches_excelhasbutnotraw[[i]] <- anti_join(Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), rawfiles_locomotor_wide, by = c("labanimalid", onlymins[i])) %>% dplyr::select(labanimalid)
+  locomotor_nonmatches_excelhasbutnotraw[[i]] <- anti_join(Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), rawfiles_locomotor_wide_clean__split_session, by = c("labanimalid", "session", onlymins[i])) %>% dplyr::select(labanimalid)
   names(locomotor_nonmatches_excelhasbutnotraw)[i] <- onlymins[i]
 }
-locomotor_nonmatches_excelhasbutnotraw %>% rbindlist(idcol = 'minute') %>% mutate(idnum = as.numeric(str_extract(labanimalid,"\\d+"))) %>% arrange(idnum) %>% select(-idnum) %>% split(., .$labanimalid) #sent to Jhou's lab
+locomotor_nonmatches_excelhasbutnotraw %>% 
+  rbindlist(idcol = 'minute') %>% 
+  mutate(idnum = as.numeric(str_extract(labanimalid,"\\d+"))) %>% 
+  arrange(idnum) %>% 
+  select(-idnum) %>% 
+  mutate(labanimalid = factor(labanimalid, levels = unique(labanimalid))) %>% # make levels to preserve order for split
+  split(., .$labanimalid) #sent to Jhou's lab
 
 test[as.numeric(test$shipmentcohort_excel) > 8, ][onlymins[-31]]
 test <- setdiff(x = test[which(as.numeric(test$shipmentcohort_excel) > 8), 2:31], y = test[which(as.numeric(test$shipmentcohort_excel) > 8), 46:75])

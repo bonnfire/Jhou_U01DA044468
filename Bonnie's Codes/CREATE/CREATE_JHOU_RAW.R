@@ -467,21 +467,21 @@ bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Count
 # rawfiles_locomotor_wide
 # fix the labanimalid # extract from between _id_ rather than from Uid # exclude those that are resolved to be exclude
 # rawfiles_locomotor_wide 
-test <- rawfiles_locomotor_wide %>%
+rawfiles_locomotor_wide_clean <- rawfiles_locomotor_wide %>%
   dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", rawfiles_locomotor_wide$resolution, perl = T),
                 minute1 != 0 & minute2 != 0, !is.na(minute3)) # 717 cases
 
 ## XX NOTE THIS TO JHOU'S LAB (ALLEN)
-exclude_cases <- test %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4)
+exclude_cases <- rawfiles_locomotor_wide_clean %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4)
 
-test_withexcluded_locomotor <-  test %>% 
+rawfiles_locomotor_wide_clean_withexcluded_locomotor <-  rawfiles_locomotor_wide_clean %>% 
   dplyr::filter(!labanimalid %in% exclude_cases$labanimalid) # 692 files
-# test_withexcluded_locomotor$session <- NA  
+# rawfiles_locomotor_wide_clean_withexcluded_locomotor$session <- NA  
 
 #add session information
 
-test__split <- split(test_withexcluded_locomotor, test_withexcluded_locomotor$labanimalid)
-test__split_session <- lapply(test__split, function(x){
+rawfiles_locomotor_wide_clean__split <- split(rawfiles_locomotor_wide_clean_withexcluded_locomotor, rawfiles_locomotor_wide_clean_withexcluded_locomotor$labanimalid)
+rawfiles_locomotor_wide_clean__split_session <- lapply(rawfiles_locomotor_wide_clean__split, function(x){
   x <- x %>% 
     arrange(date, time)
     if(nrow(x) == 2){

@@ -46,8 +46,8 @@ for (i in seq_along(onlymins)){
 
   plot_compare_list[[i]] <- ggplot(joinrawtoexcel, aes_string( onlymins_excel[i], onlymins_raw[i])) + 
                                      geom_point(aes(color = shipmentcohort_excel)) +
-    # geom_text(aes_string(label=ifelse(onlymins_excel[i]/onlymins_raw[i]) != 1, '', "labanimalid")),hjust=0,vjust=0) + 
-    geom_text(aes(label = labanimalid), data = joinrawtoexcel[joinrawtoexcel$labanimalid %in% excelhasbutnotraw$labanimalid,]) + # get excelhasbutnotraw from raw and excel qc
+    # geom_text(aes_string(label=ifelse(onlymins_excel[i] == onlymins_raw[i], '', "labanimalid")),hjust=0,vjust=0) + 
+    # geom_text(aes(label = labanimalid), data = joinrawtoexcel[joinrawtoexcel$labanimalid %in% excelhasbutnotraw$labanimalid,]) + # get excelhasbutnotraw from raw and excel qc
     labs(title = paste0("Comparison of ", onlymins[i], "_locomotor_U01_Jhou"),
          y = onlymins_raw[i], x = onlymins_excel[i]) + 
     scale_x_continuous(limits = xlim[[i]]) + 
