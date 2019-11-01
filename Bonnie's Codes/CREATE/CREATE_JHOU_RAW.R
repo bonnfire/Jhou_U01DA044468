@@ -457,10 +457,6 @@ rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
   left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid  # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid))
 
-# ASK ALEN HOW SESSIONS ARE ASSIGNED 
-# rawfiles_locomotor <- rawfiles_locomotor_wide %>% 
-#   mutate(session = ___ ) 
-
 rawfiles_locomotor_wide$session <- NA 
 bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Counts1a","Binned Counts1b","Binned Counts2a","Binned Counts2b") %>% 
   data.frame() %>% 

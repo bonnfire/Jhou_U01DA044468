@@ -116,6 +116,14 @@ rawhasbutnotexcel <- anti_join(rawfiles_locomotor_wide %>% dplyr::filter(!grepl(
 
 excelhasbutnotraw <- anti_join(Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), rawfiles_locomotor_wide, by = onlymins) # 13 cases
 
+# variable by variable 
+locomotor_nonmatches_excelhasbutnotraw <- list()
+for(i in 1:length(onlymins)){
+  locomotor_nonmatches_excelhasbutnotraw[[i]] <- anti_join(Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), rawfiles_locomotor_wide, by = c("labanimalid", onlymins[i])) %>% dplyr::select(labanimalid)
+  names(locomotor_nonmatches_excelhasbutnotraw)[i] <- onlymins[i]
+}
+locomotor_nonmatches_excelhasbutnotraw %>% rbindlist(idcol = 'minute') %>% mutate(idnum = as.numeric(str_extract(labanimalid,"\\d+"))) %>% arrange(idnum) %>% select(-idnum) %>% split(., .$labanimalid) #sent to Jhou's lab
+
 test[as.numeric(test$shipmentcohort_excel) > 8, ][onlymins[-31]]
 test <- setdiff(x = test[which(as.numeric(test$shipmentcohort_excel) > 8), 2:31], y = test[which(as.numeric(test$shipmentcohort_excel) > 8), 46:75])
 
