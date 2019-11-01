@@ -156,3 +156,5 @@ rawfiles_locomotor_wide %>%
 rawfiles_locomotor_wide %>%
   dplyr::filter(minute1 == 0 & minute2 == 0 | is.na(minute3)) # 717 cases
 
+# generate the excel cells that are supposed to be na's
+Jhou_Locomotor %>% dplyr::filter(labanimalid %in% res$labanimalid) %>% select(labanimalid, session, minute30) # res is created in raw to know how to deal with na cases 

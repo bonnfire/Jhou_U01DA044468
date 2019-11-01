@@ -437,11 +437,35 @@ rawfiles_locomotor_wide <- spread(rawfiles_locomotor, minute, bincounts) %>% # s
 # get code from https://stackoverflow.com/questions/57037860/how-to-reorder-column-names-in-r-numerically
 # reorder the columns
 setcolorder(rawfiles_locomotor_wide, c(1, order(as.numeric(gsub("minute", "", names(rawfiles_locomotor_wide)[-1]))) + 1))
+
+# deal with na values first before calculating sums and means 
+
+
+## to do: 
+# starting U294, add the first 15 minutes average and last 15 minutes average
+# for U311, U312 and starting U315 to U328, take the same two averages for the second session
+
+
+# investigate the number of na's and compare that to how they are coding na's
+rawfiles_locomotor_wide[-1] <- as.numeric(is.na(rawfiles_locomotor_wide[!complete.cases(rawfiles_locomotor_wide[,-32])]))
+as.numeric(is.na(res[-1]))
+
+data.frame(ID = rawfiles_locomotor_wide$labanimalid, ques = apply(rawfiles_locomotor_wide, 1, function(x) 
+  paste0(names(which(is.na(x))), collapse = ",")))
+
+#################### might delete later 11/1 waiting to hear back from jhou's team; excel sheet seems to have just moved it #######################################
+rawfiles_locomotor_wide[13,]$minute30 <- rawfiles_locomotor_wide[13,]$minute31
+rawfiles_locomotor_wide <- select(rawfiles_locomotor_wide, -minute31)
+
+res <- as.data.frame(rawfiles_locomotor_wide)[!complete.cases(as.data.frame(rawfiles_locomotor_wide)),]
+res[-1] <- as.numeric(is.na(res[-1]))
+res
+################################
+
 # add means and sums as jhou's lab does
 rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
                                binmeans = rowMeans(.SD, na.rm=T)), .SDcols=names(rawfiles_locomotor_wide)[-1]]
-# starting U294, add the first 15 minutes average and last 15 minutes average
-# for U311, U312 and starting U315 to U328, take the same two averages for the second session
+
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
 # rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
