@@ -469,9 +469,14 @@ rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
                                binmeans = rowMeans(.SD, na.rm=T)), .SDcols=names(rawfiles_locomotor_wide)[-1]]
 
 # remove the rows with almost all na's # two files ./U175/2019-0209-1959_175_LOCOMOTOR_BASIC.txt(all); ./U412/2019-0918-1102_412_LOCOMOTOR_BASIC.txt (almost all)
+# remove the rows with all 0's
+# remove the rows that they have noted to remove EXCLUDE_LOCOMOTOR
+# remove duplicated files
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
-  dplyr::filter(!(is.na(minute1) | is.na(minute2) | is.na(minute3)))
-
+  dplyr::filter(!(is.na(minute1) | is.na(minute2) | is.na(minute3))) %>% 
+  dplyr::filter(bintotal != 0) %>% 
+  dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", resolution)) 
+rawfiles_locomotor_wide <- rawfiles_locomotor_wide[!duplicated(rawfiles_locomotor_wide[-1]),]
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
 # rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
@@ -487,6 +492,23 @@ rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
   left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid  # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid))
 
+
+# check the number of files is even before adding session info 
+rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4) %>% View()
+
+# remove the first file for the 5 file cases (11/1 remove two files)
+rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
+  group_by(labanimalid) %>% 
+  do(tail(., 4)) 
+
+######################################################### WAIT UNTIL RESPONSE
+# TEMPORARILY REMOVE THE TWO CASES: 371 AND 271
+rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
+  dplyr::filter(!labanimalid %in% c("U371", "U271"))
+##########################################################
+
+# with no more 3 or 5 file cases...
+# add count and assigning the session based on the number of counts 
 rawfiles_locomotor_wide$session <- NA 
 bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Counts1a","Binned Counts1b","Binned Counts2a","Binned Counts2b") %>% 
   data.frame() %>% 
@@ -494,45 +516,25 @@ bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Count
   mutate(session = as.character(session))
 
 # add count and assigning the session based on the number of counts
-# rawfiles_locomotor_wide
-# fix the labanimalid # extract from between _id_ rather than from Uid # exclude those that are resolved to be exclude
-# rawfiles_locomotor_wide 
-rawfiles_locomotor_wide_clean <- rawfiles_locomotor_wide %>%
-  dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", rawfiles_locomotor_wide$resolution, perl = T),
-                minute1 != 0 & minute2 != 0, !is.na(minute3)) # 717 cases
-
-## XX NOTE THIS TO JHOU'S LAB (ALLEN)
-exclude_cases <- rawfiles_locomotor_wide_clean %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4)
-
-rawfiles_locomotor_wide_clean_withexcluded_locomotor <-  rawfiles_locomotor_wide_clean %>% 
-  dplyr::filter(!labanimalid %in% exclude_cases$labanimalid) # 692 files
-# rawfiles_locomotor_wide_clean_withexcluded_locomotor$session <- NA  
-
-#add session information
-
-rawfiles_locomotor_wide_clean__split <- split(rawfiles_locomotor_wide_clean_withexcluded_locomotor, rawfiles_locomotor_wide_clean_withexcluded_locomotor$labanimalid)
-rawfiles_locomotor_wide_clean__split_session <- lapply(rawfiles_locomotor_wide_clean__split, function(x){
+# extract from between _id_ rather than from Uid # exclude those that are resolved to be exclude
+rawfiles_locomotor_wide_split <- split(rawfiles_locomotor_wide, rawfiles_locomotor_wide$labanimalid)
+rawfiles_locomotor_wide_wsession <- lapply(rawfiles_locomotor_wide_split, function(x){
   x <- x %>% 
     arrange(date, time)
-    if(nrow(x) == 2){
+  if(nrow(x) == 2){
       cbind(x, tail(head(bincounts,3),2))
     }
   else if(nrow(x) == 4){
     cbind(x, tail(bincounts,4))
   }
   else{
-    # print("one row")
     cbind(x,head(bincounts,1))
   }
 }) %>% 
   rbindlist() 
 
 
-# locomotorsessionstest <- rawfiles_locomotor_wide %>%
-#   add_count(labanimalid) %>%
-#   subset(n != 1) # XX see cases of 3 and 5 and need to know how to populate the session designation; expected pairs, 2 for 1 and 2 and 4 for 1a 2a and 1b 2b
-
-# XX only missing session (see above issue) and bodyweightperc
+# to do: append bodyweightperc
 
 ################################
 ### RAW TEXT  Prog punish ######
