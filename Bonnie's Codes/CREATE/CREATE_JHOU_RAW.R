@@ -448,13 +448,7 @@ setcolorder(rawfiles_locomotor_wide, c(1, order(as.numeric(gsub("minute", "", na
 # for U311, U312 and starting U315 to U328, take the same two averages for the second session
 
 
-# investigate the number of na's and compare that to how they are coding na's
-rawfiles_locomotor_wide[-1] <- as.numeric(is.na(rawfiles_locomotor_wide[!complete.cases(rawfiles_locomotor_wide[,-32])]))
-as.numeric(is.na(res[-1]))
-
-data.frame(ID = rawfiles_locomotor_wide$labanimalid, ques = apply(rawfiles_locomotor_wide, 1, function(x) 
-  paste0(names(which(is.na(x))), collapse = ",")))
-
+# investigate the number of na's and compare that to how they are coding na's (as blanks)
 #################### might delete later 11/1 waiting to hear back from jhou's team; excel sheet seems to have just moved it #######################################
 rawfiles_locomotor_wide[13,]$minute30 <- rawfiles_locomotor_wide[13,]$minute31
 rawfiles_locomotor_wide <- select(rawfiles_locomotor_wide, -minute31)
@@ -510,7 +504,7 @@ bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Count
 # add count and assigning the session based on the number of counts
 # extract from between _id_ rather than from Uid # exclude those that are resolved to be exclude
 rawfiles_locomotor_wide_split <- split(rawfiles_locomotor_wide, rawfiles_locomotor_wide$labanimalid)
-rawfiles_locomotor_wide_wsession <- lapply(rawfiles_locomotor_wide_split, function(x){
+Jhou_Raw_Locomotor <- lapply(rawfiles_locomotor_wide_split, function(x){
   x <- x %>% 
     arrange(date, time)
   if(nrow(x) == 2){
