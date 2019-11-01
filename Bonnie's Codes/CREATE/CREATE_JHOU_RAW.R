@@ -230,10 +230,12 @@ summaryall <- uniform.var.names.testingu01_df(summaryall)
 rfidandid <- subset(summaryall, select = c("jhoulabid", "shipmentcohort", "wakeforestid", "sex", "rfid", "dob", "notesforhumans:", "resolution:")) # BASE SUBSET WORKS
 rfidandid <- rfidandid %>%
   mutate(shipmentcohort = shipmentcohort %>% as.numeric() %>% round(digits = 3),
-         dob = as.POSIXct(as.numeric(dob) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>%
+         dob = as.POSIXct(as.numeric(dob) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d"),
+         wakeforestid = gsub(".*-->", "", rfidandid$wakeforestid)) %>%
   rename(labanimalid = jhoulabid,
          comment = `notesforhumans:`,
-         resolution =`resolution:`)
+         resolution =`resolution:`) %>% 
+  dplyr::filter(!is.na(wakeforestid))
 
 
 
@@ -465,6 +467,10 @@ res
 # add means and sums as jhou's lab does
 rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
                                binmeans = rowMeans(.SD, na.rm=T)), .SDcols=names(rawfiles_locomotor_wide)[-1]]
+
+# remove the rows with almost all na's # two files ./U175/2019-0209-1959_175_LOCOMOTOR_BASIC.txt(all); ./U412/2019-0918-1102_412_LOCOMOTOR_BASIC.txt (almost all)
+rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
+  dplyr::filter(!(is.na(minute1) | is.na(minute2) | is.na(minute3)))
 
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
