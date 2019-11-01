@@ -485,14 +485,6 @@ rawfiles_locomotor_wide <- rawfiles_locomotor_wide[!duplicated(rawfiles_locomoto
 #   left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
 #   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
 
-# use to merge but extract labanimalid NOT FROM U
-rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
-  mutate(labanimalid = str_extract(filename, '(_[[:digit:]]+)'),
-         labanimalid = gsub('_', 'U', labanimalid)) %>% 
-  left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid  # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
-  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid))
-
-
 # check the number of files is even before adding session info 
 rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4) %>% View()
 
@@ -522,7 +514,7 @@ rawfiles_locomotor_wide_wsession <- lapply(rawfiles_locomotor_wide_split, functi
   x <- x %>% 
     arrange(date, time)
   if(nrow(x) == 2){
-      cbind(x, tail(head(bincounts,3),2))
+    cbind(x, tail(head(bincounts,3),2))
     }
   else if(nrow(x) == 4){
     cbind(x, tail(bincounts,4))
