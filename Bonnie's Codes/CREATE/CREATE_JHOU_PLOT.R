@@ -24,14 +24,17 @@ onlymins <-  grep(pattern = "^(min)", names(rawfiles_locomotor_wide_graph), perl
 onlymins_excel <- paste0(onlymins, "_excel")
 onlymins_raw <- paste0(onlymins, "_raw")
 
-test <- left_join(Jhou_Locomotor_Excel_graph,rawfiles_locomotor_wide_graph,  by = c("labanimalid", "session"))
-names(test) <- gsub(".x", "_excel", names(test))
-names(test) <- gsub(".y", "_raw", names(test))
-
+joinrawtoexcel <- left_join(Jhou_Locomotor_Excel_graph,rawfiles_locomotor_wide_graph,  by = c("labanimalid", "session"))
+names(joinrawtoexcel) <- gsub(".x", "_excel", names(joinrawtoexcel))
+names(joinrawtoexcel) <- gsub(".y", "_raw", names(joinrawtoexcel))
+xlim <- lapply(joinrawtoexcel[onlymins_excel], range, na.rm=T)
+ylim <- lapply(joinrawtoexcel[onlymins_raw], range, na.rm=T)
 
 pdf("jhou_locomotor_compare.pdf", onefile = T)
 plot_list = list()
 plot_compare_list = list()
+
+
 
 for (i in seq_along(onlymins)){
   # 
@@ -41,10 +44,19 @@ for (i in seq_along(onlymins)){
   #        y = locomotor_dd$var_graphtext[i], x = "Cohort") +
   #   theme(axis.text.x = element_text(angle = 45))
 
-  plot_compare_list[[i]] <- ggplot(test, aes_string( onlymins_excel[i], onlymins_raw[i])) + 
+  plot_compare_list[[i]] <- ggplot(joinrawtoexcel, aes_string( onlymins_excel[i], onlymins_raw[i])) + 
                                      geom_point(aes(color = shipmentcohort_excel)) +
-    labs(title = paste0("Comparison of ", onlymins_excel[i], "_locomotor_U01_Jhou"),
-         y = onlymins_raw[i], x = onlymins_excel[i])
+    # geom_text(aes_string(label=ifelse(onlymins_excel[i]/onlymins_raw[i]) != 1, '', "labanimalid")),hjust=0,vjust=0) + 
+    geom_text(aes(label = labanimalid), data = joinrawtoexcel[joinrawtoexcel$labanimalid %in% excelhasbutnotraw$labanimalid,]) + # get excelhasbutnotraw from raw and excel qc
+    labs(title = paste0("Comparison of ", onlymins[i], "_locomotor_U01_Jhou"),
+         y = onlymins_raw[i], x = onlymins_excel[i]) + 
+    scale_x_continuous(limits = xlim[[i]]) + 
+    scale_y_continuous(limits = xlim[[i]]) + 
+    geom_abline(slope = 1, intercept = 0, size = 0.5, alpha = 0.5)
+  
+  
+  # geom_text(aes(CPI, HDI, label = Country), data = dat[dat$Country %in% pointsToLabel,])
+  
   
   #plot_compare_list[[i]] <- ggplot(data = test, aes(x=minute1.x, y = minute1.y)) + geom_point()
   

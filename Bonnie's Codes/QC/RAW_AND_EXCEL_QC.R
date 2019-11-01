@@ -102,12 +102,31 @@ ggplot(boxqc_bycohort, aes(x = boxstation, y = n, color = sex)) + geom_point() +
 
 
 #### COMPARING THE RAW AND EXCEL FILES 
+# create a subset of data for which the columns don't match 
+# # create column by column comparison and generate a column that indicates whether or not they match 9DON'T NEED BC OF ANTI JOIN)
+# for(i in 1:nrow(joinrawtoexcel)){
+# 
+#       i = 1
+#       joinrawtoexcelcols_test <- paste('comparison', i, sep= '')
+#       joinrawtoexcel[[joinrawtoexcelcols_test]] <- ifelse(select(test, onlymins_excel[i]) != select(test, onlymins_raw[i]), 1, 0)
+#       joinrowtoexcel[[test_anyfalse]] <- ifelse()
+# }
 
-# for email 
-# generate the missing files again 
-# row exists in raw but not in excel
+rawhasbutnotexcel <- anti_join(rawfiles_locomotor_wide %>% dplyr::filter(!grepl("LOCOMOTOR", resolution)), Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), by = onlymins) # 34 cases
+
+excelhasbutnotraw <- anti_join(Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), rawfiles_locomotor_wide, by = onlymins) # 13 cases
+
 test[as.numeric(test$shipmentcohort_excel) > 8, ][onlymins[-31]]
 test <- setdiff(x = test[which(as.numeric(test$shipmentcohort_excel) > 8), 2:31], y = test[which(as.numeric(test$shipmentcohort_excel) > 8), 46:75])
+
+# for email
+# generate the missing files again 
+# row exists in raw but not in excel (by ID)
+anti_join(rawfiles_locomotor_wide, Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), by = 'labanimalid')
+# row exists in raw but not in excel (by file)
+
+# row exists in raw but not in excel (by session); mostly excel spaceholder
+anti_join(rawfiles_locomotor_wide,Jhou_Locomotor_Excel_graph,  by = c("labanimalid", "session")) %>% tail(33-6) %>% select(labanimalid) %>% unique()
 
 # generate the lowercase filename
 rawfiles_locomotor_wide[grep("u", rawfiles_locomotor_wide$filename),]
