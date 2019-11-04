@@ -113,7 +113,7 @@ Jhou_Locomotor <- Jhou_Locomotor[grepl("^binned", labanimalid, ignore.case = T),
 ################################
 #### PROGRESSIVE PUNISHMENT ####
 ################################
-
+setwd("~/Dropbox (Palmer Lab)/U01 folder")
 # repeat sessions are in red to remove, use format to remove 
 
 Jhou_ProgPun <- Jhou_Excel[["Progressive Punishment"]] %>% as.data.table
@@ -160,6 +160,9 @@ Jhou_ProgPun_Excel <- lapply(Jhou_ProgPun_nored_split, function(x){
    dplyr::mutate(labanimalid = grep("U\\d+", session, value = T),
                  date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% 
    dplyr::filter(!is.na(as.numeric(shockoflastcompletedblock))) 
+ progpunmeasures.num <- grep(pattern = "(?=shock|presses)", names(x), perl = T, value = T)
+ x[progpunmeasures.num] <- sapply(x[progpunmeasures.num],as.numeric)
+ 
  return(x)
 }) %>% rbindlist()
 

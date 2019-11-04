@@ -11,6 +11,7 @@ require(splitstackshape)
 require(janitor)
 require(stringr)
 require(ggplot2)
+require(tidyxl)
 
 library(dplyr)
 library(data.table)

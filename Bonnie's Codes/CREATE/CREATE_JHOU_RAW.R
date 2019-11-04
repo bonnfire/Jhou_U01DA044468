@@ -657,11 +657,13 @@ progressivepunishment <- left_join(x = progpundata_categories_wcat, y = progpun_
   # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
          shockoflastattemptedblock = lastshock) %>% 
-  rename("numtrialsatlastshock" = "numleftpressesbwlasttwo") %>% 
-  select(-c(numtrialsatlastshock, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
+  rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
+  select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
   group_by(labanimalid) %>% 
-  mutate(session = dplyr::row_number() - 1) %>%  # add session 
-  ungroup()
+  mutate(session = as.character(dplyr::row_number() - 1)) %>%  # add session 
+  ungroup() %>%
+  left_join(., rfidandid, by = "labanimalid") 
+
 ################################
 ### RAW TEXT  Prog ratio #######
 ################################
