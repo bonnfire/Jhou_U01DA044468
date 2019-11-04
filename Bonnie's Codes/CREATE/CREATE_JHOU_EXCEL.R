@@ -144,4 +144,24 @@ Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
 ## get indices of labanimalid
 labanimalid_indices <- grep("^U", Jhou_ProgPun_nored$labanimalid, ignore.case = F)
 Jhou_ProgPun_nored_split <- split(Jhou_ProgPun_nored, cumsum(1:nrow(Jhou_ProgPun_nored) %in% labanimalid_indices))
-Jhou_ProgPun_nored_split <- lapply(Jhou_ProgPun_nored_split, function(x)) 
+
+## TO DO: CHANGE NUMLEFTPRESSESLAST HERE AND IN PROGPUN RAW DATA
+Jhou_ProgPun_nored_split_test <- lapply(Jhou_ProgPun_nored_split, function(x){
+ x <- x %>% 
+    rename("date" = "Date",
+           "shockoflastcompletedblock" = "Last block completed (mA)",
+           "shockoflastattemptedblock" = "Last trial attempted (mA)",
+           "numtrialsatlastshock" = "# of trials at last Shock Intensity",
+           "activepresses" = "Active (left)",
+           "inactivepresses" = "Inactive (right)",
+           "boxorstationumber" = "Box #",
+           "session" = "labanimalid") %>% 
+   dplyr::select(-c(Avg, Time, FR, `Weight (%)`)) %>%
+   dplyr::mutate(labanimalid = grep("U\\d+", session, value = T),
+                 date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% 
+   dplyr::filter(!is.na(as.numeric(shockoflastcompletedblock))) 
+ return(x)
+}) %>% rbindlist()
+
+# remove Time bc the values are invalid and sparse (subset(Jhou_ProgPun, !is.na(as.numeric(Time))))
+

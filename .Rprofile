@@ -1,5 +1,6 @@
 cat("Welcome to the Jhou U01 project.\n")
 require(dplyr)
+require(magrittr)
 require(data.table)
 require(tidyverse)
 require(readxl)

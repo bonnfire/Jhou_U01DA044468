@@ -656,8 +656,9 @@ progressivepunishment <- left_join(x = progpundata_categories_wcat, y = progpun_
   extractfromfilename() %>% # extract file information for preparation for appending to rfid
   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
-         shockoflastattemptedblock = lastshock) %>%
-  select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock))
+         shockoflastattemptedblock = lastshock) %>% 
+  rename("numtrialsatlastshock" = "numleftpressesbwlasttwo") %>% 
+  select(-c(numtrialsatlastshock, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock))
 
 
 ################################
