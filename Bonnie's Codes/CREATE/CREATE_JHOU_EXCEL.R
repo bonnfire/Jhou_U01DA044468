@@ -127,7 +127,6 @@ zeroindex - idindex
 Jhou_Excel_ProgressivePunishment_formats_cellbycell <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx") %>% 
   dplyr::filter(sheet == "Progressive Punishment")
 Jhou_Excel_ProgressivePunishment_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
-Jhou_Excel_ProgressivePunishment_formats$local$font$bold[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id]
 
 # get the information about the red point; get the hexademical string
 redexample <- Jhou_Excel_ProgressivePunishment_formats_cellbycell %>% dplyr::filter(row == 351, col == 1)
@@ -140,3 +139,9 @@ redrows <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_Progre
 # my_cells$Sheet1[1, "local_format_id"]`
 # my_formats$local$font$size[local_format_id]
 
+# remove the red rows and clean up data
+Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
+## get indices of labanimalid
+labanimalid_indices <- grep("^U", Jhou_ProgPun_nored$labanimalid, ignore.case = F)
+Jhou_ProgPun_nored_split <- split(Jhou_ProgPun_nored, cumsum(1:nrow(Jhou_ProgPun_nored) %in% labanimalid_indices))
+Jhou_ProgPun_nored_split <- lapply(Jhou_ProgPun_nored_split, function(x)) 
