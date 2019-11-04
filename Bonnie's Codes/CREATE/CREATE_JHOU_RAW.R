@@ -654,14 +654,14 @@ colnames(progpun_boxesandstations_df) = c("boxorstation", "boxorstationumber", "
 progressivepunishment <- left_join(x = progpundata_categories_wcat, y = progpun_presses_df, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
   left_join(., progpun_boxesandstations_df, by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
   extractfromfilename() %>% # extract file information for preparation for appending to rfid
-  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
+  # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
          shockoflastattemptedblock = lastshock) %>% 
   rename("numtrialsatlastshock" = "numleftpressesbwlasttwo") %>% 
   select(-c(numtrialsatlastshock, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
   group_by(labanimalid) %>% 
-  mutate(session = dplyr::row_number() - 1) # add session
-
+  mutate(session = dplyr::row_number() - 1) %>%  # add session 
+  ungroup()
 ################################
 ### RAW TEXT  Prog ratio #######
 ################################

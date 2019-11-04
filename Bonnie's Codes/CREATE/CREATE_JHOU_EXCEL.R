@@ -146,7 +146,7 @@ labanimalid_indices <- grep("^U", Jhou_ProgPun_nored$labanimalid, ignore.case = 
 Jhou_ProgPun_nored_split <- split(Jhou_ProgPun_nored, cumsum(1:nrow(Jhou_ProgPun_nored) %in% labanimalid_indices))
 
 ## TO DO: CHANGE NUMLEFTPRESSESLAST HERE AND IN PROGPUN RAW DATA
-Jhou_ProgPun_nored_split_test <- lapply(Jhou_ProgPun_nored_split, function(x){
+Jhou_ProgPun_Excel <- lapply(Jhou_ProgPun_nored_split, function(x){
  x <- x %>% 
     rename("date" = "Date",
            "shockoflastcompletedblock" = "Last block completed (mA)",

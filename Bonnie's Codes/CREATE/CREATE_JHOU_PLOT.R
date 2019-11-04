@@ -75,11 +75,12 @@ dev.off()
 
 # trying with split data
 progressivepunishment_graph <- progressivepunishment %>% 
-  mutate(shipmentcohort = trunc(as.numeric(test__split_session$shipmentcohort)) %>% as.character(),
-         shipmentcohort = factor(test__split_session$shipmentcohort, levels=sort(as.numeric(unique(test__split_session$shipmentcohort))), ordered=TRUE))
+  left_join(., rfidandid, by = "labanimalid") %>%
+  mutate(shipmentcohort = trunc(as.numeric(progressivepunishment$shipmentcohort)) %>% as.character(),
+         shipmentcohort = factor(progressivepunishment$shipmentcohort, levels=sort(as.numeric(unique(progressivepunishment$shipmentcohort))), ordered=TRUE),
+         labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid))
 
-
-Jhou_Locomotor_Excel_graph <- Jhou_Locomotor %>%  
+Jhou_ProgPun_Excel_graph <- Jhou_ProgPun_Excel %>%  
   left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid))
 
