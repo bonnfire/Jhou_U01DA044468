@@ -658,8 +658,9 @@ progressivepunishment <- left_join(x = progpundata_categories_wcat, y = progpun_
   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
          shockoflastattemptedblock = lastshock) %>% 
   rename("numtrialsatlastshock" = "numleftpressesbwlasttwo") %>% 
-  select(-c(numtrialsatlastshock, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock))
-
+  select(-c(numtrialsatlastshock, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
+  group_by(labanimalid) %>% 
+  mutate(session = dplyr::row_number() - 1) # add session
 
 ################################
 ### RAW TEXT  Prog ratio #######
