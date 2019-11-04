@@ -158,3 +158,26 @@ rawfiles_locomotor_wide %>%
 
 # generate the excel cells that are supposed to be na's
 Jhou_Locomotor %>% dplyr::filter(labanimalid %in% res$labanimalid) %>% select(labanimalid, session, minute30) # res is created in raw to know how to deal with na cases 
+
+
+
+################################
+#### Progressive Punishment ####
+################################
+
+# using plots to clean data
+# outlier on the numtrials (mistyped 32 on the Excel sheet)
+joinrawtoexcel_progpunishment[which(joinrawtoexcel_progpunishment$numtrialsatlastshock_excel == 32),]$numtrialsatlastshock_excel = joinrawtoexcel_progpunishment[which(joinrawtoexcel_progpunishment$numtrialsatlastshock_excel == 32),]$numtrialsatlastshock_raw
+joinrawtoexcel_progpunishment[which(joinrawtoexcel_progpunishment$shockoflastattemptedblock_excel == 125),]$shockoflastattemptedblock_excel = joinrawtoexcel_progpunishment[which(joinrawtoexcel_progpunishment$shockoflastattemptedblock_excel == 125),]$shockoflastattemptedblock_raw
+
+# show cases for which the excel data differ from raw for....
+# shocklastcompletedblock
+joinrawtoexcel_progpunishment %>% dplyr::filter(shockoflastcompletedblock_raw != shockoflastcompletedblock_excel) %>% select(labanimalid, filename, session)
+# shocklastattemptedblock
+
+# numtrials
+
+# activepresses
+
+# inactivepresses
+joinrawtoexcel_progpunishment %>% dplyr::filter(inactivepresses_raw != inactivepresses_excel) %>% select(labanimalid, filename, session, inactivepresses_excel, inactivepresses_raw)

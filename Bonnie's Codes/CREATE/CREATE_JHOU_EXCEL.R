@@ -133,7 +133,7 @@ redexample <- Jhou_Excel_ProgressivePunishment_formats_cellbycell %>% dplyr::fil
 wantedhexa <- Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb[redexample$local_format_id]
 wantedhexa_indices <- which(Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb == wantedhexa)
 redrows <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% 
-  dplyr::filter(!is.na(numeric), grepl("^A",address))
+  dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique() %>% mutate(row = row - 1)
 # redrows <- # 
 # To look up the local formatting of a given cell
 # my_cells$Sheet1[1, "local_format_id"]`
@@ -164,7 +164,7 @@ Jhou_ProgPun_Excel <- lapply(Jhou_ProgPun_nored_split, function(x){
  x[progpunmeasures.num] <- sapply(x[progpunmeasures.num],as.numeric)
  
  return(x)
-}) %>% rbindlist()
+}) %>% rbindlist() #2942 observations
 
 # remove Time bc the values are invalid and sparse (subset(Jhou_ProgPun, !is.na(as.numeric(Time))))
 

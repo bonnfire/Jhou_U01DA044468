@@ -95,6 +95,8 @@ names(joinrawtoexcel_progpunishment) <- gsub("[.]y", "_raw", names(joinrawtoexce
 xlim <- lapply(joinrawtoexcel_progpunishment[progpunmeasures_excel], range, na.rm=T)
 ylim <- lapply(joinrawtoexcel_progpunishment[progpunmeasures_raw], range, na.rm=T)
 
+# check raw_and_excel_qc.R file for changes to joinrawtoexcel values 
+
 pdf("jhou_progpunishment_compare.pdf", onefile = T)
 plot_list = list()
 plot_compare_list = list()
@@ -109,22 +111,22 @@ for (i in seq_along(progpunmeasures)){
   #        y = locomotor_dd$var_graphtext[i], x = "Cohort") +
   #   theme(axis.text.x = element_text(angle = 45))
   
-  plot_compare_list[[i]] <- ggplot(joinrawtoexcel_progpunishment, aes_string( progpunmeasures_excel[i], progpunmeasures_raw[i])) + 
+  plot_compare_list[[i]] <- ggplot(joinrawtoexcel_progpunishment, aes_string( progpunmeasures_excel[i], progpunmeasures_raw[i])) +
     geom_point(aes(color = shipmentcohort_raw )) +
-    # geom_text(aes_string(label=ifelse(onlymins_excel[i] == onlymins_raw[i], '', "labanimalid")),hjust=0,vjust=0) + 
+    theme(axis.text.x = element_text(angle = 45))
+    # geom_text(aes_string(label=ifelse(onlymins_excel[i] == onlymins_raw[i], '', "labanimalid")),hjust=0,vjust=0) +
     # geom_text(aes(label = labanimalid), data = joinrawtoexcel_progpunishment[joinrawtoexcel_progpunishment$labanimalid %in% excelhasbutnotraw$labanimalid,]) + # get excelhasbutnotraw from raw and excel qc
     labs(title = paste0("Comparison of ", progpunmeasures[i], "_ProgressivePunishment_U01_Jhou"),
-         y = progpunmeasures_raw[i], x = progpunmeasures_excel[i]) + 
+         y = progpunmeasures_raw[i], x = progpunmeasures_excel[i]) +
     geom_abline(slope = 1, intercept = 0, size = 0.5, alpha = 0.5)
-  
-  
-  ggplot(joinrawtoexcel_progpunishment, aes( activepresses_excel, activepresses_raw)) + 
-    geom_point(aes(color = shipmentcohort_raw )) +
-    # geom_text(aes_string(label=ifelse(onlymins_excel[i] == onlymins_raw[i], '', "labanimalid")),hjust=0,vjust=0) + 
-    # geom_text(aes(label = labanimalid), data = joinrawtoexcel_progpunishment[joinrawtoexcel_progpunishment$labanimalid %in% excelhasbutnotraw$labanimalid,]) + # get excelhasbutnotraw from raw and excel qc
-    #labs(title = paste0("Comparison of ", progpunmeasures[i], "_ProgressivePunishment_U01_Jhou"),
-         #y = progpunmeasures_raw[i], x = progpunmeasures_excel[i]) + 
-    geom_abline(slope = 1, intercept = 0, size = 0.5, alpha = 0.5)
+
+
+  # g <- ggplot(joinrawtoexcel_progpunishment, aes( activepresses_excel, activepresses_raw)) + 
+  #   geom_point(aes(color = shipmentcohort_raw )) + 
+  #   theme(axis.text.x = element_text(angle = 45)) + # scale_x_discrete(breaks = scales::pretty_breaks(n = 2)) 
+  #   #labs(title = paste0("Comparison of ", progpunmeasures[i], "_ProgressivePunishment_U01_Jhou"),
+  #        #y = progpunmeasures_raw[i], x = progpunmeasures_excel[i]) + 
+  #   geom_abline(slope = 1, intercept = 0, size = 0.5, alpha = 0.5)
   
   # geom_text(aes(CPI, HDI, label = Country), data = dat[dat$Country %in% pointsToLabel,])
   
@@ -133,6 +135,7 @@ for (i in seq_along(progpunmeasures)){
   
   #  print(plot_list[[i]])
   print(plot_compare_list[[i]])
+ # print(g)
   
   
 }
