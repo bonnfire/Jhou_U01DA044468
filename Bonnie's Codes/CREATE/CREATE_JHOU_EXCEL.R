@@ -202,7 +202,7 @@ setnames(Jhou_ProgRatio, 7:9, paste0(names(Jhou_ProgRatio)[7:9], '_mean'))
 setnames(Jhou_ProgRatio, 11, 'covariance')
 Jhou_ProgRatio_split <- split(Jhou_ProgRatio, cumsum(1:nrow(Jhou_ProgRatio) %in% grep("^U", Jhou_ProgRatio$date, ignore.case = F)))
 Jhou_ProgRatio_Excel <- lapply(Jhou_ProgRatio_split, function(x){
-  names(x) <- mgsub::mgsub(names(x), c(" |-|#", ",", "L", "R"), c("", "_", "active", "inactive")) 
+  names(x) <- mgsub::mgsub(names(x), c(" |-|#", ",", "L", "R", "Press"), c("", "_", "active", "inactive", "presses")) 
   names(x) %<>% tolower()
   x$labanimalid = grep("^U", x$date, ignore.case = F, value = T) 
   # x$covariance = grep("\\d+", x$covariance, ignore.case = F, value = T)
@@ -213,18 +213,18 @@ Jhou_ProgRatio_Excel <- lapply(Jhou_ProgRatio_split, function(x){
     dplyr::mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d"),
                   covariance = dplyr::nth(x$covariance, 2), 
                   maxratio_stdev = x$maxratio_mean[2],
-                  activepress_stdev = x$activepress_mean[2], 
-                  inactivepress_stdev = x$inactivepress_mean[2], 
+                  activepresses_stdev = x$activepresses_mean[2], 
+                  inactivepresses_stdev = x$inactivepresses_mean[2], 
                   maxratio_sem = x$maxratio_mean[3],
-                  activepress_sem = x$activepress_mean[3], 
-                  inactivepress_sem = x$inactivepress_mean[3] )  %>%
+                  activepresses_sem = x$activepresses_mean[3], 
+                  inactivepresses_sem = x$inactivepresses_mean[3] )  %>%
     dplyr::mutate( maxratio_mean = x$maxratio_mean[1],
-                  activepress_mean = x$activepress_mean[1], 
-                  inactivepress_mean = x$inactivepress_mean[1]) 
+                  activepresses_mean = x$activepresses_mean[1], 
+                  inactivepresses_mean = x$inactivepresses_mean[1]) 
   return(x)
 }) %>% rbindlist()
 # return id's for which sessions don't match the number of rows
-# Jhou_ProgRatio %>% group_by(labanimalid) %>% add_count(n = n()) %>% dplyr::filter(max(as.numeric(session)) != n) %>% select(labanimalid) %>% unique()
+conflictedcases_progratio <- Jhou_ProgRatio_Excel %>% group_by(labanimalid) %>% add_count(n = n()) %>% dplyr::filter(max(as.numeric(session)) != n) %>% select(labanimalid) %>% unique()
 
 # use tidyxl to extract the red cases
 

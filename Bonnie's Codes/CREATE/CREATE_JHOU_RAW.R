@@ -455,12 +455,20 @@ rawfiles_locomotor_wide <- select(rawfiles_locomotor_wide, -minute31)
 
 res <- as.data.frame(rawfiles_locomotor_wide)[!complete.cases(as.data.frame(rawfiles_locomotor_wide)),]
 res[-1] <- as.numeric(is.na(res[-1]))
-res
+#res
 ################################
 
 # add means and sums as jhou's lab does
 rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
                                binmeans = rowMeans(.SD, na.rm=T)), .SDcols=names(rawfiles_locomotor_wide)[-1]]
+
+# only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
+rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
+  mutate(labanimalid = gsub('/u', '/U', filename),
+         labanimalid = str_extract(labanimalid, '(U[[:digit:]]+)')) %>%
+  left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
+  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
+
 
 # remove the rows with almost all na's # two files ./U175/2019-0209-1959_175_LOCOMOTOR_BASIC.txt(all); ./U412/2019-0918-1102_412_LOCOMOTOR_BASIC.txt (almost all)
 # remove the rows with all 0's
@@ -471,13 +479,6 @@ rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>%
   dplyr::filter(bintotal != 0) %>% 
   dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", resolution)) 
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide[!duplicated(rawfiles_locomotor_wide[-1]),]
-
-# only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
-# rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
-#   mutate(labanimalid = gsub('/u', '/U', filename),
-#          labanimalid = str_extract(labanimalid, '(U[[:digit:]]+)')) %>%
-#   left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
-#   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
 
 # check the number of files is even before adding session info 
 rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4) %>% View()
@@ -495,7 +496,7 @@ rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>%
 
 # with no more 3 or 5 file cases...
 # add count and assigning the session based on the number of counts 
-rawfiles_locomotor_wide$session <- NA 
+# rawfiles_locomotor_wide$session <- NA 
 bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Counts1a","Binned Counts1b","Binned Counts2a","Binned Counts2b") %>% 
   data.frame() %>% 
   rename("session" = ".") %>%

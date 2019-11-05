@@ -13,9 +13,9 @@
 #          shipmentcohort = factor(rawfiles_locomotor_wide_graph$shipmentcohort, levels=sort(as.numeric(unique(rawfiles_locomotor_wide_graph$shipmentcohort))), ordered=TRUE))
 
 # trying with split data
-rawfiles_locomotor_wide_graph <- test__split_session %>% 
-  mutate(shipmentcohort = trunc(as.numeric(test__split_session$shipmentcohort)) %>% as.character(),
-         shipmentcohort = factor(test__split_session$shipmentcohort, levels=sort(as.numeric(unique(test__split_session$shipmentcohort))), ordered=TRUE))
+rawfiles_locomotor_wide_graph <- Jhou_Raw_Locomotor %>% 
+  mutate(shipmentcohort = trunc(as.numeric(Jhou_Raw_Locomotor$shipmentcohort)) %>% as.character(),
+         shipmentcohort = factor(Jhou_Raw_Locomotor$shipmentcohort, levels=sort(as.numeric(unique(Jhou_Raw_Locomotor$shipmentcohort))), ordered=TRUE))
 
 
 Jhou_Locomotor_Excel_graph <- Jhou_Locomotor %>%  
@@ -141,6 +141,33 @@ for (i in seq_along(progpunmeasures)){
 }
 
 dev.off()
-
+###################################################################
 # Progressive ratio
+##################################################################
+# create dataframe without the conflicted id's
+
+progressive_ratio_joined_graph <- Jhou_ProgRatio_Excel %>%
+    left_join(., rfidandid, by = "labanimalid") %>%
+  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>% 
+  left_join(., progratio, by = c("labanimalid", "session")) %>% 
+  dplyr::filter(!labanimalid %in% conflictedcases_progratio)
+names(progressive_ratio_joined_graph) <- gsub("[.]x", "_excel", names(progressive_ratio_joined_graph))
+names(progressive_ratio_joined_graph) <- gsub("[.]y", "_raw", names(progressive_ratio_joined_graph))
+
+progratiomeasures <- c("maxratio", "activepresses", "inactivepresses", "maxratio")
+progratiomeasures_excel <- paste0(progratiomeasures, "_excel")
+progratiomeasures_raw <- paste0(progratiomeasures, "_raw")
+
+pdf("jhou_progratio_compare.pdf", onefile = T)
+plot_compare_list = list()
+for (i in seq_along(progratiomeasures)){
+ plot_compare_list[[i]] <- ggplot(progressive_ratio_joined_graph, aes_string( progratiomeasures_excel[i], progratiomeasures_raw[i])) +
+    geom_point(aes(color = shipmentcohort )) +
+    theme(axis.text.x = element_text(angle = 45))
+   print(plot_compare_list[[i]])
+  }
+
+dev.off()
+
+
 # Delayed punishment
