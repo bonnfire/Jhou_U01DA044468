@@ -167,7 +167,7 @@ Jhou_ProgPun_split <- lapply(Jhou_ProgPun_split, function(x){
 
 Jhou_ProgPun_red <- Jhou_ProgPun_split[redrows$row, ]
 
-## TO DO: CHANGE NUMLEFTPRESSESLAST HERE AND IN PROGPUN RAW DATA
+## TO DO: CHANGE NUMLEFTPRESSESLAST HERE AND IN PROGPUN RAW DATA (done)
 Jhou_ProgPun_Excel <- lapply(Jhou_ProgPun_nored_split, function(x){
  x <- x %>% 
     rename("date" = "Date",
@@ -189,4 +189,64 @@ Jhou_ProgPun_Excel <- lapply(Jhou_ProgPun_nored_split, function(x){
 }) %>% rbindlist() #2942 observations
 
 # remove Time bc the values are invalid and sparse (subset(Jhou_ProgPun, !is.na(as.numeric(Time))))
+
+################################
+#### PROGRESSIVE RATIO ####
+################################
+
+Jhou_ProgRatio <- Jhou_Excel[["Progressive ratio"]] %>% as.data.table
+setnames(Jhou_ProgRatio, c("date", as.character(Jhou_ProgRatio[3, 2:17])) )
+Jhou_ProgRatio[,c(7:8, 13:14,16) := NULL ]
+# split the data by animals, rename the columns for mean, remove the colnames rows if session isn't numeric? 
+setnames(Jhou_ProgRatio, 7:9, paste0(names(Jhou_ProgRatio)[7:9], '_mean'))
+setnames(Jhou_ProgRatio, 11, 'covariance')
+Jhou_ProgRatio_split <- split(Jhou_ProgRatio, cumsum(1:nrow(Jhou_ProgRatio) %in% grep("^U", Jhou_ProgRatio$date, ignore.case = F)))
+Jhou_ProgRatio_Excel <- lapply(Jhou_ProgRatio_split, function(x){
+  names(x) <- mgsub::mgsub(names(x), c(" |-|#", ",", "L", "R"), c("", "_", "active", "inactive")) 
+  names(x) %<>% tolower()
+  x$labanimalid = grep("^U", x$date, ignore.case = F, value = T) 
+  # x$covariance = grep("\\d+", x$covariance, ignore.case = F, value = T)
+  x <- x %>% 
+    dplyr::filter(!is.na(as.numeric(session))) 
+  rownames(x) <- NULL
+  x <- x %>% 
+    dplyr::mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d"),
+                  covariance = dplyr::nth(x$covariance, 2), 
+                  maxratio_stdev = x$maxratio_mean[2],
+                  activepress_stdev = x$activepress_mean[2], 
+                  inactivepress_stdev = x$inactivepress_mean[2], 
+                  maxratio_sem = x$maxratio_mean[3],
+                  activepress_sem = x$activepress_mean[3], 
+                  inactivepress_sem = x$inactivepress_mean[3] )  %>%
+    dplyr::mutate( maxratio_mean = x$maxratio_mean[1],
+                  activepress_mean = x$activepress_mean[1], 
+                  inactivepress_mean = x$inactivepress_mean[1]) 
+  return(x)
+}) %>% rbindlist()
+# return id's for which sessions don't match the number of rows
+conflictedcases_progratio <- Jhou_ProgRatio_test %>% group_by(labanimalid) %>% add_count(n = n())  %>% dplyr::filter(max(session) != n) %>% select(labanimalid) %>% unique()
+
+
+# use tidyxl to extract the red cases
+
+Jhou_ProgRatio_formats_cellbycell <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx") %>% 
+  dplyr::filter(sheet == "Progressive ratio")
+Jhou_Excel_ProgRatio_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
+blackexample <- Jhou_ProgRatio_formats_cellbycell %>% dplyr::filter(row == 1, col == 1)
+wantedhexa <- Jhou_Excel_ProgRatio_formats$local$font$color$rgb[blackexample$local_format_id]
+wantedhexa_indices <- which(Jhou_Excel_ProgRatio_formats$local$font$color$rgb != wantedhexa) # not black
+nonblackrows <- Jhou_ProgRatio_formats_cellbycell[Jhou_ProgRatio_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% 
+  dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique()
+Jhou_Excel_ProgressivePunishment_red <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col)
+
+
+# if above approach doesn't work, you can refer back to this value: 
+"FFFF0000"
+
+# remove the red rows and clean up data
+# create the compromised data
+labanimalid_indices <- grep("^U", Jhou_ProgPun_nored$labanimalid, ignore.case = F)
+Jhou_ProgPun_nored_split <- split(Jhou_ProgPun_nored, cumsum(1:nrow(Jhou_ProgPun_nored) %in% labanimalid_indices))
+
+Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
 
