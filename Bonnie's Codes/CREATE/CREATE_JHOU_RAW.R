@@ -703,9 +703,17 @@ progratio_presses_df <- rbindlist(progratio_presses, fill = T) %>%
 
 # join to create final raw df
 progratio <- left_join(progratio_maxratio_df, progratio_presses_df, by = "filename") # 10/28 bring to Alen's attention -- these cases for which there are only timeout lines and no pre-timeout value so no maxratio value 
-progratio <- extractfromfilename(progratio)
-progratio$labanimalid <- gsub('(U)([[:digit:]]{1})$', '\\10\\2', progratio$labanimalid) # better organizational for ordering and consider this for other files; ADD BEGINNING ZEROES TO COHORT/ID'S
-progratio <- progratio[order(progratio$labanimalid), ] # reorder based on labanimalid  
+progratio <- progratio %>% 
+  dplyr::filter(!grepl("error", filename), !is.na(activepresses)) %>%
+  extractfromfilename() %>%
+  group_by(labanimalid) %>% 
+  mutate(session = as.character(dplyr::row_number())) %>% 
+  ungroup() %>% 
+  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>%
+  arrange(labanimalid)
+# better organizational for ordering and consider this for other files; ADD BEGINNING ZEROES TO COHORT/ID'S
+# reorder based on labanimalid  
+#  progratio %>% group_by(labanimalid) %>% add_count(n = n()) %>% dplyr::filter(max(as.numeric(session)) != n) %>% select(labanimalid) %>% unique()
 
 ################################
 ### RAW TEXT  Delayed pun ######

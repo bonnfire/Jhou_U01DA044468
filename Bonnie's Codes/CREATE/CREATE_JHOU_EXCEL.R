@@ -224,8 +224,7 @@ Jhou_ProgRatio_Excel <- lapply(Jhou_ProgRatio_split, function(x){
   return(x)
 }) %>% rbindlist()
 # return id's for which sessions don't match the number of rows
-conflictedcases_progratio <- Jhou_ProgRatio_test %>% group_by(labanimalid) %>% add_count(n = n())  %>% dplyr::filter(max(session) != n) %>% select(labanimalid) %>% unique()
-
+# Jhou_ProgRatio %>% group_by(labanimalid) %>% add_count(n = n()) %>% dplyr::filter(max(as.numeric(session)) != n) %>% select(labanimalid) %>% unique()
 
 # use tidyxl to extract the red cases
 
