@@ -128,44 +128,52 @@ Jhou_Excel_ProgressivePunishment_formats_cellbycell <- tidyxl::xlsx_cells("U01 M
   dplyr::filter(sheet == "Progressive Punishment")
 Jhou_Excel_ProgressivePunishment_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
 
-# get the information about the red point; get the hexademical string
 
 ### GENERALIZE TO ALL NON BLACK COLORS
+blackexample_progpun <- Jhou_Excel_ProgressivePunishment_formats_cellbycell %>% dplyr::filter(row == 4, col == 2)
+wantedhexa_progpun <- Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb[blackexample_progpun$local_format_id]
+nonblackhexa_indices <- which(Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb != wantedhexa_progpun)
+nonblackrows_Jhou_Excel_ProgPun <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% nonblackhexa_indices, ] %>% 
+  dplyr::filter(data_type != "blank") %>% 
+  select(row, col, data_type, logical, numeric, date, character) 
+nonblackrows_Jhou_Excel_ProgPun %>% dplyr::filter(!is.na(numeric))
+# using this strategy reduces the originally 11 length vector to 9 (removing black and NA)
 
-redexample <- Jhou_Excel_ProgressivePunishment_formats_cellbycell %>% dplyr::filter(row == 351, col == 1)
-wantedhexa <- Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb[redexample$local_format_id]
-wantedhexa_indices <- which(Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb == wantedhexa)
-redrows <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% 
-  dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique() %>% mutate(row = row - 1)
-Jhou_Excel_ProgressivePunishment_red <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col)
-
-# remove the red rows and clean up data
-# create the compromised data
-labanimalid_indices <- grep("^U", Jhou_ProgPun_nored$labanimalid, ignore.case = F)
-Jhou_ProgPun_nored_split <- split(Jhou_ProgPun_nored, cumsum(1:nrow(Jhou_ProgPun_nored) %in% labanimalid_indices))
-
-Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
-
-## get indices of labanimalid
-Jhou_ProgPun_split <- split(Jhou_ProgPun, cumsum(1:nrow(Jhou_ProgPun) %in%  grep("^U", Jhou_ProgPun$labanimalid, ignore.case = F))) 
-
-Jhou_ProgPun_split <- lapply(Jhou_ProgPun_split, function(x){ 
-  x <- x %<>% 
-    rename("date" = "Date",
-           "shockoflastcompletedblock" = "Last block completed (mA)",
-           "shockoflastattemptedblock" = "Last trial attempted (mA)",
-           "numtrialsatlastshock" = "# of trials at last Shock Intensity",
-           "activepresses" = "Active (left)",
-           "inactivepresses" = "Inactive (right)",
-           "boxorstationumber" = "Box #",
-           "session" = "labanimalid") %<>% 
-    dplyr::mutate(labanimalid = grep("U\\d+", session, value = T),
-                 date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% 
-    dplyr::select(-c(Avg, Time, FR, `Weight (%)`))
-  return(x)
-    }) %>% rbindlist()
-
-Jhou_ProgPun_red <- Jhou_ProgPun_split[redrows$row, ]
+# get the information about the red point; get the hexademical string
+# redexample <- Jhou_Excel_ProgressivePunishment_formats_cellbycell %>% dplyr::filter(row == 351, col == 1)
+# wantedhexa <- Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb[redexample$local_format_id]
+# wantedhexa_indices <- which(Jhou_Excel_ProgressivePunishment_formats$local$font$color$rgb == wantedhexa)
+# redrows <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% 
+#   dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique() %>% mutate(row = row - 1)
+# Jhou_Excel_ProgressivePunishment_red <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col)
+# 
+# # remove the red rows and clean up data
+# # create the compromised data
+# labanimalid_indices <- grep("^U", Jhou_ProgPun_nored$labanimalid, ignore.case = F)
+# Jhou_ProgPun_nored_split <- split(Jhou_ProgPun_nored, cumsum(1:nrow(Jhou_ProgPun_nored) %in% labanimalid_indices))
+# 
+# Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
+# 
+# ## get indices of labanimalid
+# Jhou_ProgPun_split <- split(Jhou_ProgPun, cumsum(1:nrow(Jhou_ProgPun) %in%  grep("^U", Jhou_ProgPun$labanimalid, ignore.case = F))) 
+# 
+# Jhou_ProgPun_split <- lapply(Jhou_ProgPun_split, function(x){ 
+#   x <- x %<>% 
+#     rename("date" = "Date",
+#            "shockoflastcompletedblock" = "Last block completed (mA)",
+#            "shockoflastattemptedblock" = "Last trial attempted (mA)",
+#            "numtrialsatlastshock" = "# of trials at last Shock Intensity",
+#            "activepresses" = "Active (left)",
+#            "inactivepresses" = "Inactive (right)",
+#            "boxorstationumber" = "Box #",
+#            "session" = "labanimalid") %<>% 
+#     dplyr::mutate(labanimalid = grep("U\\d+", session, value = T),
+#                  date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% 
+#     dplyr::select(-c(Avg, Time, FR, `Weight (%)`))
+#   return(x)
+#     }) %>% rbindlist()
+# 
+# Jhou_ProgPun_red <- Jhou_ProgPun_split[redrows$row, ]
 
 ## TO DO: CHANGE NUMLEFTPRESSESLAST HERE AND IN PROGPUN RAW DATA (done)
 Jhou_ProgPun_Excel <- lapply(Jhou_ProgPun_nored_split, function(x){
@@ -249,3 +257,6 @@ Jhou_ProgPun_nored_split <- split(Jhou_ProgPun_nored, cumsum(1:nrow(Jhou_ProgPun
 
 Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
 
+################################
+###### DELAYED PUNISHMENT ######
+################################
