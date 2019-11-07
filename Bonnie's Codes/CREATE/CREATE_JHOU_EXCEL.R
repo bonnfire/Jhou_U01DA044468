@@ -214,8 +214,8 @@ Jhou_ProgRatio_Excel <- lapply(Jhou_ProgRatio_split, function(x){
   names(x) %<>% tolower()
   x$labanimalid = grep("^U", x$date, ignore.case = F, value = T) 
   # x$covariance = grep("\\d+", x$covariance, ignore.case = F, value = T)
-  x <- x %>% 
-    dplyr::filter(!is.na(as.numeric(session))) 
+  # x <- x %>% 
+  #   dplyr::filter(!is.na(as.numeric(session))) 
   rownames(x) <- NULL
   x <- x %>% 
     dplyr::mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d"),
@@ -244,8 +244,7 @@ wantedhexa <- Jhou_Excel_ProgRatio_formats$local$font$color$rgb[blackexample$loc
 wantedhexa_indices <- which(Jhou_Excel_ProgRatio_formats$local$font$color$rgb != wantedhexa) # not black
 nonblackrows <- Jhou_ProgRatio_formats_cellbycell[Jhou_ProgRatio_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% 
   dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique()
-Jhou_Excel_ProgressivePunishment_red <- Jhou_Excel_ProgressivePunishment_formats_cellbycell[Jhou_Excel_ProgressivePunishment_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col)
-
+Jhou_Excel_ProgRatio_red <- Jhou_ProgRatio_formats_cellbycell[Jhou_ProgRatio_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col) %>% mutate(row = row - 1)
 
 # if above approach doesn't work, you can refer back to this value: 
 "FFFF0000"
