@@ -10,10 +10,21 @@ Jhou_Excel_ProgRatio_red <- Jhou_Excel_ProgRatio_red %>%
 Jhou_conflicted <- data.frame(rfid = 1, labanimalid = 1, cohort = 1, experiment = 1, file1me = 1, affectedvar = 1, comment = 1, resolution = 1)
 
 Jhou_conflicted <- data.frame(labanimalid = character(), cohort = character(), experiment = character(), affectedvar = character(), comment = character(), resolution = character())
-rbind(Jhou_conflicted, list(labanimalid = Jhou_ProgRatio_Excel[Jhou_Excel_ProgRatio_red$row,]$labanimalid,
+Jhou_conflicted <- rbind(Jhou_conflicted, list(labanimalid = Jhou_ProgRatio_Excel[Jhou_Excel_ProgRatio_red$row,]$labanimalid,
                             experiment = rep("ProgRatio", 57), 
-                            affectedvar = names(Jhou_ProgRatio_Excel)[Jhou_Excel_ProgRatio_red$col], 
+                            affectedvar = paste0(names(Jhou_ProgRatio_Excel)[Jhou_Excel_ProgRatio_red$col], Jhou_ProgRatio_Excel[Jhou_Excel_ProgRatio_red$row,]$session), 
                             comment = Jhou_ProgRatio_Excel[Jhou_Excel_ProgRatio_red$row,]$notes, 
-                            resolution = rep("Ignore", 57)))
+                            resolution = rep("Exclude", 57))) %>% 
+  left_join(.,  rfidandid[, c("labanimalid", "shipmentcohort")], by = "labanimalid" )
+
+# post call follow up -- red cases, group by row number, and number of cases
+non7redcolumns <- Jhou_Excel_ProgRatio_red %>% 
+  group_by(row) %>% 
+  add_count() %>% 
+  dplyr::filter(n!=7) %>% 
+  select(row) %>% 
+  unique() 
+Jhou_ProgRatio_Excel[non7redcolumns$row,]
+
 
       
