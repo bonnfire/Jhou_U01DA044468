@@ -407,16 +407,18 @@ locomotorfiles <- list.files(path=".", pattern=".*LOCOMOTOR.*.txt", full.names=T
 locomotorfiles_clean <-  locomotorfiles[ ! grepl("error", locomotorfiles, ignore.case = TRUE) ]
 locomotorfiles_clean[grepl("[(]", locomotorfiles_clean)] # there is one duplicate file
 
-
 duplicatedfiles <- grep("[(]\\d[)]", locomotorfiles_clean, value = T) %>% 
   gsub(" [(]\\d[)]", "", .) # go through 764 all files; create 1 files that have duplicates
 removeduplicatefiles <- subset(locomotorfiles_clean, !(locomotorfiles_clean %in% duplicatedfiles)) #763, found 1 to remove
 
-rawfiles_locomotor <- lapply(locomotorfiles_clean, read_locomotor) %>% 
+rawfiles_locomotor <- lapply(removeduplicatefiles, read_locomotor) %>% 
   rbindlist(fill = T) %>%
   select(V1, filename) %>%
   rename("bincounts" = "V1") %>%
   mutate(bincounts = as.numeric(bincounts)) # using sed rather than awk results in less NA (only 26 here); XX 10/29 ADDED TO DOCUMENT FILE NA IS COMING FROM FILES NOT HAVING END SESSION
+
+# post call (11/7) changes: minute31 in U112 into minute30 (do later); and remove files that don't have all thirty values
+rawfiles_locomotor %<>% group_by(filename) %<>% add_count %<>% dplyr::filter(n>=30) %<>% select(-n) %<>% ungroup()
 
 # rawfiles_locomotor %>% filter(is.na(bincounts)) %>% count(filename) %>% summary(n) some are missing one and other files are missing all data
 
@@ -450,12 +452,12 @@ setcolorder(rawfiles_locomotor_wide, c(1, order(as.numeric(gsub("minute", "", na
 
 # investigate the number of na's and compare that to how they are coding na's (as blanks)
 #################### might delete later 11/1 waiting to hear back from jhou's team; excel sheet seems to have just moved it #######################################
-rawfiles_locomotor_wide[13,]$minute30 <- rawfiles_locomotor_wide[13,]$minute31
+rawfiles_locomotor_wide[which(rawfiles_locomotor_wide$filename == "./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt"),]$minute30 <- rawfiles_locomotor_wide[which(rawfiles_locomotor_wide$filename == "./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt"),]$minute31
 rawfiles_locomotor_wide <- select(rawfiles_locomotor_wide, -minute31)
 
 res <- as.data.frame(rawfiles_locomotor_wide)[!complete.cases(as.data.frame(rawfiles_locomotor_wide)),]
 res[-1] <- as.numeric(is.na(res[-1]))
-#res
+res
 ################################
 
 # add means and sums as jhou's lab does
@@ -475,13 +477,14 @@ rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
 # remove the rows that they have noted to remove EXCLUDE_LOCOMOTOR
 # remove duplicated files
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
-  dplyr::filter(!(is.na(minute1) | is.na(minute2) | is.na(minute3))) %>% 
   dplyr::filter(bintotal != 0) %>% 
   dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", resolution)) 
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide[!duplicated(rawfiles_locomotor_wide[-1]),]
 
 # check the number of files is even before adding session info 
 rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4) %>% View()
+## look into these three files cases???? 11/7 
+
 
 # remove the first file for the 5 file cases (11/1 remove two files)
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
