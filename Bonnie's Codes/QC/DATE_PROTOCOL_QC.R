@@ -109,17 +109,19 @@ animalswithwrongorder <-  allexperimentwithdateanddob %>%
   unique()
 
 # send to palmer team
-allexperimentwithdateanddob %>% 
+labanimaliddatesandexps_wrongorder <- allexperimentwithdateanddob %>% 
   dplyr::filter(subdirectoryid_edit %in% animalswithwrongorder$subdirectoryid_edit) %>% 
   dplyr::group_by(subdirectoryid_edit, experiment) %>%
   plyr::arrange(date) %>%
   do(head(., n=1)) %>%
   select(subdirectoryid_edit, date, shipmentcohort, experiment) %>%
   spread(., experiment, date) %>%
-  rename("labanimalid" = )
-  select()
+  rename("labanimalid" = "subdirectoryid_edit") %>% 
+  select(labanimalid, shipmentcohort, runwayfiles, progpunfiles,delayed_punishmentfiles, progratiofiles, locomotorfiles) %>%
+  dplyr::arrange(labanimalid)
+# %>%
     # select(subdirectoryid_edit, experiment, exporder)
-  View()
+  #View()
   
 
 
