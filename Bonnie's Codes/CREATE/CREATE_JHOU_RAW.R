@@ -305,7 +305,7 @@ runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=T
 # files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] 
 # runwayfiles_clean <- gsub(" ", "\\\\ ", runwayfiles_clean) # not the issue for not being able to access the files
 
-runway_reach <- lapply(runwayfiles_clean[2500:2550], readrunway) %>% rbindlist(fill = T) 
+runway_reach <- lapply(runwayfiles_clean[3000:3100], readrunway) %>% rbindlist(fill = T) 
   # data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
  #  return(data)
 # }) # cannot assign the colnames in fxn bc of one vs two column setup 

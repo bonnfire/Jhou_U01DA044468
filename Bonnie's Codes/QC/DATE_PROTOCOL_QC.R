@@ -27,7 +27,7 @@ allexperimentfiles %<>% rbindlist(idcol = "experiment")
 
 allexperimentfiles %<>%
   rename("filename" = "V1") 
-allexperimentfiles[!grepl("_\\d+", allexperimentfiles$filename),]
+# allexperimentfiles[!grepl("_\\d+", allexperimentfiles$filename),]
 allexperimentfiles[which(filename == "./U214/2019-0328-1327__DELAYED PUNISHMENT.txt"),]$filename <- "./U214/2019-0328-1327_214_DELAYED PUNISHMENT.txt"
 allexperimentfiles$subdirectoryid = str_extract(allexperimentfiles$filename, regex("U\\d+", ignore_case = T))
 allexperimentfiles$labanimalid = str_extract(allexperimentfiles$filename, "_\\d+") %>% gsub("_", "U", .)
@@ -44,12 +44,39 @@ allexperimentfiles %>%
 # allexperimentfiles %>% 
 #  dplyr::filter(subdirectoryid != labanimalid) 
 
-allexperimentfiles %>% 
-  left_join(., rfidandid[,c("shipmentcohort", "labanimalid")], by = "labanimalid") %>%
-  dplyr::filter(subdirectoryid == labanimalid) %>%
-  group_by(experiment, shipmentcohort) %>% 
-  top_n(n = 3) %>% 
-  select(labanimalid)  
+
+
+
+allexperimentwithdateanddob <- allexperimentfiles %>% 
+  dplyr::mutate(subdirectoryid_edit = gsub("u", "U", subdirectoryid)) %>% 
+  left_join(., rfidandid[,c("shipmentcohort", "labanimalid")], by = c("subdirectoryid_edit" = "labanimalid") ) %>%
+  # dplyr::filter(subdirectoryid == labanimalid) %>%
+  extractfromfilename() %>%
+  left_join(., rfidandid[,c("dob", "labanimalid")], by = "labanimalid") %>% 
+  dplyr::mutate(experimentage = as.numeric(difftime(date, dob, units = "days")))
+
+
+ggplot(allexperimentwithdateanddob, aes(experiment,date)) + 
+  geom_point(aes(color = experiment)) + 
+  facet_grid(. ~ shipmentcohort) + 
+  labs(title = "experiment dates by cohort, extracted from raw file filename dates") + 
+  theme(axis.text.x=element_blank()) + 
+  scale_y_datetime(date_breaks = "25 day")
+
+allexperimentwithdateanddob %>% 
+  group_by(shipmentcohort) %>%
+  arrange(date) %>% 
+  select(experiment, date) %>%
+  top_n(n=1) %>% 
+  unique() %>% 
+  View()
+
+allexperimentwithdateanddob %>% 
+  dplyr::filter(shipmentcohort == 11.3)
+
+  # group_by(experiment, shipmentcohort) %>% 
+  # top_n(n = 3) %>% 
+  # select(labanimalid)  
   
 
 # Extract data for these rats across all experiments and merge
