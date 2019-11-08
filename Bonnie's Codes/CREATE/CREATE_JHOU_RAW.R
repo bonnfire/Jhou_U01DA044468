@@ -476,9 +476,12 @@ rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
 # remove the rows with all 0's
 # remove the rows that they have noted to remove EXCLUDE_LOCOMOTOR
 # remove duplicated files
+# add the experiment age
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
   dplyr::filter(bintotal != 0) %>% 
-  dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", resolution)) 
+  dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", resolution)) %>%
+  dplyr::mutate(experimentage = as.numeric(difftime(date, dob, units = "days")))
+
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide[!duplicated(rawfiles_locomotor_wide[-1]),]
 
 # check the number of files is even before adding session info 
@@ -490,6 +493,8 @@ rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=
 rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
   group_by(labanimalid) %>% 
   do(tail(., 4)) 
+
+
 
 ######################################################### WAIT UNTIL RESPONSE
 # TEMPORARILY REMOVE THE TWO CASES: 371 AND 271

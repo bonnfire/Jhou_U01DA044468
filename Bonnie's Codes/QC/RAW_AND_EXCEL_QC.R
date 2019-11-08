@@ -112,6 +112,10 @@ ggplot(boxqc_bycohort, aes(x = boxstation, y = n, color = sex)) + geom_point() +
 #       joinrowtoexcel[[test_anyfalse]] <- ifelse()
 # }
 
+################################
+### ###### Locomotor #### ######
+################################
+
 rawhasbutnotexcel <- anti_join(rawfiles_locomotor_wide %>% dplyr::filter(!grepl("LOCOMOTOR", resolution)), Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), by = onlymins) # 34 cases
 
 excelhasbutnotraw <- anti_join(Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), rawfiles_locomotor_wide, by = onlymins) # 13 cases
@@ -160,6 +164,20 @@ rawfiles_locomotor_wide %>%
 Jhou_Locomotor %>% dplyr::filter(labanimalid %in% res$labanimalid) %>% select(labanimalid, session, minute30) # res is created in raw to know how to deal with na cases 
 
 
+# check the ages of the animals within cohort
+rawfiles_locomotor_wide %>% 
+  group_by(shipmentcohort) %>%
+  summarize(expagemean = mean(experimentage),
+            expagemean = median(experimentage),
+            expagemin = min(experimentage),
+            expagemax = max(experimentage)) %>% 
+  View()
+
+ggplot(rawfiles_locomotor_wide, aes(shipmentcohort, experimentage)) + geom_boxplot()
+# check if the cohorts were misassigned in cohort4; extract the date and time from the raw files; check for subset of the animals for protocol changes(using the min date)
+
+
+rawfiles_locomotor_wide %>% dplyr::filter(shipmentcohort == "3.1")
 
 ################################
 #### Progressive Punishment ####
