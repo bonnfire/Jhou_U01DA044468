@@ -275,21 +275,42 @@ redJhou_Master_df <- Jhou_master_filelist$`Progressive Punishment`[redJhou_Progp
 ### EXP 1: runway 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
 
-# reach time 
+# reach time and qc the times from in files
 readrunway <- function(x){
-  runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"))
+  runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runway$filename <- x
+  
+  runwaytime_start <- fread(paste0("awk '/[/][0-9]+/{print $1 \", \" $2}' ", "'", x, "'", " | head -1 "), header = F, fill = T)
+  runwaytime_start$filename <- x 
+  
+  runwaytime_end <- fread(paste0("awk '/[/][0-9]+/{print $1 \", \" $2}' ", "'", x, "'", " | tail -1 "), header = F, fill = T)
+  runwaytime_end$filename <- x
+  
+  runway <- merge(runway, runwaytime_start, by = "filename", all = TRUE) %>%
+    merge(., runwaytime_end, by = "filename", all = TRUE) %>%
+    rename("reachtime" = "V1.x",
+           "startdate" = "V1.y",
+           "starttime" = "V2.x",
+           "enddate" = "V1",
+           "endtime" = "V2.y") %>% 
+    select(-V3)
+
+  
+
   return(runway)
 }
+
 
 runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) # note the 4221 id in one file, but seems to be no error files so below code is unneeded
 # files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] 
 # runwayfiles_clean <- gsub(" ", "\\\\ ", runwayfiles_clean) # not the issue for not being able to access the files
 
-runway_reach <- lapply(runwayfiles_clean, readrunway)
+runway_reach <- lapply(runwayfiles_clean[2500:2550], readrunway) %>% rbindlist(fill = T) 
   # data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
  #  return(data)
 # }) # cannot assign the colnames in fxn bc of one vs two column setup 
+
+# 11/8 - 36 warnings of returning NULL data table
 
 runway_reach_df <- rbindlist(runway_reach, fill = T) 
 runway_reach_df <- runway_reach_df %>% 
@@ -417,7 +438,7 @@ rawfiles_locomotor <- lapply(removeduplicatefiles, read_locomotor) %>%
   rename("bincounts" = "V1") %>%
   mutate(bincounts = as.numeric(bincounts)) # using sed rather than awk results in less NA (only 26 here); XX 10/29 ADDED TO DOCUMENT FILE NA IS COMING FROM FILES NOT HAVING END SESSION
 
-# post call (11/7) changes: minute31 in U112 into minute30 (do later); and remove files that don't have all thirty values
+# post call (11/7) changes: minute31 in U112 into minute30 (do later); and remove files that don't have all thirty values (more robust)
 rawfiles_locomotor %<>% group_by(filename) %<>% add_count %<>% dplyr::filter(n>=30) %<>% select(-n) %<>% ungroup()
 
 # rawfiles_locomotor %>% filter(is.na(bincounts)) %>% count(filename) %>% summary(n) some are missing one and other files are missing all data
