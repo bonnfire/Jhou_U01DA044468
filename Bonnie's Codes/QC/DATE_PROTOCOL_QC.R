@@ -63,14 +63,83 @@ ggplot(allexperimentwithdateanddob, aes(experiment,date)) +
   theme(axis.text.x=element_blank()) + 
   scale_y_datetime(date_breaks = "25 day")
 
+
+ggplot(allexperimentwithdateanddob %>% dplyr::filter(shipmentcohort < 5), aes(experiment, experimentage, group = subdirectoryid_edit)) + 
+  geom_path(aes(color = experiment)) + geom_point(aes(color = experiment)) +
+  facet_grid(. ~ shipmentcohort) + 
+  labs(title = "experiment dates by cohort, extracted from raw file filename dates") + 
+  theme(axis.text.x=element_blank())
+# + 
+#   scale_y_datetime(date_breaks = "25 day")
+
+
 allexperimentwithdateanddob %>% 
-  group_by(shipmentcohort) %>%
-  arrange(date) %>% 
+  group_by(subdirectoryid_edit,experiment) %>%
+  top_n(1) %>% 
   select(experiment, date) %>%
-  top_n(n=1) %>% 
   unique() %>% 
+  group_by(subdirectoryid_edit) %>% 
+  dplyr::mutate(exporder = row_number()) %>% 
+  group_by(subdirectoryid_edit) %>% 
+  dplyr::filter(max(exporder) == 5) %>% 
+  dplyr::filter(#experiment == "runwayfiles" & exporder != 1,
+                experiment == "progpunfiles" & exporder != 2,
+                #experiment == "delayed_punishmentfiles" & exporder != 3,
+                #experiment == "progratiofiles" & exporder != 4, 
+                experiment == "locomotorfiles" & exporder != 5) %>%
+  select(subdirectoryid_edit, experiment)
+  View()
+  
+animalswithwrongorder <-  allexperimentwithdateanddob %>%
+    group_by(subdirectoryid_edit,experiment) %>%
+    top_n(1) %>%
+    select(experiment, date, shipmentcohort) %>%
+    unique() %>%
+    group_by(subdirectoryid_edit) %>%
+    dplyr::mutate(exporder = row_number()) %>%
+    group_by(subdirectoryid_edit) %>%
+    arrange(date) %>%
+    dplyr::filter(max(exporder) == 5) %>%
+    dplyr::filter(experiment == "locomotorfiles" & exporder != 5 |
+                  experiment == "progratiofiles" & exporder != 4 |
+                  experiment == "delayed_punishmentfiles" & exporder != 3 |
+                  experiment == "progpunfiles" & exporder != 2 |
+                  experiment == "runwayfiles" & exporder != 1  ) %>%
+    select(subdirectoryid_edit) %>% 
+  unique()
+
+# send to palmer team
+allexperimentwithdateanddob %>% 
+  dplyr::filter(subdirectoryid_edit %in% animalswithwrongorder$subdirectoryid_edit) %>% 
+  dplyr::group_by(subdirectoryid_edit, experiment) %>%
+  plyr::arrange(date) %>%
+  do(head(., n=1)) %>%
+  select(subdirectoryid_edit, date, shipmentcohort, experiment) %>%
+  spread(., experiment, date) %>%
+  rename("labanimalid" = )
+  select()
+    # select(subdirectoryid_edit, experiment, exporder)
+  View()
+  
+
+
+allexperimentwithdateanddob %>% 
+  group_by(subdirectoryid_edit,experiment) %>%
+  top_n(1) %>% 
+  select(experiment, date) %>%
+  unique() %>% 
+  group_by(subdirectoryid_edit) %>% 
+  dplyr::mutate(exporder = row_number()) %>% 
+  group_by(subdirectoryid_edit) %>% 
+  dplyr::filter(max(exporder) == 5) %>% 
+  group_by(experiment, exporder) %>% 
+  count()
   View()
 
+
+experiment == "runwayfiles" && exporder != 1 |
+  experiment == "progpunfiles" && exporder != 2 |
+  
 allexperimentwithdateanddob %>% 
   dplyr::filter(shipmentcohort == 11.3)
 
