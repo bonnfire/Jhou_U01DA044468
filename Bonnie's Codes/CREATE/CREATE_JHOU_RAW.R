@@ -267,6 +267,53 @@ redJhou_Master_df <- Jhou_master_filelist$`Progressive Punishment`[redJhou_Progp
 
 
 ## Text file preparation
+################################
+##### RAW TEXT TIME ############
+################################
+
+setwd("~/Dropbox (Palmer Lab)/U01 folder/")
+allexpfiles_raw <- list.files(path=".", pattern="*.txt", full.names=TRUE, recursive=TRUE) 
+allexpfiles_raw <- allexpfiles_raw[ ! grepl("error", allexpfiles_raw, ignore.case = TRUE) ] 
+x <- c("unclassified", "error", "[()]")
+allexpfiles_raw_clean <- allexpfiles_raw[! grepl(paste(x, collapse = "|"), allexpfiles_raw)] 
+readdate <- function(x){
+  experimentdatetime <- fread(paste0("grep -m1 -o \"[0-9]\\\\{2\\\\}/[0-9]\\\\{2\\\\}/[0-9]\\\\{4\\\\}\" ", "'", x, "'"), header = F, fill = T)
+  experimentdatetime$filename <- x
+  return(experimentdatetime)
+}
+
+readtime <- function(x){
+  experimentdatetime <- fread(paste0("grep -m1 -o \"[0-9]\\\\{2\\\\}:[0-9]\\\\{2\\\\}:[0-9]\\\\{2\\\\}\\\\.[0-9]\\\\{3\\\\}\" ", "'", x, "'"), header = F, fill = T)
+  experimentdatetime$filename <- x
+  return(experimentdatetime)
+}
+
+
+allexpfiles_date <- lapply(allexpfiles_raw_clean, readdate) %>% rbindlist(fill = T) %>% rename("dateinfile" = "V1") # 21131 files in raw clean files vector; 2 NA ./Delayed punishment/U417/2019-0920-1109_417_DELAYED PUNISHMENT.txt ./Delayed punishment/U418/2019-0920-1109_418_DELAYED PUNISHMENT.txt
+allexpfiles_date[which(allexpfiles_date$filename == "./Delayed punishment/U417/2019-0920-1109_417_DELAYED PUNISHMENT.txt"),]$dateinfile <- "09/20/2019"
+allexpfiles_date[which(allexpfiles_date$filename == "./Delayed punishment/U418/2019-0920-1109_418_DELAYED PUNISHMENT.txt"),]$dateinfile <- "09/20/2019"
+
+allexpfiles_time <- lapply(allexpfiles_raw_clean, readtime) %>% rbindlist(fill = T) %>% rename("timeinfile" = "V1") # same two were empty
+allexpfiles_time[which(allexpfiles_time$filename == "./Delayed punishment/U417/2019-0920-1109_417_DELAYED PUNISHMENT.txt"),]$timeinfile <- "11:09:57.860"
+allexpfiles_time[which(allexpfiles_time$filename == "./Delayed punishment/U418/2019-0920-1109_418_DELAYED PUNISHMENT.txt"),]$timeinfile <- "11:09:57.875"
+
+
+allexpfiles_datetime <- left_join(allexpfiles_date, allexpfiles_time, by = "filename") %>% 
+  extractfromfilename() %>%
+  rename("date_filename" = "date",
+         "timefilename" = "time",
+         "subdirectoryname" = "labanimalid") %>%
+  mutate(dateinfile = as.POSIXct(dateinfile, tz = "UTC", format = "%m/%d/%Y"),
+         timeinfile = str_extract(timeinfile, "\\d+:\\d+")) 
+allexpfiles_datetime %>% 
+  dplyr::filter(dateinfile != date_filename | 
+           timeinfile != timefilename)
+
+allexpfiles_datetime %>% 
+  dplyr::filter(timeinfile != timefilename)
+
+
+# know the number of na's in dataframe (currently 0) colSums(is.na(allexpfiles_datetime))
 
 ################################
 ### RAW TEXT Runway ############
@@ -280,24 +327,24 @@ readrunway <- function(x){
   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runway$filename <- x
   
-  runwaytime_start <- fread(paste0("awk '/[/][0-9]+/{print $1 \", \" $2}' ", "'", x, "'", " | head -1 "), header = F, fill = T)
-  runwaytime_start$filename <- x 
-  
-  runwaytime_end <- fread(paste0("awk '/[/][0-9]+/{print $1 \", \" $2}' ", "'", x, "'", " | tail -1 "), header = F, fill = T)
-  runwaytime_end$filename <- x
-  
-  runway <- merge(runway, runwaytime_start, by = "filename", all = TRUE) %>%
-    merge(., runwaytime_end, by = "filename", all = TRUE) %>%
-    rename("reachtime" = "V1.x",
-           "startdate" = "V1.y",
-           "starttime" = "V2.x",
-           "enddate" = "V1",
-           "endtime" = "V2.y") %>% 
-    select(-V3)
+  # runwaytime_start <- fread(paste0("awk '/[/][0-9]+/{print $1 \", \" $2}' ", "'", x, "'", " | head -1 "), header = F, fill = T)
+  # runwaytime_start$filename <- x 
+  # 
+  # runwaytime_end <- fread(paste0("awk '/[/][0-9]+/{print $1 \", \" $2}' ", "'", x, "'", " | tail -1 "), header = F, fill = T)
+  # runwaytime_end$filename <- x
+  # 
+  # runway <- merge(runway, runwaytime_start, by = "filename", all = TRUE) %>%
+  #   merge(., runwaytime_end, by = "filename", all = TRUE) %>%
+  #   rename("reachtime" = "V1.x",
+  #          "startdate" = "V1.y",
+  #          "starttime" = "V2.x",
+  #          "enddate" = "V1",
+  #          "endtime" = "V2.y") %>% 
+  #   select(-V3)
 
   
-
   return(runway)
+  # return(list(runway, runwaytime_start,runwaytime_end))
 }
 
 
