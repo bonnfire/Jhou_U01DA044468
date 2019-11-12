@@ -54,17 +54,23 @@ allexperimentdatedobandbroadcohorts <- allexperimentfiles %>%
   extractfromfilename() %>%
   left_join(., rfidandid[,c("dob", "labanimalid")], by = "labanimalid") %>% 
   dplyr::mutate(experimentage = as.numeric(difftime(date, dob, units = "days")),
-                broadcohorts = round(shipmentcohort, 0)) %>% 
+                broadcohorts = round(shipmentcohort, 0),
+                shipmentcohort = as.character(shipmentcohort)) %>% 
   dplyr::group_by(subdirectoryid_edit, experiment) %>%
   plyr::arrange(date) %>%
   do(head(., n=1)) %>%
-  select(subdirectoryid_edit, shipmentcohort, broadcohorts, experimentage) %>% # add to prevent all NA column
-  spread(., experiment, experimentage) 
+  select(subdirectoryid_edit, shipmentcohort, broadcohorts, experimentage) %>% 
+  ungroup() %>%
+  mutate(experiment = factor(experiment, levels=c("runwayfiles", "progpunfiles", "delayed_punishmentfiles", "progratiofiles", "locomotorfiles"))) %>% 
+  dplyr::arrange(experiment)
 
-allexperimentdayofexperiments <- allexperimentdatedobandbroadcohorts %>%
-  rowwise() %>% 
-  mutate_at(vars(delayed_punishmentfiles:progratiofiles), .funs = list(days = ~ . - runwayfiles + 1)) %>%
-  mutate(runwayfiles_days = runwayfiles - runwayfiles + 1)
+#%>% # add to prevent all NA column
+  #spread(., experiment, experimentage) 
+
+# allexperimentdayofexperiments <- allexperimentdatedobandbroadcohorts %>%
+#   rowwise() %>% 
+#   mutate_at(vars(delayed_punishmentfiles:progratiofiles), .funs = list(days = ~ . - runwayfiles)) %>%
+#   mutate(runwayfiles_days = runwayfiles - runwayfiles + 1)
 
 # why are there so many na's in runway
 norunwayids <- allexperimentdayofexperiments[which(is.na(allexperimentdayofexperiments$runwayfiles_days)),]$subdirectoryid_edit
@@ -106,6 +112,29 @@ ggplot(allexperimentwithdateanddob, aes(experiment,date)) +
   labs(title = "experiment dates by cohort, extracted from raw file filename dates") + 
   theme(axis.text.x=element_blank()) + 
   scale_y_datetime(date_breaks = "25 day")
+
+# plotting the order of the exps based on age at exp
+
+ggplot(allexperimentdatedobandbroadcohorts, aes(experiment,experimentage, group = subdirectoryid_edit)) + 
+  geom_path() +
+  geom_point() +
+  facet_grid(. ~ broadcohorts) + 
+  labs(title = "experiment age by cohort") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+## add color for subcohorts
+ggplot(allexperimentdatedobandbroadcohorts, aes(experiment,experimentage, group = subdirectoryid_edit)) + 
+  geom_path(aes(color = shipmentcohort)) +
+  geom_point(aes(color = shipmentcohort)) +
+  facet_grid(. ~ broadcohorts) + 
+  labs(title = "experiment age by cohort") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+
+
 
 
 # create another variable that categorizes the shipment cohort more broadly
@@ -227,4 +256,6 @@ WFU_Jhou_findidindropbox <- WFU_Jhou_test_df %>%
          progpun = ifelse(labanimalid %in% experimentfilesbyexperiment$progpunfiles, 1, 0), 
          locomotor = ifelse(labanimalid %in% experimentfilesbyexperiment$locomotorfiles,1, 0), 
          delayedpun = ifelse(labanimalid %in% experimentfilesbyexperiment$delayed_punishmentfiles, 1, 0)) 
+# using WFU_Jhou_findidindropbox$rfid %>% unique() %>% length(), we are expecting 472, but the files represent only 388-439 animals
+
 sapply(subset(WFU_Jhou_findidindropbox, select = runway:delayedpun), sum)
