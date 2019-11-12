@@ -47,18 +47,71 @@ allexperimentfiles %>%
 
 
 
-allexperimentwithdateanddob <- allexperimentfiles %>% 
+allexperimentdatedobandbroadcohorts <- allexperimentfiles %>% 
   dplyr::mutate(subdirectoryid_edit = gsub("u", "U", subdirectoryid)) %>% 
   left_join(., rfidandid[,c("shipmentcohort", "labanimalid")], by = c("subdirectoryid_edit" = "labanimalid") ) %>%
   # dplyr::filter(subdirectoryid == labanimalid) %>%
   extractfromfilename() %>%
   left_join(., rfidandid[,c("dob", "labanimalid")], by = "labanimalid") %>% 
-  dplyr::mutate(experimentage = as.numeric(difftime(date, dob, units = "days")))
+  dplyr::mutate(experimentage = as.numeric(difftime(date, dob, units = "days")),
+                broadcohorts = round(shipmentcohort, 0)) %>% 
+  dplyr::group_by(subdirectoryid_edit, experiment) %>%
+  plyr::arrange(date) %>%
+  do(head(., n=1)) %>%
+  select(subdirectoryid_edit, shipmentcohort, broadcohorts, experimentage) %>% # add to prevent all NA column
+  spread(., experiment, experimentage) 
+
+allexperimentdayofexperiments <- allexperimentdatedobandbroadcohorts %>%
+  rowwise() %>% 
+  mutate_at(vars(delayed_punishmentfiles:progratiofiles), .funs = list(days = ~ . - runwayfiles + 1)) %>%
+  mutate(runwayfiles_days = runwayfiles - runwayfiles + 1)
+
+# why are there so many na's in runway
+norunwayids <- allexperimentdayofexperiments[which(is.na(allexperimentdayofexperiments$runwayfiles_days)),]$subdirectoryid_edit
+
+allexperimentfiles %>% 
+  dplyr::mutate(subdirectoryid_edit = gsub("u", "U", subdirectoryid)) %>% 
+  dplyr::filter(subdirectoryid_edit %in% norunwayids , experiment == "runwayfiles" ) %>% # cannot be found -- no runway data?!  
+  extractfromfilename() %>%
+  dplyr::group_by(subdirectoryid_edit) %>%
+  plyr::arrange(date) %>%
+  do(head(., n=1)) %>%
+  dplyr::select(filename, experiment, subdirectoryid_edit)
+
+
+experimentfilesbyid <- split(allexperimentfiles, f = allexperimentfiles$subdirectoryid)
+experimentfilesbyexperiment <- split(allexperimentfiles, f = allexperimentfiles$experiment)
+experimentfilesbyexperiment <- lapply(experimentfilesbyexperiment, function(x) {
+  unique(x$subdirectoryid)
+})
+lapply(experimentfilesbyexperiment, length)
+setdiff(experimentfilesbyexperiment$runwayfiles, experimentfilesbyexperiment$delayed_punishmentfiles)
+
+allexperimentwithdateanddob %>% 
+  dplyr::filter(subdirectoryid_edit %in% animalswithwrongorder$subdirectoryid_edit) %>% 
+  dplyr::group_by(subdirectoryid_edit, experiment) %>%
+  plyr::arrange(date) %>%
+  do(head(., n=1)) %>%
+  select(subdirectoryid_edit, date, shipmentcohort, experiment) %>%
+  spread(., experiment, date) %>%
+  rename("labanimalid" = "subdirectoryid_edit") %>% 
+  select(labanimalid, shipmentcohort, runwayfiles, progpunfiles,delayed_punishmentfiles, progratiofiles, locomotorfiles) %>%
+  dplyr::arrange(labanimalid)
+
 
 
 ggplot(allexperimentwithdateanddob, aes(experiment,date)) + 
   geom_point(aes(color = experiment)) + 
   facet_grid(. ~ shipmentcohort) + 
+  labs(title = "experiment dates by cohort, extracted from raw file filename dates") + 
+  theme(axis.text.x=element_blank()) + 
+  scale_y_datetime(date_breaks = "25 day")
+
+
+# create another variable that categorizes the shipment cohort more broadly
+ggplot(allexperimentwithdateanddob, aes(experiment,date,group=broadcohorts)) + 
+  geom_point(aes(color = shipmentcohort)) + 
+  facet_grid(. ~ broadcohorts) + 
   labs(title = "experiment dates by cohort, extracted from raw file filename dates") + 
   theme(axis.text.x=element_blank()) + 
   scale_y_datetime(date_breaks = "25 day")
@@ -158,3 +211,20 @@ lapply(runwayfiles_clean[2500:2550], readrunway) %>% rbindlist(fill = T)
 # Calculate and evaluate the age at experiment 
 
 # Plot the dates, color by experiment
+
+
+
+##############
+
+lapply(experimentfilesbyexperiment, length)
+
+# because the id's represented in each experiment differs so much, i want to check them against the master table
+# create a master sheet of id's from wfu, join to the excel sheet to get the u numbers, 
+WFU_Jhou_findidindropbox <- WFU_Jhou_test_df %>% 
+  left_join(., rfidandid[,c("labanimalid", "wakeforestid") ], by = c("labanimalnumber"= "wakeforestid")) %>%
+  mutate(runway = ifelse(labanimalid %in% experimentfilesbyexperiment$runwayfiles, 1,0), 
+         progratio = ifelse(labanimalid %in% experimentfilesbyexperiment$progratiofiles, 1, 0), 
+         progpun = ifelse(labanimalid %in% experimentfilesbyexperiment$progpunfiles, 1, 0), 
+         locomotor = ifelse(labanimalid %in% experimentfilesbyexperiment$locomotorfiles,1, 0), 
+         delayedpun = ifelse(labanimalid %in% experimentfilesbyexperiment$delayed_punishmentfiles, 1, 0)) 
+sapply(subset(WFU_Jhou_findidindropbox, select = runway:delayedpun), sum)
