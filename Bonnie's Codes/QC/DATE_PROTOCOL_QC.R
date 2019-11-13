@@ -60,9 +60,53 @@ allexperimentdatedobandbroadcohorts <- allexperimentfiles %>%
   plyr::arrange(date) %>%
   do(head(., n=1)) %>%
   select(subdirectoryid_edit, shipmentcohort, broadcohorts, experimentage) %>% 
-  ungroup() %>%
-  mutate(experiment = factor(experiment, levels=c("runwayfiles", "progpunfiles", "delayed_punishmentfiles", "progratiofiles", "locomotorfiles"))) %>% 
-  dplyr::arrange(experiment)
+  ungroup() 
+  # %>%
+  # mutate(experiment = factor(experiment, levels=c("runwayfiles", "progpunfiles", "delayed_punishmentfiles", "progratiofiles", "locomotorfiles"))) %>% 
+  # dplyr::arrange(experiment)
+
+
+## CREATE GRAPH DATASET WITH CORRECT ORDER OF X AXES
+allexperimentdatedobandbroadcohorts_graph <- allexperimentdatedobandbroadcohorts
+allexperimentdatedobandbroadcohorts_graph$experiment <- with(allexperimentdatedobandbroadcohorts_graph,paste(experiment,shipmentcohort,sep="_"))
+
+shipmentcohortsinorder <- allexperimentdatedobandbroadcohorts$shipmentcohort %>% unique() %>% as.numeric() %>% sort %>% as.character()
+
+cohort1_8.1_order <- paste0(c("runwayfiles",  "progpunfiles", "progratiofiles", "locomotorfiles","delayed_punishmentfiles"), "_",  rep(shipmentcohortsinorder[1:22], each = 5))
+cohort8.2_order <- paste0(c("runwayfiles", "progpunfiles", "progratiofiles", "locomotorfiles",  "delayed_punishmentfiles"), "_", rep(shipmentcohortsinorder[23], each = 5))
+cohort8.3_9.2_order <- paste0(c("runwayfiles", "progpunfiles", "progratiofiles", "locomotorfiles", "delayed_punishmentfiles"), "_", rep(shipmentcohortsinorder[24:26], each = 5))
+cohort10.1_order <- paste0(c("runwayfiles", "locomotorfiles", "progpunfiles", "progratiofiles", "locomotorfiles", "delayed_punishmentfiles"), "_", rep(shipmentcohortsinorder[27:33], each = 5)) #temporarily adding :33 to create 155 levels
+
+# cohorts 1-8.2: runway, locomotor, food dep, lever press train, prog shock,prog ratio, locomotor, delayed 
+# cohort 8.2:  runway, prog shock, prog ratio, locomotor, delayed
+# cohort 8.3, 9.1, 9.2:  runway, prog shock, prog ratio, food deprivation, locomotor, lever training, delayed pun (????)
+# cohort 10.1: runway, locomotor, food dep (2 sessions),  prog shock, prog ratio, locomotor, delayed pun (???)
+
+# Until June 13 2019 (cohort 8.2) locomotor testing was done after progressive ratio and before delayed punishment. 
+# For cohorts 8.3 and 9.1/9.2, done just before lever training (but after food deprivation) and also after progressive ratio and before delayed punishment. 
+# Starting with cohort 10.1, will perform after runway and before food deprivation (2 sessions) and again after progressive ratio and before delayed punishment. 
+
+allexperimentdatedobandbroadcohorts_graph$experiment <- factor(allexperimentdatedobandbroadcohorts_graph$experiment,
+                                                         levels=c(cohort1_8.1_order,cohort8.2_order,cohort8.3_9.2_order,cohort10.1_order ))
+#### test ggplot code 
+# filter some cohorts (1 through 8.2 to test if the code will change for 8.2)
+test_graph <- allexperimentdatedobandbroadcohorts_graph %>% 
+  dplyr::filter(shipmentcohort %in% shipmentcohortsinorder[1:23])
+test_graph$experiment <- factor(test_graph$experiment, levels=c(cohort1_8.1_order,cohort8.2_order))
+
+ggplot(test_graph, aes(experiment,experimentage, group = subdirectoryid_edit)) + 
+  geom_line() +
+  geom_point() +
+  facet_grid(. ~ shipmentcohort, scales = "free") + 
+  labs(title = "experiment age by cohort") + 
+  scale_x_discrete(labels = gsub(".\\d+", "", test_graph$experiment)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# reorder_within <- function(x, by, within, fun = mean, sep = "___", ...) {
+#   new_x <- paste(x, within, sep = sep)
+#   stats::reorder(new_x, by, FUN = fun)
+# }
+
 
 #%>% # add to prevent all NA column
   #spread(., experiment, experimentage) 
@@ -118,10 +162,11 @@ ggplot(allexperimentwithdateanddob, aes(experiment,date)) +
 ggplot(allexperimentdatedobandbroadcohorts, aes(experiment,experimentage, group = subdirectoryid_edit)) + 
   geom_path() +
   geom_point() +
-  facet_grid(. ~ broadcohorts) + 
+  facet_grid(. ~ broadcohorts, scales = "free") + 
   labs(title = "experiment age by cohort") + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
+
+
 ## add color for subcohorts
 ggplot(allexperimentdatedobandbroadcohorts, aes(experiment,experimentage, group = subdirectoryid_edit)) + 
   geom_path(aes(color = shipmentcohort)) +
