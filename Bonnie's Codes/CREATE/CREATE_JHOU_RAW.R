@@ -454,6 +454,12 @@ runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>% # clea
 # 
 # rawfiles_prepcalc_wide <- spread(rawfiles_prepcalc, session, diff)
 
+
+# runway habituation 
+# from the runway protocols file, a disqualifying runway habituation file is one for which "the animals take more than a minute"..
+# we repeat the habituation sessions until the animal takes less than a minute 
+
+
 ################################
 ### RAW TEXT  Locomotor ########
 ################################
@@ -872,6 +878,10 @@ delayedpunishment <- left_join(x = delayed_data_categories_wcats, y = delays, by
 # to do: check the validity of the columns and the cell formatting 
 
 
+################################
+### RAW TEXT  Lever training ###
+################################
+# extract all file names, split into the cohorts mentioned in the protocols sheet, and write separate functions for them
 
 
 
