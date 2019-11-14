@@ -91,8 +91,28 @@ allexperimentdatedobandbroadcohorts_graph$experiment <- factor(allexperimentdate
 #### test ggplot code 
 # filter some cohorts (1 through 8.2 to test if the code will change for 8.2)
 test_graph <- allexperimentdatedobandbroadcohorts_graph %>% 
-  dplyr::filter(shipmentcohort %in% shipmentcohortsinorder[1:23])
+  dplyr::filter(shipmentcohort %in% shipmentcohortsinorder[1:2])
+cohort1_2.1_order <- paste0(c("runwayfiles",  "progpunfiles","delayed_punishmentfiles", "progratiofiles", "locomotorfiles"), "_", rep(shipmentcohortsinorder[1:2], each = 5))
+test_graph$experiment <- factor(test_graph$experiment, levels=cohort1_2.1_order)
+
 test_graph$experiment <- factor(test_graph$experiment, levels=c(cohort1_8.1_order,cohort8.2_order))
+
+ggplot(test_graph, aes(experiment,experimentage, group = subdirectoryid_edit)) + 
+  geom_line() +
+  geom_point() +
+  facet_grid(. ~ shipmentcohort, scales = "free_x") + 
+  labs(title = "experiment age by cohort") + 
+  # scale_x_discrete(labels = gsub(".\\d+", "", test_graph$experiment)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+test_graph2 <- allexperimentdatedobandbroadcohorts_graph %>% 
+  dplyr::filter(shipmentcohort %in% shipmentcohortsinorder[24:33])
+test_graph$experiment <- factor(test_graph$experiment, levels=c(cohort8.3_9.2_order,cohort10.1_order))
+
+# where are the delayed punishment files 10.2; runway 11.1; runway 11.2; delayed, progratio, and runway 11.3; everything but locomotor for 12.1
+
+# test_graph2 %>% group_by(experiment, shipmentcohort) %>% count()
+
 
 ggplot(test_graph, aes(experiment,experimentage, group = subdirectoryid_edit)) + 
   geom_line() +
