@@ -66,8 +66,9 @@ tJhou_Runway_reverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id
 tJhou_Runway_nonreverslong <- gather(tJhou_Runway_nonreverswide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) 
 tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numreversals, `Habituation01Reversals`:`Cocaine12Reversals`, factor_key=F) 
 
+############################## PICK UP FROM HERE: SHOULD ONLY BE 6608 VALUES BUT WE FIND 92512 CASES AFTER UNSUCCESSFUL MERGE
 tJhou_Runway_data <- cbind(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong %>% select(-animalid)) %>% 
-  mutate_all() ## XX 
+  mutate_all() %>% ## XX 
   arrange(animalid, session) # all ids are represented 14 times
 
 # extract the notes (create specific comments table)

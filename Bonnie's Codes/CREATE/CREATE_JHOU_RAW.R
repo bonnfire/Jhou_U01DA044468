@@ -8,7 +8,28 @@ library(tidyr)
 library(tidyxl)
 library(readxl)
 
-## Text file preparation
+##### U01 Behavioral Protocols
+
+# Each rat receives the following schedule of tests: 
+#   
+#   Intravenous catheter implantation, followed by 1 week recovery. 
+# 
+#   Runway testing. 3 habituation sessions + 12 cocaine sessions. At 3-4 sessions/day, this takes 4-5 days. 
+# 
+#   Locomotor testing. 2 sessions (instituted starting with cohort 8.3, U311, with 1 session, then extended to 2 sessions thereafter). 
+# 
+#   Food deprivation until rat reaches 85% of initial body weight (3 days). Rats are maintained at 85% hereafter until completion of testing schedule. 
+# 
+#   Lever-press training (approximately 12-16 sessions) 
+# 
+#   Progressive Shock Task (7 sessions) 
+# 
+#   Progressive Ratio (4 sessions) 
+# 
+#   Locomotor testing (2 sessions) 
+# 
+#   Delayed Punishment Task (8 sessions) 
+
 ################################
 ##### RAW TEXT DATE/TIME #######
 ################################
@@ -68,6 +89,67 @@ allexpfiles_datetime %>%
 # collect habituation data, label not habituated, use id's that did habituate to extract reach time, location 2, number of reversals
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
 
+# runway hab files should only be 0 weights, so the non zero cases need to be noted 
+readrunwayhab_weight <- function(x){
+  runwayhab_weight <- fread(paste0("awk '/WEIGHT/{print $4}' ", "'", x, "'"), fill = T)
+  runwayhab_weight$filename <- x
+  return(runwayhab_weight)
+}
+runwayhab_files <- list.files(path = "." , pattern = "*.txt", full.names = T, recursive = T)  # 1211 raw text files 
+runwayhab_files  # filter for clean filenames 
+str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
+# runwayhab_files_clean <- runwayhab_files[str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 1209 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
+runwayhab_files_clean <- grep("^((?!error).)*$", runwayhab_files, value = T, perl = T) # mimic inverse matching with negative look arounds
+runwayhab_weights <- lapply(runwayhab_files_clean, readrunwayhab_weight) %>% 
+  rbindlist(fill = T) %>% 
+  rename("ratweight" = "V1")
+runwayhab_weights_validfiles <- runwayhab_weights %>% extractfromfilename() %>% dplyr::filter(ratweight == 0) %>% select(filename) # 1195 valid files with 0 weights 
+readrunwayhab <- function(x){
+  runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
+  runwayhab_reach$filename <- x
+  runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
+  runwayhabloc2$filename <- x
+  runwayhab <- merge(runwayhab_reach, runwayhabloc2, by = "filename", all = T)
+  return(runwayhab)
+}
+runwayhab_v_ <- lapply(runwayhab_weights_validfiles$filename, readrunwayhab) %>% 
+  rbindlist(fill = T) %>% 
+  rename("hab_reachtime" = "V1.x",
+         "hab_loc2_reachtime" = "V1.y",
+         "location" = 'V2', 
+         "locationnum" = "V3",
+         "whatisthis" = "V1") # 1195 files
+# vis_miss(runwayhab_v_) wherever hab_reachtime is na so is hab_loc2_reachtime
+# runwayhab_v_ %>% dplyr::filter(is.na(hab_reachtime)) %>% vis_miss()
+
+runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
+
+runwayhab_v_explainna <- runwayhab_v_ %>%
+  extractfromfilename() %>%
+  mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA),
+         cannotfindreachtime = ifelse(labanimalid %in% notexplainedinexcelbutmissing$labanimalid,"Cannot find reach time", NA))
+
+notexplainedinexcelbutmissing <- runwayhab_v_explainna %>%   
+  dplyr::filter((is.na(hab_reachtime) | is.na(hab_loc2_reachtime)), is.na(notedinexcel) ) 
+
+# animals that only have two files but one is na so what to do? 
+runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% dplyr::filter(n == 2) %>% select(labanimalid) %>% unique()
+# gives you the context for which you are missing the files from
+runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% rename("numberoffilesindir"= "n") %>% dplyr::filter(is.na(hab_reachtime)) %>% add_count() %>% rename("numberofnafilesindir" = "n") %>% View()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
 
@@ -75,7 +157,6 @@ setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
 readrunway <- function(x){
   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runway$filename <- x
-  
   return(runway)
 }
 
