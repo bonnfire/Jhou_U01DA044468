@@ -13,7 +13,7 @@ library(ggplot2)
 #              "cohort7" = cohort7,
 #              "cohort8" = cohort8)
 
-pdf("jhou_runway.pdf", onefile = T)
+
 
 # process the runway data to make shipment cohorts (reorder and WFU)
 
@@ -43,6 +43,7 @@ jhourunwaymeasures <- grep(pattern = "^(elapsedtime|reversals)", names(runway_gr
 
 # create plots 
 
+pdf("jhou_runway.pdf", onefile = T)
 for (i in seq_along(jhourunwaymeasures)){
   
   # Raw files *with decimal point cohorts

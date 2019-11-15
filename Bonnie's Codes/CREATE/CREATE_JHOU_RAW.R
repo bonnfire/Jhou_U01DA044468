@@ -8,267 +8,9 @@ library(tidyr)
 library(tidyxl)
 library(readxl)
 
-################################
-##### Delayed punishment #######
-################################
-
-################################
-####### Lever training #########
-################################
-
-# Complete dataframe for lever training
-Lever_training_IDs <- list.dirs(path="Lever training",full.names=F)
-Lever_training_IDs <- Lever_training_IDs[-1]
-
-# non digits \\D cases
-Lever_training_IDs[grep(pattern = "\\D$", Lever_training_IDs)]
-
-# extract just animal ID (can't use bc it excludes cases)
-# string2 <- Delayed_Punishment_IDs[grepl(pattern = "\\d$", Delayed_Punishment_IDs)]
-
-# split a string using a pattern (used for animal_ID column)
-animal_ID <- strsplit(Lever_training_IDs, "\\D$") %>% unlist()
-
-# extract just the condition
-animal_ID_cond <- stringr::str_match(Lever_training_IDs, "\\D$") %>%
-  as.vector()
-
-# extract date of experiment 
-# (uncomment when dropbox syncs) dp_files<-list.files(path="/home/bonnie/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U0_Dropbox_copy1/U01 folder/Delayed punishment",recursive = T,pattern=".txt",full.names = T)
-lt_files<-list.files(path="/home/bonnie/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01/Lever training",recursive = T,pattern=".txt",full.names = T)
-year_monthday_char <- stringr::str_extract_all(lt_files, "[[:digit:]]{4}-[[:digit:]]{4}") %>% unlist()
-# year_monthday_char_test <- gsub("(-[[:digit:]]{2})", "\\1-", year_monthday_char) #not needed for ymd function
-## use lubridate to change to POSITX
-ymd_dateformat <- ymd(year_monthday_char)
-
-#extract time of experiment
-hoursecond_char <- stringr::str_extract_all(lt_files, "[[:digit:]]{4}_") %>% unlist()
-hoursecond_char_test <- gsub("_", "", hoursecond_char)
-hoursecond_char_test <- sub("([[:digit:]]{2})", "\\1:", hoursecond_char_test) #sub is just first match
-## use lubridate to change to time format 
-hoursecond_timeformat <- hm(hoursecond_char_test)
-
-################################
-####### Locomotor ##############
-################################
-Locomotor_IDs <- list.dirs(path="Locomotor",full.names=F)[-1] #remove "" from recursive
-
-# non digits \\D cases
-Locomotor_IDs[grep(pattern = "\\D$", Locomotor_IDs)]
-
-# split a string using a pattern (used for animal_ID column)
-animal_ID <- strsplit(Locomotor_IDs, "\\D$") %>% unlist()
-
-# extract just the condition
-animal_ID_cond <- stringr::str_match(Locomotor_IDs, "\\D$") %>%
-  as.vector()
-
-# extract date of experiment 
-loc_files<-list.files(path="/home/bonnie/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01/Locomotor",recursive = T,pattern=".txt",full.names = T)
-#extract time of experiment
-
-################################
-##### Progressive Punishment ###
-################################
-ProgP_IDs <- list.dirs(path="Progressive punishment",full.names=F)[-1] #remove "" from recursive 
-
-# non digits \\D cases
-ProgP_IDs[grep(pattern = "\\D$", ProgP_IDs)]
-
-# split a string using a pattern (used for animal_ID column)
-animal_ID <- strsplit(ProgP_IDs, "\\D$") %>% unlist()
-
-# extract just the condition
-animal_ID_cond <- stringr::str_match(ProgP_IDs, "\\D$") %>%
-  as.vector()
-
-# extract date of experiment 
-# XX NO TXT FILES? 
-progpun_files<-list.files(path="/home/bonnie/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01/Progressive punishment",recursive = T,pattern=".txt",full.names = T)
-#extract time of experiment
-# CAN'T DO WITHOUT FILES
-
-################################
-#### Progressive Ratio #########
-################################
-
-ProgR_IDs <- list.dirs(path="Progressive ratio",full.names=F)[-1] #remove "" from recursive 
-
-# non digits \\D cases
-ProgR_IDs[grep(pattern = "\\D$", ProgR_IDs)]
-
-# split a string using a pattern (used for animal_ID column)
-animal_ID <- strsplit(ProgR_IDs, "\\D$") %>% unlist()
-
-# extract just the condition
-animal_ID_cond <- stringr::str_match(ProgR_IDs, "\\D$") %>%
-  as.vector()
-
-# extract date of experiment 
-# XX NO TXT FILES? 
-prograt_files<-list.files(path="/home/bonnie/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01/Progressive ratio",recursive = T,pattern=".txt",full.names = T)
-#extract time of experiment
-# CAN'T DO WITHOUT FILES
-
-################################
-########### Runway #############
-################################
-# Full filename along with directory
-Runway_IDs <- list.files(path="Runway", recursive = F, full.names=T) # T full (Runway/Cohort 1), F full (Cohort 1) 
-# Basename 
-basename(Runway_IDs) 
-# Animal ID 
-Runway_animal_ID <- list.dirs(path="Runway", recursive = T)
-Runway_animal_ID <- stringr::str_extract_all(Runway_animal_ID, "U[[:digit:]]+") %>% unlist()
-
-# check for all runway/cohort
-CohortVSU <- list.files(path="Runway", recursive = T, pattern = ".txt")
-CohortVSU_df <- data.frame("U ID" = stringr::str_extract_all(CohortVSU, "U[[:digit:]]+") %>% unlist(),
-                           "File ID" = stringr::str_extract_all(CohortVSU, "_[[:digit:]]+") %>% unlist())
-# cases in which they don't match 
-CohortVSU_df <- CohortVSU_df %>% 
-  mutate(File.ID= paste0("U", gsub("_", "", File.ID))) %>% 
-  filter(U.ID != File.ID) 
-
-# Trailing 
-Runway_animal_ID[grep(pattern = "\\D$", Runway_animal_ID)] # no trailing
-Runway_animal_ID_cond <- stringr::str_match(Runway_animal_ID, "\\D$") %>%
-  as.vector()
-
-# Month
-Runway_files <- list.files(path="Runway",full.names=T, recursive = T, pattern = ".txt")
-Runway_year_monthday_char <- stringr::str_extract_all(Runway_files, "[[:digit:]]{4}-[[:digit:]]{4}") %>% unlist()
-Runway_ymd_dateformat <- ymd(year_monthday_char) ## XX What format does SQL/Rat Genome take in? 
-
-# Time
-Runway_files <- list.files(path="Runway",full.names=T, recursive = T, pattern = ".txt")
-Runway_hoursecond_char <- stringr::str_extract_all(lt_files, "[[:digit:]]{4}_") %>% unlist()
-Runway_hoursecond_char_test <- gsub("_", "", Runway_hoursecond_char)
-Runway_hoursecond_char_test <- sub("([[:digit:]]{2})", "\\1:", Runway_hoursecond_char_test) #sub is just first match
-## use lubridate to change to time format 
-Runway_hoursecond_timeformat <- hm(Runway_hoursecond_char_test)
-
-# Cohort
-Runway_Cohort <- list.files(path="Runway",full.names=F) # 29 cohorts XX Should cohorts all be whole numbers? 
-
-
-# Write a function to include all directories into one dataframe 
-
-trailing_ids <- function(path){
-  IDs <- list.dirs(path = path, full.names = F)
-  return(IDs[grep(pattern = "\\D$", IDs)])
-}
-
-trailing_ids("Progressive punishment")
-
-Tom_Jhou_U01_experiments_all <- data.frame("dir_filename" = files,
-                                           "basename" = ,
-                                           "animal_ID" = ,
-                                           "animal_ID_condition" = ,
-                                           "date_experiment" = ,
-                                           "time_experiment" = , 
-                                           "cohort" = )
-
-Tom_Jhou_U01$dir_filename 
-
-#column1: full filename along with directory
-#column2: basename()
-#column3 extract animal ID
-#column4: e or i
-#column5: y/M/d
-#column6: time
-#column7: cohort
-#count number of unique files for each animals
-
-##########################
-#### FROM RAW FILES ######
-##########################
-
-# self defined functions 
-
-# extract info from filename
-extractfromfilename <- function(df){
-  if(df == "rawfiles_prepcalc"){
-    df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
-  }
-  df$labanimalid <- stringr::str_extract(df$filename, "U[[:digit:]]+[[:alpha:]]*")
-  df$date <- gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(df$filename, "[[:digit:]]{4}[-][[:digit:]]{4}"))
-  df$date <- as.POSIXct(df$date, tz = "UTC")
-  df$time <- stringr::str_extract(df$filename, "[[:digit:]]{4}(?=_)")
-  df$time <- gsub('([[:digit:]]{2})([[:digit:]]{2})', '\\1:\\2', df$time)
-  df <- df[order(df$filename), ]
-  return(df)
-} 
-
-# extracted the function from u01_qc file
-uniform.var.names.testingu01_df <- function(df) {
-  if(grepl("Parent", names(df)) %>% any()){
-    names(df)[1:2] <- df[1,][1:2] %>% as.character()
-    df <- df[-1, ]
-  }
-  names(df) <- mgsub::mgsub(names(df),
-                            c(" |\\.", "[(|)]", "#", "Transponder |16 digit", "Date of Wean|Wean Date","Animal"),
-                            c("", "_", "Number", "RF", "DOW","LabAnimal"))
-  names(df) <- mgsub::mgsub(names(df),
-                            c("DateofShipment", "LabAnimalID"), 
-                            c("ShipmentDate", "LabAnimalNumber"))
-  names(df) <- tolower(names(df))
-  df
-}
-
-
-# using Dropbox copy setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy")
-
-# process the master excel file (mainly for comments and resolutions columns)
-setwd("~/Dropbox (Palmer Lab)/U01 folder")
-summaryall <- readxl::read_excel("U01 Master sheet_readonly.xlsx")
-names(summaryall) <- summaryall[1, ] %>% as.character()
-summaryall <- summaryall[-1, ]
-summaryall <- uniform.var.names.testingu01_df(summaryall)
-
-# rfidandid <- dplyr::select(summaryall, jhoulabid, sex, rfid, shipmentcohort) # NOT SURE WHY DPLYR DOESN'T WORK
-rfidandid <- subset(summaryall, select = c("jhoulabid", "shipmentcohort", "wakeforestid", "sex", "rfid", "dob", "notesforhumans:", "resolution:")) # BASE SUBSET WORKS
-rfidandid <- rfidandid %>%
-  mutate(shipmentcohort = shipmentcohort %>% as.numeric() %>% round(digits = 3),
-         dob = as.POSIXct(as.numeric(dob) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d"),
-         wakeforestid = gsub(".*-->", "", rfidandid$wakeforestid)) %>%
-  rename(labanimalid = jhoulabid,
-         comment = `notesforhumans:`,
-         resolution =`resolution:`) %>% 
-  dplyr::filter(!is.na(wakeforestid))
-
-
-
-# using original copy latest updates 
-
-# trying to get the color formats 
-setwd("~/Dropbox (Palmer Lab)/U01 folder")
-Jhou_Master <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx", sheets = NA) # read all sheets, sheets = NA
-Jhou_Master_formats<-tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
-# Jhou_Master_formats$local$font$color$rgb %>% unique shades of pink, orange, and red
-red_index<-which(Jhou_Master_formats$local$font$color$rgb=="FF000000")
-# Jhou_Master_formats$local$font$color$rgb %>% as.factor() %>% summary() used the most frequent to query
-redJhou_Master <- Jhou_Master[ Jhou_Master$local_format_id %in% red_index,  ]
-redJhou_Progpun <- redJhou_Master %>% 
-  filter(sheet == "Progressive Punishment")
-# redJhou_Progpun$data_type %>% as.factor() %>% summary()
-
-
-# use the red value from excel sheet to find patterns and omit values from the raw files
-
-# read in all sheets 
-master_sheetnames <- excel_sheets("U01 Master sheet_readonly.xlsx")
-Jhou_master_filelist <- lapply(master_sheetnames, read_excel, path = "U01 Master sheet_readonly.xlsx")
-names(Jhou_master_filelist) <- master_sheetnames
-redJhou_Master_df <- Jhou_master_filelist$`Progressive Punishment`[redJhou_Progpun$row, redJhou_Progpun$col] # don't run, may not work
-
-
-
-
-
 ## Text file preparation
 ################################
-##### RAW TEXT TIME ############
+##### RAW TEXT DATE/TIME #######
 ################################
 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/")
@@ -320,6 +62,13 @@ allexpfiles_datetime %>%
 ################################
 
 ### EXP 1: runway 
+
+# 3 habituation sessions + 12 cocaine sessions. At 3-4 sessions/day, this takes 4-5 days.
+
+# collect habituation data, label not habituated, use id's that did habituate to extract reach time, location 2, number of reversals
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
+
+
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
 
 # reach time and qc the times from in files
@@ -327,28 +76,14 @@ readrunway <- function(x){
   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runway$filename <- x
   
-  # runwaytime_start <- fread(paste0("awk '/[/][0-9]+/{print $1 \", \" $2}' ", "'", x, "'", " | head -1 "), header = F, fill = T)
-  # runwaytime_start$filename <- x 
-  # 
-  # runwaytime_end <- fread(paste0("awk '/[/][0-9]+/{print $1 \", \" $2}' ", "'", x, "'", " | tail -1 "), header = F, fill = T)
-  # runwaytime_end$filename <- x
-  # 
-  # runway <- merge(runway, runwaytime_start, by = "filename", all = TRUE) %>%
-  #   merge(., runwaytime_end, by = "filename", all = TRUE) %>%
-  #   rename("reachtime" = "V1.x",
-  #          "startdate" = "V1.y",
-  #          "starttime" = "V2.x",
-  #          "enddate" = "V1",
-  #          "endtime" = "V2.y") %>% 
-  #   select(-V3)
-
-  
   return(runway)
-  # return(list(runway, runwaytime_start,runwaytime_end))
 }
 
 
-runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) # note the 4221 id in one file, but seems to be no error files so below code is unneeded
+runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE)
+runwayfiles_clean[grepl("^m.*\\.log",runwayfiles_clean)] # remove error and duplicate files
+
+# note the 4221 id in one file, but seems to be no error files so below code is unneeded
 # files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] 
 # runwayfiles_clean <- gsub(" ", "\\\\ ", runwayfiles_clean) # not the issue for not being able to access the files
 

@@ -136,6 +136,26 @@ ggplot(test_graph, aes(experiment,experimentage, group = subdirectoryid_edit)) +
 #   mutate_at(vars(delayed_punishmentfiles:progratiofiles), .funs = list(days = ~ . - runwayfiles)) %>%
 #   mutate(runwayfiles_days = runwayfiles - runwayfiles + 1)
 
+
+## CREATE GRAPH DATASET FACETED BY EXPERIMENT, FILL BY COHORT COLOR, HISTOGRAM OF AGES, EXPECTING NORMAL DISTRIBUTION
+allexperimentdatedobandbroadcohorts %>% 
+  mutate(shipmentcohort = factor(shipmentcohort, levels = as.numeric(allexperimentdatedobandbroadcohorts $shipmentcohort) %>% sort() %>% unique())) %>%
+ggplot(aes(shipmentcohort, experimentage)) + 
+  geom_boxplot() +
+  facet_grid(. ~ experiment) + 
+  labs(title = "experiment age by cohort by experiment") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+
+## CREATE GRAPH DATASET FACETED BY SHIPMENTCOHORT, EXPERIMENT AGE BOXPLOTS, EXPECTING SMALL SPREADS SINCE EACH SHIPMENTCOHORT SHOULD BE GOING INTO EXPERIMENTS AT AROUND THE SAME TIME
+allexperimentdatedobandbroadcohorts %>% 
+  mutate(shipmentcohort = factor(shipmentcohort, levels = as.numeric(allexperimentdatedobandbroadcohorts $shipmentcohort) %>% sort() %>% unique())) %>%
+  ggplot(aes(experiment, experimentage)) + 
+  geom_boxplot() +
+  facet_grid(. ~ shipmentcohort) + 
+  labs(title = "experiment age by cohort by experiment") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+
+
 # why are there so many na's in runway
 norunwayids <- allexperimentdayofexperiments[which(is.na(allexperimentdayofexperiments$runwayfiles_days)),]$subdirectoryid_edit
 
