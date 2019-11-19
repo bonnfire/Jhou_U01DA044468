@@ -729,6 +729,17 @@ delayedpun_presses_df = lapply(unique(delayed_data_df_valid$filename), delayedpu
   rbindlist(fill = T) # 5552 files, 0 na and left presses min 30 max 602
 colnames(delayedpun_presses_df) = c("activepresses", "inactivepresses", "filename")
 
+delayedpun_delays <- function(x){
+  delays <- fread(paste0("grep -m1 -o -E '[0-9]+[[:space:]]?SEC' ", "'", x, "'"), header=F, fill=T, showProgress = F, verbose = F)
+  delays$filename <- x 
+  return(delays)
+}
+delayedpun_delays_df <- lapply(unique(delayed_data_df_valid$filename), delayedpun_delays) %>% 
+  rbindlist(fill = T)
+delayedpun_delays_df %<>% 
+  select(-V2) %<>%
+  rename("delay" = "V1") %<>% 
+  mutate(delay = gsub("SEC", "", delay))
 
 delayedpun_boxes <- function(x){
   boxandstations <- fread(paste0("awk '/Started script/{print $(NF-1) \" \" $NF}' ", "'", x, "'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
@@ -750,8 +761,11 @@ delayedpun_boxesandstations_df %>% select(-filename) %>% distinct() %>% add_coun
 # cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone2$labanimalid)
 # cases # just 6 and 8 now XX already made note to Tom Jhou's team
 
-delayedpunishment <- left_join(x = delayedpundata_categories_wcat, y = delayedpun_presses_df, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
+delayedpunishment <- delayedpun_delays_df %>% 
+  dplyr::filter(!is.na(delay)) %>%    
   left_join(., delayedpun_boxesandstations_df, by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
+  left_join(., delayedpundata_categories_wcat, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
+  left_join(., delayedpun_presses_df, by = "filename") %>% 
   extractfromfilename() %>% # extract file information for preparation for appending to rfid
   # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),

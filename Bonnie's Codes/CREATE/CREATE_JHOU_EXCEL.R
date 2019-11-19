@@ -260,3 +260,18 @@ Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
 ################################
 ###### DELAYED PUNISHMENT ######
 ################################
+Jhou_Delayedpun <- Jhou_Excel[["Delayed punishment (DP)"]] %>% as.data.table
+Jhou_Delayedpun <- Jhou_Delayedpun[, 1:12, with=T]
+setnames(Jhou_Delayedpun, c("delay", as.character(Jhou_Delayedpun[2, 2:12])) )
+# split the data
+
+Jhou_Delayedpun_split <- split(Jhou_Delayedpun, cumsum(1:nrow(Jhou_Delayedpun) %in%  grep("^U", Jhou_Delayedpun$delay, ignore.case = F))) 
+Jhou_Delayedpun_Excel <- lapply(Jhou_Delayedpun_split, function(x){
+  x %<>% select(-c(Time, FR, `Weight (%)`)) %<>% dplyr::filter(!is.na(delay)) # remove na or unwanted columns
+  names(x) <- c("delay", "date", "shockoflastcompletedblock", "shockoflastattemptedblock", "numtrialsatlastshock", "activepresses", "inactivepresses", "boxorstationumber", "notes") #rename to equate raw names
+  x$labanimalid = grep("^U", x$delay, ignore.case = F, value = T) 
+  x %<>% dplyr::filter(grepl("^\\d", x$delay)) %<>% mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d"))
+  return(x)
+}) %>% rbindlist(fill = T)
+
+
