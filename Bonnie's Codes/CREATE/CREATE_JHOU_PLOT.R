@@ -150,7 +150,7 @@ progressive_ratio_joined_graph <- Jhou_ProgRatio_Excel %>%
     left_join(., rfidandid, by = "labanimalid") %>%
   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>% 
   left_join(., progratio, by = c("labanimalid", "session")) %>% 
-  dplyr::filter(!labanimalid %in% conflictedcases_progratio)
+  dplyr::filter(!labanimalid %in% conflictedcases_progratio) 
 names(progressive_ratio_joined_graph) <- gsub("[.]x", "_excel", names(progressive_ratio_joined_graph))
 names(progressive_ratio_joined_graph) <- gsub("[.]y", "_raw", names(progressive_ratio_joined_graph))
 
@@ -169,5 +169,18 @@ for (i in seq_along(progratiomeasures)){
 
 dev.off()
 
-
+###################################################################
 # Delayed punishment
+##################################################################
+delayed_pun_joined_graph <- Jhou_Delayedpun_Excel %>%
+  left_join(., rfidandid, by = "labanimalid") %>%
+  left_join(., delayedpunishment, by = c("labanimalid", "session")) %>%
+  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # Excel has 5740 values and delayedpunishment raw has 5541 values
+  # %>% dplyr::filter(!labanimalid %in% conflictedcases_progratio)
+names(delayed_pun_joined_graph) <- gsub("[.]x", "_excel", names(delayed_pun_joined_graph))
+names(delayed_pun_joined_graph) <- gsub("[.]y", "_raw", names(delayed_pun_joined_graph))
+naniar::vis_miss(delayed_pun_joined_graph)
+
+ggplot(delayed_pun_joined_graph %>% dplyr::filter(date_excel != date_raw), aes(x = date_excel, y = date_raw, label = labanimalid)) + 
+  geom_point() + 
+  ggrepel::geom_label_repel(aes(label=labanimalid))

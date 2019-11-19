@@ -270,7 +270,7 @@ Jhou_Delayedpun_Excel <- lapply(Jhou_Delayedpun_split, function(x){
   x %<>% select(-c(Time, FR, `Weight (%)`)) %<>% dplyr::filter(!is.na(delay)) # remove na or unwanted columns
   names(x) <- c("delay", "date", "shockoflastcompletedblock", "shockoflastattemptedblock", "numtrialsatlastshock", "activepresses", "inactivepresses", "boxorstationumber", "notes") #rename to equate raw names
   x$labanimalid = grep("^U", x$delay, ignore.case = F, value = T) 
-  x %<>% dplyr::filter(grepl("^\\d", x$delay)) %<>% mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d"))
+  x %<>% dplyr::filter(grepl("^\\d", x$delay)) %<>% mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% group_by(labanimalid) %<>% mutate(session = as.character(dplyr::row_number()))
   return(x)
 }) %>% rbindlist(fill = T)
 

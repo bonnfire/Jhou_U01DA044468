@@ -773,7 +773,7 @@ delayedpunishment <- delayedpun_delays_df %>%
   rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
   select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
   group_by(labanimalid) %>% 
-  # mutate(delay = as.character(dplyr::row_number() - 1)) %>%  # add delay, extract from file!!!  
+  mutate(session = as.character(dplyr::row_number())) %>%  # add delay, extract from file!!!  
   ungroup() %>%
   left_join(., rfidandid, by = "labanimalid") 
 
