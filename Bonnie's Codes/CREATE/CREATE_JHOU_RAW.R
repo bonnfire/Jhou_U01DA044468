@@ -636,73 +636,132 @@ progratio <- progratio %>%
 # find -type f -iname "*PUNISHMENT*.txt" ! -path "*error*" -exec awk '/ENDING/{print FILENAME}' {} \; 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Delayed punishment") # while dropbox is updating the clone
 
-delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # exclude existing txt files and include any corrective "qualifiers" # 5670 counts
-delayed_punishmentfiles_clean <-  delayed_punishmentfiles[ ! grepl("error", delayed_punishmentfiles, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team) # 3168 counts
-# read_delayedpresses<-function(x){
-#   data = fread(paste0("tac ","'",x,"'", "| awk '/LEFTPRESSES/{print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F)  
-#   data$id<-x
-#   return(data)
-# } # trying prog pun function; doesn't work because we need to add a function to extract the time delay
-
+delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # 5781 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
+delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_corrected)?.txt", negate = F)] # 5648 files
+# delayed_punishmentfiles_clean <-  delayed_punishmentfiles[ ! grepl("error", delayed_punishmentfiles, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team) 
 
 create_delayedpuntable <- function(x){
-  thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" $18 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
+  thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
   thistrialrownumandshock$filename<-x
   return(thistrialrownumandshock)
 }
 
+delayedpunishment_df = lapply(delayed_punishmentfiles_clean, create_delayedpuntable) %>%
+  rbindlist(fill = T) # 50408 THIS TRIAL LINES from 5648 unique files
+colnames(delayedpunishment_df) = c("trialnum", "shockma", "rownum", "filename") 
+# summary(delayedpunishment_df) # 73 NA's
+# naniar::vis_miss(delayedpunishment_df)
 
-delayedpunishment_df <- lapply(delayed_punishmentfiles_clean, create_delayedpuntable) %>% 
-  rbindlist(fill = T) %>% 
-  mutate(delay = str_extract(delayed_data_df_valid$delay, "[0-9]{1,2}") %>% as.numeric)
-# delayedpunishment_df <- rbindlist(delayedpunishment, fill = T)
-colnames(delayedpunishment_df) = c("trialnum", "shockma", "delay", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 10/28 WORKING 
-delayedpunishment_df <- delayedpunishment_df %>% 
+delayedpunishment_df_complete <- delayedpunishment_df %>% 
+  dplyr::filter(complete.cases(.)) %>%  
   group_by(filename) %>% 
-  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES/SESSIONS to two per filename 
+  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to the last two per filename # 11127 THIS TRIAL LINES (TTL) from 5,575 unique files (should be 11150, or 5575*2, so we are missing cases )
 
+delayedpunishment_df_complete %>% count(filename) %>% subset(n!=2) ## added to notes for jhou team 
 
-delayed_data_df_valid <- delayedpunishment_df %>% 
+delayed_data_df_valid <- delayedpunishment_df_complete %>% 
   group_by(filename) %>%
   mutate(count = n()) %>% 
   ungroup() %>% 
-  dplyr::filter(count == 2)
+  dplyr::filter(count == 2) # temporarily use the valid files before they respond 11104 TTL from 5,575 unique files from 5,552 unique files (removed the 23 cases)
 
-# 10/29 SAVE SCREENSHOT IN DOCUMENT FOR TOM delayed_data_df_valid %>% dplyr::filter(is.na(delay)) %>% group_by(filename) %>% mutate(count = n()) %>% as.data.frame() 
+# create categorization table 
+create_delayedpuntable_tocategorize <- function(x){
+  numofsessions <- list()
+  for(i in seq(1,nrow(x),2)){
+    
+    numleftpressesbwlasttwo = fread(paste0("sed -n ", x$rownum[i], ",", x$rownum[i+1], "p ", "'", x$filename[i], "'", " | grep -c \"LEFTPRESSES\""), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+    numleftpressesbwlasttwo$filename <-x$filename[i]   
+    
+    numleftpresseslast = fread(paste0("sed -n '", x$rownum[i + 1] , ",/ENDING/p' ", "'", x$filename[i], "'", " | grep -c \"LEFTPRESSES\""), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+    numleftpresseslast$filename <-x$filename[i] 
+    
+    secondtolastshock = fread(paste0("awk 'NR == " , x$rownum[i]," {print $13}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+    # might use reg exp (?:([1-9]?[0-9])[a-zA-Z ]{0,20}(?:arrests|arrested))
+    secondtolastshock$filename <-x$filename[i] 
+    
+    lastshock = fread(paste0("awk 'NR == " , x$rownum[i+1]," {print $13}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
+    # might use reg exp (?:([1-9]?[0-9])[a-zA-Z ]{0,20}(?:arrests|arrested))
+    lastshock$filename <-x$filename[i]
+    
+    filelasttwoandlast <- merge(numleftpressesbwlasttwo,numleftpresseslast, by = "filename") %>% 
+      rename("numleftpressesbwlasttwo" = "V1.x", 
+             "numleftpresseslast" = "V1.y") %>% # for each file, merge the count of LEFTPRESSES occurences
+      merge(., secondtolastshock, by = "filename") %>% # %>% # for each file, merge the count of LEFTPRESSES occurences
+      merge(., lastshock, by = "filename") %>% 
+      rename("secondtolastshock" = "V1.x", 
+             "lastshock" = "V1.y") # for each file, merge the MA value (last two)
+    
+    # names(filelasttwoandlast) = c("filename", "numleftpressesbwlasttwo","numleftpresseslast", "secondtolastshock", "lastshock")
+    # numofsessions[[i]] <- filelasttwoandlast # add to list 
+    
+    # turning off this part of function because functions with blank spaces there are messing up the function
+    # if(grepl("delayed", filelasttwoandlast$filename, ignore.case = T)){
+    #   delay = fread(paste0("awk 'NR == " , x$rownum[i]," {print $18}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F,blank.lines.skip=TRUE)
+    #   delay$filename <-x$filename[i]
+    #   filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>%
+    #     rename("delay" = "V1")
+    # }
+    
+    numofsessions[[i]] <- filelasttwoandlast
+  }
+  numofsessions_df = do.call(rbind, numofsessions)
+  return(numofsessions_df)
+}
 
-# prog pun function seems to work for delayed prog categories, presses, and box
-delayed_data_categories = create_progpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment (cannot use odd numbers as subset!! )
-# summary looks ok; 5478 files
+# data2_valid_subset <- data2_valid[1:100,]
+# data_categories_test = create_progpuntable_tocategorize(data2_valid_subset) # test subset 
 
-delayed_data_categories_wcats <- delayed_data_categories %>% 
+delayedpundata_categories = create_delayedpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment 
+# naniar::vis_miss(delayedpundata_categories) # 100% present
+delayedpundata_categories_wcat <- delayedpundata_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
          lastshock_cat = ifelse(numleftpresseslast >= 3, "Complete", "Attempt"))
 
-# there are files within the clean file names that are EMPTY
-duplicatedfiles <- grep("[(]\\d[)]", delayed_punishmentfiles_clean, value = T) %>% 
-  gsub(" [(]\\d[)]", "", .) # 5574 all files; create 26 files that have duplicates
-removeduplicatefiles <- subset(delayed_punishmentfiles_clean, !(delayed_punishmentfiles_clean %in% duplicatedfiles)) #5555, found 19 to remove
-delayedpresses_df = lapply(removeduplicatefiles, progpun_presses) %>% rbindlist(fill = T) # summary looks okay, no na and left presses min 55 max 130
-colnames(delayedpresses_df) = c("activepresses", "inactivepresses", "filename") # 38 NA's, 5574 files ; was 50 NA without the removal of the duplicated, empty files
+delayedpun_presses <- function(x){
+  presses <- fread(paste0("tac ", "'", x, "'", " | awk '/LEFTPRESSES/ {print $4 \",\" $6; exit}'"), header=F, fill=T, showProgress = F, verbose = F)
+  presses$V1[nrow(presses) == 0] <- NA
+  presses$V2[nrow(presses) == 0] <- NA
+  presses$filename <- x
+  return(presses)
+}
+delayedpun_presses_df = lapply(unique(delayed_data_df_valid$filename), delayedpun_presses) %>% 
+  rbindlist(fill = T) # 5552 files, 0 na and left presses min 30 max 602
+colnames(delayedpun_presses_df) = c("activepresses", "inactivepresses", "filename")
 
-delayedboxesandstations_df = lapply(removeduplicatefiles, progpun_boxes) %>% 
-  rbindlist(fill = T)
-colnames(delayedboxesandstations_df) = c("boxorstation", "boxorstationumber", "filename") # 5555 boxes found, no NA's
 
-delays <- delayed_data_df_valid %>% 
-  select(delay, filename) %>% 
-  dplyr::filter(!is.na(delay)) %>% 
-  group_by(filename, delay) %>% 
-  unique()
+delayedpun_boxes <- function(x){
+  boxandstations <- fread(paste0("awk '/Started script/{print $(NF-1) \" \" $NF}' ", "'", x, "'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
+  boxandstations$filename <- x
+  return(boxandstations)
+}
 
-delayedpunishment <- left_join(x = delayed_data_categories_wcats, y = delays, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
-  left_join(., delayedpresses_df, by = "filename") %>% 
-  left_join(., delayedboxesandstations_df, by = "filename") %>% # dim is all over the place 
+delayedpun_boxesandstations_df = lapply(unique(delayed_data_df_valid$filename), delayedpun_boxes) %>% 
+  rbindlist(fill = T) # 5552 files, no na, and boxes min 1 max 8
+colnames(delayedpun_boxesandstations_df) = c("boxorstation", "boxorstationumber", "filename")
+
+# XXX concern (some animals have more than one box designation):
+delayedpun_boxesandstations_df$labanimalid <- stringr::str_extract(delayedpun_boxesandstations_df$filename, regex("U[[:digit:]]+[[:alpha:]]*", ignore_case=T))
+delayedpun_boxesandstations_df %>% select(-filename) %>% distinct() %>% add_count(labanimalid) %>% dplyr::filter(n!=1) %>% as.data.frame()
+  
+# morethanone <- delayedpun_boxesandstations_df %>%
+#   select(labanimalid, boxorstationumber) %>%
+#   unique() %>% count(labanimalid) %>% filter(n != 1)
+# cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone2$labanimalid)
+# cases # just 6 and 8 now XX already made note to Tom Jhou's team
+
+delayedpunishment <- left_join(x = delayedpundata_categories_wcat, y = delayedpun_presses_df, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
+  left_join(., delayedpun_boxesandstations_df, by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
   extractfromfilename() %>% # extract file information for preparation for appending to rfid
-  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
+  # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
-            shockoflastattemptedblock = lastshock) %>%
-  select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock))
+         shockoflastattemptedblock = lastshock) %>% 
+  rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
+  select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
+  group_by(labanimalid) %>% 
+  # mutate(delay = as.character(dplyr::row_number() - 1)) %>%  # add delay, extract from file!!!  
+  ungroup() %>%
+  left_join(., rfidandid, by = "labanimalid") 
 
 # to do: check the validity of the columns and the cell formatting 
 
