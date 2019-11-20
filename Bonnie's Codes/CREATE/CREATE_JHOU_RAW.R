@@ -775,7 +775,8 @@ delayedpunishment <- delayedpun_delays_df %>%
   group_by(labanimalid) %>% 
   mutate(session = as.character(dplyr::row_number())) %>%  # add delay, extract from file!!!  
   ungroup() %>%
-  left_join(., rfidandid, by = "labanimalid") 
+  left_join(., rfidandid, by = "labanimalid") %>% 
+  dplyr::filter(resolution != "EXCLUDE_ALL_BEHAVIORS"|is.na(resolution)) # remove two animals (U84 and U85 bc exclude all behaviors)
 
 # to do: check the validity of the columns and the cell formatting 
 
