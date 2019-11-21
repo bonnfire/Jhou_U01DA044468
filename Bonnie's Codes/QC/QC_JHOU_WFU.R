@@ -26,6 +26,7 @@ for (i in 1:10){
   p <- ggplot(WFU_JhouSummaryall_merge, aes_string(x = comparablevars[i], y = comparablevars[i + 10])) + 
     geom_point() + 
     # labs(title = paste0(comparablevars[i], "_Comparing_WFU_Jhou_Summaryall", "\n"), x = "Cohort", fill = "Cohort") + 
+    # facet_grid(~wfushipmentcohort) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
   print(p)
 }
@@ -38,9 +39,32 @@ for(i in 1:10){
   wfu_jhou_differences[[i]] <- WFU_JhouSummaryall_merge %>% dplyr::filter(WFU_JhouSummaryall_merge[,comparablevars[i]] != WFU_JhouSummaryall_merge[,comparablevars[i+10]]) %>% dplyr::select(rfid_WFU, wfushipmentcohort, comparablevars[i], comparablevars[i+10]) 
 }
 names(wfu_jhou_differences) <- gsub("_.*", "", comparablevars) %>% unique()
+## XX BRING THIS TO JHOU TEAM ATTENTION IN THE NEXT EMAIL 
 
-# dupe = WFU_JhouSummaryall_merge[,c("litternumber_WFU", "litternumber_Jhou")] # select columns to check duplicates
-# WFU_JhouSummaryall_merge[!duplicated(dupe) | !duplicated(dupe, fromLast=TRUE),]
+# once the problems have been resolved above, we will extract the data
+# create correct information to bind to jhou raw data (rfidandid)
+WFU_tobind_Jhou <- WFU_JhouSummaryall_merge %>% 
+  select(one_of(names(WFU_JhouSummaryall_merge)[1:20])) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ################################
 ########### WFU DATA(BASIC) ####
