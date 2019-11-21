@@ -22,7 +22,38 @@ Jhou_Excel <- u01.importxlsx("U01 Master sheet_readonly.xlsx")
 ################################
 ########### Summary All ########
 ################################
-# see summaryall from CREATE_RAW.R
+Jhou_SummaryAll <- Jhou_Excel[["Summary all"]] 
+Jhou_SummaryAll <- Jhou_SummaryAll[, 1:13]
+names(Jhou_SummaryAll) <-  Jhou_SummaryAll[1,] %>% as.character()
+Jhou_SummaryAll <- Jhou_SummaryAll[-1, ] 
+names(Jhou_SummaryAll) <- mgsub::mgsub(names(Jhou_SummaryAll),
+                                 c(" |\\.", "#", "16 digit ID", "Date of Wean|Wean Date","Jhou lab", "Date of Ship", "Dams"),
+                                 c("", "Number", "RFID", "DOW","LabAnimal", "ShipmentDate", "Dames")) 
+names(Jhou_SummaryAll) %<>% tolower
+# # clean up variables
+Jhou_SummaryAll$coatcolor <- mgsub::mgsub(Jhou_SummaryAll$coatcolor, 
+                                  c("BRN|[B|b]rown", "BLK|[B|b]lack", "HHOD|[H|h]ood", "[A|a]lbino"), 
+                                  c("BROWN", "BLACK", "HOOD", "ALBINO"))
+Jhou_SummaryAll$coatcolor <- gsub("([A-Z]+)(HOOD)", "\\1 \\2", Jhou_SummaryAll$coatcolor)
+Jhou_SummaryAll$coatcolor <- toupper(Jhou_SummaryAll$coatcolor)
+
+datecols <- c("dob", "dow", "shipmentdate")
+datefunction <- function(x){
+  if(is.POSIXct(x) == F){
+    as.POSIXct(as.numeric(x) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")
+  } else x
+}
+Jhou_SummaryAll <- Jhou_SummaryAll %>% 
+  mutate_at(.vars = vars(datecols), .funs = datefunction)
+
+Jhou_SummaryAll[which(is.na(Jhou_SummaryAll$sex)|Jhou_SummaryAll$sex == "```"),] # NA values are from empty observations so you can omit those for now
+
+Jhou_SummaryAll %<>% 
+  mutate(wakeforestid = gsub(".*-->", "", wakeforestid),
+         shipmentcohort = as.character(round(as.numeric(shipmentcohort)),3)) %<>%
+  dplyr::filter(!is.na(wakeforestid)) 
+
+# extract their copy of the WFU shipment information and qc in QC_Jhou_WFU.R; left the ``` sex 
 
 ################################
 ########### Runway #############

@@ -1,5 +1,13 @@
 ################################
-########### WFU DATA ###########
+########### WFU DATA(BASIC) ####
+################################
+# check if values are moved correctly from shipment files to the summary all page
+
+
+
+
+################################
+########### WFU DATA(BASIC) ####
 ################################
 
 # extract cohort 
@@ -71,3 +79,5 @@ animal_ID_lever <- strsplit(Lever_training_IDs, "\\D$") %>% unlist()
 files<-list.files(path="/home/bonnie/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01/Lever training",recursive = T,pattern=".txt",full.names = T)
 
 basename(files)
+
+
