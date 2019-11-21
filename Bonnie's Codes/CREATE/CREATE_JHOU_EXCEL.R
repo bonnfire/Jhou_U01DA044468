@@ -319,6 +319,8 @@ Jhou_Delayedpun_Excel <- lapply(Jhou_Delayedpun_split, function(x){
   return(x)
 }) %>% rbindlist(fill = T)
 
-
+# Jhou_Delayedpun_Excel %>% 
+#   group_by(labanimalid) %>%
+#   dplyr::filter(session == max(session))
 
 
