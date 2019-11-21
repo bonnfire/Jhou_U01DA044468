@@ -2,9 +2,34 @@
 ### WFU DATA(FROM WFU AND FROM SUMMARYALL EXCEL) ###############
 ################################################################
 # check if values are moved correctly from shipment files to the summary all page
-WFU_Jhou_test_df # from WFU git
-Jhou_SummaryAll WFU_Jhou_test_df
+# from WFU git
 
+# reformat the WFU data for shipment cohort
+WFU_Jhou_test_df %<>% 
+  mutate(cohort = str_match(cohort, "#(.*?)[(]")[,2] ) %<>%
+  rename("wfushipmentcohort" = "cohort")
+ 
+WFU_JhouSummaryall_merge <- left_join(WFU_Jhou_test_df, Jhou_SummaryAll, by = c("labanimalid" = "wakeforestid")) %>%  # from WFU git
+  dplyr::filter(!is.na(labanimalid.y)) # excldue those latter cohorts (cohort 13 bc they haven't update the excel sheet)
+names(WFU_JhouSummaryall_merge) <- mgsub::mgsub(names(WFU_JhouSummaryall_merge),
+                                                c("\\.x", "\\.y","^labanimalid$"), 
+                                                c("_WFU", "_Jhou", "labanimalid_WFU"))
+ggplot(WFU_JhouSummaryall_merge, aes(coatcolor_WFU, coatcolor_Jhou)) + geom_point()
+WFU_JhouSummaryall_merge %>% dplyr::filter(coatcolor_WFU != coatcolor_Jhou)
+
+comparablevars <- grep("_", names(WFU_JhouSummaryall_merge), value = T)
+
+pdf("jhou_wfu_comparison.pdf", onefile = T)
+
+for (i in 1:11){
+  p <- ggplot(WFU_JhouSummaryall_merge, aes_string(x = comparablevars[i], y = comparablevars[i + 11])) + 
+    geom_point() + 
+    # labs(title = paste0(comparablevars[i], "_Comparing_WFU_Jhou_Summaryall", "\n"), x = "Cohort", fill = "Cohort") + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+  print(p)
+}
+
+dev.off()
 
 ################################
 ########### WFU DATA(BASIC) ####
