@@ -1,9 +1,9 @@
-################################
-########### WFU DATA(BASIC) ####
-################################
+################################################################
+### WFU DATA(FROM WFU AND FROM SUMMARYALL EXCEL) ###############
+################################################################
 # check if values are moved correctly from shipment files to the summary all page
-
-
+WFU_Jhou_test_df # from WFU git
+Jhou_SummaryAll WFU_Jhou_test_df
 
 
 ################################
