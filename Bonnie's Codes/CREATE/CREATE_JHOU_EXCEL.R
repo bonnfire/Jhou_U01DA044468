@@ -294,15 +294,31 @@ Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
 Jhou_Delayedpun <- Jhou_Excel[["Delayed punishment (DP)"]] %>% as.data.table
 Jhou_Delayedpun <- Jhou_Delayedpun[, 1:12, with=T]
 setnames(Jhou_Delayedpun, c("delay", as.character(Jhou_Delayedpun[2, 2:12])) )
-# split the data
 
+# use row indices to remove the rows
+# remove non black rows by matching delay and shock intensity of last trial completed and # of active lever presses
+# get the character 
+setwd("~/Dropbox (Palmer Lab)/U01 folder")
+Jhou_Delayedpun_formats_cellbycell <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx") %>% 
+  dplyr::filter(sheet == "Delayed punishment (DP)")
+Jhou_Excel_Delayedpun_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
+wantedhexa_Delayedpun <- Jhou_Excel_Delayedpun_formats$local$font$color$rgb[Jhou_Delayedpun_formats_cellbycell[which(Jhou_Delayedpun_formats_cellbycell$row == 1 & Jhou_Delayedpun_formats_cellbycell$col == 15),]$local_format_id]
+wantedhexa_indices_Delayedpun <- which(Jhou_Excel_Delayedpun_formats$local$font$color$rgb != wantedhexa_Delayedpun) # not black
+nonblackrows_Delayedpun <- Jhou_Delayedpun_formats_cellbycell[Jhou_Delayedpun_formats_cellbycell$local_format_id %in% wantedhexa_indices_Delayedpun, ] %>% 
+  dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique() %>% mutate(row = row - 1)
+# Jhou_Excel_ProgRatio_red <- Jhou_ProgRatio_formats_cellbycell[Jhou_ProgRatio_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col) %>% mutate(row = row - 1)
+Jhou_Delayedpun <- Jhou_Delayedpun[-nonblackrows_Delayedpun$row,] # with nonblack rows removed 
+
+# split the data
 Jhou_Delayedpun_split <- split(Jhou_Delayedpun, cumsum(1:nrow(Jhou_Delayedpun) %in%  grep("^U", Jhou_Delayedpun$delay, ignore.case = F))) 
 Jhou_Delayedpun_Excel <- lapply(Jhou_Delayedpun_split, function(x){
   x %<>% select(-c(Time, FR, `Weight (%)`)) %<>% dplyr::filter(!is.na(delay)) # remove na or unwanted columns
   names(x) <- c("delay", "date", "shockoflastcompletedblock", "shockoflastattemptedblock", "numtrialsatlastshock", "activepresses", "inactivepresses", "boxorstationumber", "notes") #rename to equate raw names
   x$labanimalid = grep("^U", x$delay, ignore.case = F, value = T) 
-  x %<>% dplyr::filter(grepl("^\\d", x$delay)) %<>% mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% group_by(labanimalid) %<>% mutate(session = as.character(dplyr::row_number()))
+  x %<>% dplyr::filter(grepl("^\\d", x$delay)) %<>% mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% group_by(labanimalid) %<>% mutate(session = dplyr::row_number())
   return(x)
 }) %>% rbindlist(fill = T)
+
+
 
 
