@@ -31,10 +31,12 @@ for (i in 1:11){
 
 dev.off()
 
+# create the data frames for all diff cases
 list <- list()
 for(i in 1:(length(comparablevars)/2)){
   list[[i]] <- WFU_JhouSummaryall_merge %>% 
-    dplyr::filter(comparablevars[i] != comparablevars[i+11])
+    dplyr::filter(comparablevars[i] != comparablevars[i+11]) %>% 
+    select(comparablevars[i], comparablevars[i+11])
 }
 names(list) <- gsub("_.*", "", comparablevars) %>% unique()
 
