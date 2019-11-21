@@ -31,6 +31,16 @@ for (i in 1:11){
 
 dev.off()
 
+list <- list()
+for(i in 1:(length(comparablevars)/2)){
+  list[[i]] <- WFU_JhouSummaryall_merge %>% 
+    dplyr::filter(comparablevars[i] != comparablevars[i+11])
+}
+names(list) <- gsub("_.*", "", comparablevars) %>% unique()
+
+# dupe = WFU_JhouSummaryall_merge[,c("litternumber_WFU", "litternumber_Jhou")] # select columns to check duplicates
+# WFU_JhouSummaryall_merge[!duplicated(dupe) | !duplicated(dupe, fromLast=TRUE),]
+
 ################################
 ########### WFU DATA(BASIC) ####
 ################################
