@@ -4,6 +4,8 @@ require(magrittr)
 require(data.table)
 require(tidyverse)
 require(readxl)
+require(lubridate)
+require(RPostgreSQL)
 
 # install.packages('splitstackshape')
 # install.packages('janitor')

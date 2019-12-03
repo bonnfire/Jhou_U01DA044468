@@ -30,6 +30,23 @@ library(readxl)
 # 
 #   Delayed Punishment Task (8 sessions) 
 
+
+## self-defined functions 
+
+# extract info from filename
+extractfromfilename <- function(df){
+  if(df == "rawfiles_prepcalc"){
+    df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
+  }
+  df$labanimalid <- stringr::str_extract(df$filename, "U[[:digit:]]+[[:alpha:]]*")
+  df$date <- gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(df$filename, "[[:digit:]]{4}[-][[:digit:]]{4}"))
+  df$date <- as.POSIXct(df$date, tz = "UTC")
+  df$time <- stringr::str_extract(df$filename, "[[:digit:]]{4}(?=_)")
+  df$time <- gsub('([[:digit:]]{2})([[:digit:]]{2})', '\\1:\\2', df$time)
+  df <- df[order(df$filename), ]
+  return(df)
+} 
+
 ################################
 ##### RAW TEXT DATE/TIME #######
 ################################
@@ -177,73 +194,97 @@ readrunway <- function(x){
 runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE)
 runwayfiles_clean[grepl("^m.*\\.log",runwayfiles_clean)] # remove error and duplicate files
 
+str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
+runwayfiles_clean <- runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 1269 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
+
 # note the 4221 id in one file, but seems to be no error files so below code is unneeded
 # files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] 
 # runwayfiles_clean <- gsub(" ", "\\\\ ", runwayfiles_clean) # not the issue for not being able to access the files
 
-runway_reach <- lapply(runwayfiles_clean[3000:3100], readrunway) %>% rbindlist(fill = T) 
-  # data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
- #  return(data)
-# }) # cannot assign the colnames in fxn bc of one vs two column setup 
-
-# 11/8 - 36 warnings of returning NULL data table
-
-runway_reach_df <- rbindlist(runway_reach, fill = T) 
-runway_reach_df <- runway_reach_df %>% 
- #  select(-RUNWAY) %>% 
-  rename("reachtime" = "V1") # remove RUNWAY bc df has 3187 rows and RUNWAY holds 3187 NA's # this iteration didn't have RUNWAY variable 
+runway_reach <- lapply(runwayfiles_clean, readrunway) 
+runway_reach_df <- runway_reach %>% 
+  rbindlist(fill = T) %>% # run on runwayfiles_clean[3000:3100] for test # 12/3 - 36 warnings of returning NULL data table
+  rename("reachtime" = "V1")
 
 # evaluate NA reachtime cases
-runway_reachtimeNA <- subset(runway_reach_df, is.na(reachtime)==T) ## XX Made note to Maya already
+runway_reachtimeNA <- subset(runway_reach_df, is.na(reachtime)==T) ## XX Made note to Maya already; renoted 12/3; create subset to go back for reference; reassign the data var
+runway_reach_df %<>% dplyr::filter(!is.na(reachtime))
 
-# location2 time 
-readrunwayloc2 <- function(x){
+# location2 and location3 (use to sub loc2 when na) time 
+readrunwayloc2_3 <- function(x){
   runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
   runwayloc2$filename <- x
-  return(runwayloc2)
+  
+  runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
+  runwayloc3$filename <- x
+  
+  runwaylocs <- merge(runwayloc2, runwayloc3, by = "filename")
+  
+  return(runwaylocs)
 }
 
-runway_loc2 <- lapply(runwayfiles_clean, readrunwayloc2)
-  # data$filename <- sub(" ", "", as.character(data$filename)) # get rid of all spaces in filenames
-#   return(data)
-# }) # cannot assign the colnames in fxn bc of one vs two column setup 
+runway_loc2_3 <- lapply(runwayfiles_clean, readrunwayloc2_3) # test with runwayfiles_clean[1:10]
 
-runway_loc2_df <- rbindlist(runway_loc2, fill = T) 
-runway_loc2_df <- runway_loc2_df %>% 
-  rename("loc2time" = "V1",
-         "location" = "V2",
-         "locationnum" = "V3") %>%
-  select(loc2time, location, locationnum, filename) %>% 
-  mutate(loc2time = as.numeric(as.character(loc2time)))
 
-# evaluate non location 2 cases 
+lapply("./U102/2018-1201-1732_102_RUNWAY.txt", readrunwayloc2_3)
 
-loc2non2 <- subset(runway_loc2_df, is.na(locationnum)) # Noted to Maya and Alen # originally != 2 but changed to is.na because of summary(runway_loc2_df$locationnum) 
+runway_loc2_3_df <- lapply(runway_loc2_3, function(x){
+  names(x) <- mgsub::mgsub(names(x),
+                           c("\\.x", "1\\.y", "2\\.y", "3\\.y"),
+                           c("", "4", "5", "6"))
+  if(ncol(x) == 7){
+  x <- x %>% rename("loc2_time" = "V1",
+              "location2" = "V2",
+              "locationnum2" = "V3",
+              "loc3_time" = "V4",
+              "location3" = "V5",
+              "locationnum3" = "V6")
+    
+  # names(x) = c("filename", "loc2_time",
+  #                     "location2",
+  #                     "locationnum2",
+  #                     "loc3_time",
+  #                     "location3",
+  #                     "locationnum3")
+  } 
+  else if(ncol(x) == 4){ 
+    # names(x) = c("filename", "loc2_time",
+    #              "location2",
+    #              "locationnum2")
+    x <- x %>%  rename("loc2_time" = "V1",
+                "location2" = "V2",
+                "locationnum2" = "V3")
+  }
+  return(x)  
+})
 
-# location2 <-"find -type f -iname \"*RUNWAY*.txt\" -print0 | xargs -0 grep -P -m 1 \"LOCATION\\s\\t2\" > location2times.txt"
-# system(location2)
-# rawfiles_location2 <- read.csv("location2times.txt", head = F)
-# rawfiles_location2_clean <- separate(rawfiles_location2, V1, into = c("filename", "loc2time"), sep = "[:]")
-# rawfiles_location2_clean$loc2time <- gsub("\\t.+", "", rawfiles_location2_clean$loc2time, perl = T) %>% 
-#   as.numeric()
+runway_loc2_3_df <- rbindlist(runway_loc2_3_df, fill = T) %>% 
+  mutate(loc2_time = as.numeric(as.character(loc2_time)),
+         loc3_time = as.numeric(as.character(loc3_time)))
 
-# join together loc2 and reach, calculate elapsed time, and join to shipping data
+naniar::vis_miss(runway_loc2_3_df)
 
-# rawfiles_prepcalc <- left_join(rawfiles_reach, rawfiles_location2_clean, by = "filename")
-rawfiles_calc <- left_join(runway_reach_df, runway_loc2_df, by = "filename") %>% 
+# make sure that loc2 and loc3 are expected values; and then use 3 to sub in for 2 
+# loc2non2 <- subset(runway_loc2_df, is.na(locationnum)) # Noted to Maya and Alen # originally != 2 but changed to is.na because of summary(runway_loc2_df$locationnum) 
+# run this code to view cases for which the data was imputed by the photobeam 3
+runway_loc2_3_df %>% dplyr::filter(locationnum2 != 2|locationnum3 != 3) # 20 cases; all loc 3 are being moved to loc 2 automatically 
+
+runway_loc2_3_df %>% dplyr::filter(is.na(loc2_time)) %>% naniar::vis_miss() # if missing loc2, doesn't have loc3
+
+rawfiles_calc <- left_join(runway_reach_df, runway_loc2_3_df, by = "filename") %>% 
   #filter(locationnum == 2) %>% 
-  mutate(elapsedtime = trunc(reachtime) - trunc(loc2time)) %>%  # turn to transmute once all edges are smooth 
+  mutate(elapsedtime = trunc(reachtime) - trunc(loc2_time)) %>%  # turn to transmute once all edges are smooth 
   arrange(filename) %>% 
   extractfromfilename %>%  # sort by ascending filename and get animal id and exp date/time 
-  left_join(., rfidandid, by = "labanimalid") # add rfid column # created rfidandid from the master shipment file, the first page -- summaryall
+  left_join(., Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort", "dob")], by = "labanimalid") %>% # add rfid column, extracted from the **note the swap situation has not been fixed 
+  mutate(experimentage = as.numeric(date - dob)) %>%
+  select(rfid, labanimalid, shipmentcohort, date, time, experimentage, elapsedtime, filename) %>% 
+  dplyr::filter(!rfid %in% Jhou_SummaryAll[,c("rfid", "resolution")][which(Jhou_SummaryAll$resolution %in% c("EXCLUDE_ALL_BEHAVIORS","EXCLUDE_RUNWAY")),]$rfid)
+# the rfid's being removed are all complete cases though
 
-# rfid and lab animal id ## NO LONGER USING BC IT IS NOT A DIRECT TRANSLATION
-# rfidandid <- WFU_Jhou_test_df %>% 
-#   select(labanimalnumber, rfid) %>% 
-#   transmute(labanimalid = paste0("U", stringr::str_extract(labanimalnumber, "[1-9]+[0-9]*")),
-#             rfid = rfid) # labanimalid vs labanimalnumber
+naniar::vis_miss(rawfiles_calc) 
 
-# graphics for email: subset(rawfiles_prepcalc, is.na(rfid)) %>% select(labanimalid) %>% unique AND subset(rawfiles_prepcalc, is.na(loc2time))$filename
+subset(rawfiles_calc, is.na(elapsedtime)) 
 
 ## RUNWAY REVERSAL
 # redo reversals since it is only the number of lines of reversals between start and reaching goalbox 
@@ -256,17 +297,13 @@ read_runwayrevs <- function(x){
 
 runway_reversals <- lapply(runwayfiles_clean, read_runwayrevs) %>% rbindlist(fill = T)
 names(runway_reversals) <- c("reversals", "filename")
-  
-# reversals <- "find -type f -iname \"*.txt\" -print0 | xargs -0 grep -c \"REVERSAL\" > reversals.txt"
-# system(reversals)
-# reversals <- read.csv("reversals.txt", head = F)
-# reversals <- separate(reversals, V1, into = c("filename", "reversals"), sep = "[:]")
+naniar::vis_miss(runway_reversals) # complete cases
 
 # bind reversals with runway data 
-runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>% # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
-  mutate(experimentage = as.numeric(date - dob)) %>%
-  select(-c(date, dob)) # calculate age and remove date 
-
+runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>%  # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
+  select(rfid, labanimalid, shipmentcohort, date, time, experimentage, elapsedtime, reversals, filename) 
+  
+naniar::vis_miss(runway)
 
 # *optional* add session info
 # # make session variable to make into long data 
@@ -805,3 +842,18 @@ WFUjoin.raw <- function(rawdf){
   joindf <- merge(x = DF1, y = DF2[ , c("Client", "LO")], by = "Client", all.x=TRUE)
   return(joindf)
 } 
+
+
+#####################################################################################################################################################################3
+## CREATE BY BATCHES
+
+### 
+
+assign()
+
+
+
+#################################################################################################
+## CREATE FIRST SQL FILE FOR RUNWAY DATA
+drv <- dbDriver("PostgreSQL")
+con <- dbConnect(drv, user='user', password='password', dbname='U01', host='host')

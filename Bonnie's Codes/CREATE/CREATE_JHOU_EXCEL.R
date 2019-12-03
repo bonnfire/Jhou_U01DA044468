@@ -23,11 +23,11 @@ Jhou_Excel <- u01.importxlsx("U01 Master sheet_readonly.xlsx")
 ########### Summary All ########
 ################################
 Jhou_SummaryAll <- Jhou_Excel[["Summary all"]] 
-Jhou_SummaryAll <- Jhou_SummaryAll[, 1:13]
+Jhou_SummaryAll <- Jhou_SummaryAll[, c(1:13, 52,53)]
 names(Jhou_SummaryAll) <-  Jhou_SummaryAll[1,] %>% as.character()
 Jhou_SummaryAll <- Jhou_SummaryAll[-1, ] 
 names(Jhou_SummaryAll) <- mgsub::mgsub(names(Jhou_SummaryAll),
-                                 c(" |\\.", "#", "16 digit ID", "Date of Wean|Wean Date","Jhou lab", "Date of Ship", "Dams"),
+                                 c(" |\\.|:", "#", "16 digit ID", "Date of Wean|Wean Date","Jhou lab", "Date of Ship", "Dams"),
                                  c("", "Number", "RFID", "DOW","LabAnimal", "ShipmentDate", "Dames")) 
 names(Jhou_SummaryAll) %<>% tolower
 # # clean up variables
