@@ -344,3 +344,17 @@ WFU_Jhou_findidindropbox <- WFU_Jhou_test_df %>%
 # using WFU_Jhou_findidindropbox$rfid %>% unique() %>% length(), we are expecting 472, but the files represent only 388-439 animals
 
 sapply(subset(WFU_Jhou_findidindropbox, select = runway:delayedpun), sum)
+
+
+
+#### From Alen (12/5)
+
+# For the order of behaviors, there are some variations especially in the order of locomotor . 
+# For cohorts 1.1 - 3.4  = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment.
+# For cohort 3.5 = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Delayed Punishment --> Locomotor.
+# For cohorts 4.1 - 8.2 = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment.
+# For cohort 8.3 = Runway --> Food deprivation -->  Locomotor --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Delayed Punishment --> Locomotor.
+# For cohort 9.1 =  Runway --> Food deprivation -->  Locomotor --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment. 
+# For cohorts 9.2 - current = Runway --> Locomotor x2 --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor x2 --> Delayed Punishment. 
+
+

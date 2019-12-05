@@ -18,6 +18,7 @@ u01.importxlsx <- function(xlname){
 } 
 
 Jhou_Excel <- u01.importxlsx("U01 Master sheet_readonly.xlsx")
+Jhou_Excel_updated <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx")
 
 ################################
 ########### Summary All ########
@@ -54,6 +55,46 @@ Jhou_SummaryAll %<>%
   dplyr::filter(!is.na(wakeforestid)) 
 
 # extract their copy of the WFU shipment information and qc in QC_Jhou_WFU.R; left the ``` sex 
+
+
+
+################################
+###(update) Summary All ########
+################################
+Jhou_SummaryAll_updated <- Jhou_Excel_updated[["Summary all"]] 
+Jhou_SummaryAll_updated <- Jhou_SummaryAll_updated[, c(1:13, 52,53)]
+names(Jhou_SummaryAll_updated) <-  Jhou_SummaryAll_updated[1,] %>% as.character()
+Jhou_SummaryAll_updated <- Jhou_SummaryAll_updated[-1, ] 
+names(Jhou_SummaryAll_updated) <- mgsub::mgsub(names(Jhou_SummaryAll_updated),
+                                       c(" |\\.|:", "#", "16 digit ID", "Date of Wean|Wean Date","Jhou lab", "Date of Ship", "Dams"),
+                                       c("", "Number", "RFID", "DOW","LabAnimal", "ShipmentDate", "Dames")) 
+names(Jhou_SummaryAll_updated) %<>% tolower
+# # clean up variables
+Jhou_SummaryAll_updated$coatcolor <- mgsub::mgsub(Jhou_SummaryAll_updated$coatcolor, 
+                                          c("BRN|[B|b]rown", "BLK|[B|b]lack", "HHOD|[H|h]ood", "[A|a]lbino"), 
+                                          c("BROWN", "BLACK", "HOOD", "ALBINO"))
+Jhou_SummaryAll_updated$coatcolor <- gsub("([A-Z]+)(HOOD)", "\\1 \\2", Jhou_SummaryAll_updated$coatcolor)
+Jhou_SummaryAll_updated$coatcolor <- toupper(Jhou_SummaryAll_updated$coatcolor)
+
+datecols <- c("dob", "dow", "shipmentdate")
+datefunction <- function(x){
+  if(is.POSIXct(x) == F){
+    as.POSIXct(as.numeric(x) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")
+  } else x
+}
+Jhou_SummaryAll_updated <- Jhou_SummaryAll_updated %>% 
+  mutate_at(.vars = vars(datecols), .funs = datefunction)
+
+Jhou_SummaryAll_updated[which(is.na(Jhou_SummaryAll_updated$sex)|Jhou_SummaryAll_updated$sex == "```"),] # NA values are from empty observations so you can omit those for now
+
+Jhou_SummaryAll_updated %<>% 
+  mutate(wakeforestid = gsub(".*-->", "", wakeforestid),
+         shipmentcohort_wfu = as.character(round(as.numeric(shipmentcohort)),3)) %<>%
+  dplyr::filter(!is.na(wakeforestid)) 
+
+# extract their copy of the WFU shipment information and qc in QC_Jhou_WFU.R; left the ``` sex 
+
+
 
 ################################
 ########### Runway #############

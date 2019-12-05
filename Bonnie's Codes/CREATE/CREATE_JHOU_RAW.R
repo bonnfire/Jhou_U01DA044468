@@ -276,7 +276,7 @@ rawfiles_calc <- left_join(runway_reach_df, runway_loc2_3_df, by = "filename") %
   mutate(elapsedtime = trunc(reachtime) - trunc(loc2_time)) %>%  # turn to transmute once all edges are smooth 
   arrange(filename) %>% 
   extractfromfilename %>%  # sort by ascending filename and get animal id and exp date/time 
-  left_join(., Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort", "dob")], by = "labanimalid") %>% # add rfid column, extracted from the **note the swap situation has not been fixed 
+  left_join(., Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort", "dob")], by = "labanimalid") %>% # add rfid column, extracted from the Jhou_SummaryAll **note the swap situation has not been fixed 
   mutate(experimentage = as.numeric(date - dob)) %>%
   select(rfid, labanimalid, shipmentcohort, date, time, experimentage, elapsedtime, filename) %>% 
   dplyr::filter(!rfid %in% Jhou_SummaryAll[,c("rfid", "resolution")][which(Jhou_SummaryAll$resolution %in% c("EXCLUDE_ALL_BEHAVIORS","EXCLUDE_RUNWAY")),]$rfid)
