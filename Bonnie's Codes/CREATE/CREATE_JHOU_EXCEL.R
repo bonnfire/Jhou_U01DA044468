@@ -61,6 +61,14 @@ Jhou_SummaryAll %<>%
 ################################
 ###(update) Summary All ########
 ################################
+
+WFU_Jhou_df <-  WFU_Jhou_test_df %>% 
+mutate(cohort = stringr::str_match(cohort, "#(\\d+).*?")[,2],
+       cohort = ifelse(nchar(cohort) > 1, cohort, gsub('([[:digit:]]{1})$', '0\\1', cohort))) # reformat wfu cohorts, add leading zeros
+WFU_Jhou_df
+
+# # see below for the summary all with updated link -- not the right information for some 
+
 Jhou_SummaryAll_updated <- Jhou_Excel_updated[["Summary all"]] 
 Jhou_SummaryAll_updated <- Jhou_SummaryAll_updated[, c(1:13, 52,53)]
 names(Jhou_SummaryAll_updated) <-  Jhou_SummaryAll_updated[1,] %>% as.character()
