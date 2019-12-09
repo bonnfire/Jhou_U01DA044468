@@ -96,15 +96,6 @@ cohort8.3_order <- paste0(c("runwayfiles", "locomotorfiles", "lever_trainingfile
 cohort9.1_order <- paste0(c("runwayfiles",  "locomotorfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles", "locomotorfiles2", "delayed_punishmentfiles"), "_", rep(protocolcohortsinorder[25], each = 6))
 cohort9.2_12.2order <- paste0(c("runwayfiles", "locomotorfiles1a", "locomotorfiles1b", "lever_trainingfiles", "progpunfiles", "progratiofiles", "locomotorfiles2a", "locomotorfiles2b", "delayed_punishmentfiles"), "_", rep(protocolcohortsinorder[26:33], each = 6)) #temporarily adding :33 to create 155 levels
 
-# cohorts 1-8.2: runway, locomotor, food dep, lever press train, prog shock,prog ratio, locomotor, delayed 
-# cohort 8.2:  runway, prog shock, prog ratio, locomotor, delayed
-# cohort 8.3, 9.1, 9.2:  runway, prog shock, prog ratio, food deprivation, locomotor, lever training, delayed pun (????)
-# cohort 10.1: runway, locomotor, food dep (2 sessions),  prog shock, prog ratio, locomotor, delayed pun (???)
-
-# Until June 13 2019 (cohort 8.2) locomotor testing was done after progressive ratio and before delayed punishment. 
-# For cohorts 8.3 and 9.1/9.2, done just before lever training (but after food deprivation) and also after progressive ratio and before delayed punishment. 
-# Starting with cohort 10.1, will perform after runway and before food deprivation (2 sessions) and again after progressive ratio and before delayed punishment. 
-
 allexperimentdatedobandbroadcohorts_graph$experiment <- factor(allexperimentdatedobandbroadcohorts_graph$experiment,
                                                          levels=c(cohort1_8.1_order,cohort8.2_order,cohort8.3_9.2_order,cohort10.1_order ))
 #### test ggplot code 
