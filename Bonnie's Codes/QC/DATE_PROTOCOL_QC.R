@@ -16,20 +16,20 @@ delayed_punishmentfiles_clean,
 lever_trainingfiles_clean), function(x){
   x <- as.data.frame(matrix(x))
   x$V1 <- as.character(x$V1)
+  names(x) <- "filename"
   return(x)})
 
 names(allexperimentfiles) =  gsub("_clean", "", c("runwayfiles_clean", 
                                     "locomotorfiles_clean",
                                     "progpunfiles_clean",
                                     "progratiofiles_clean",
-                                    "delayed_punishmentfiles_clean"))
+                                    "delayed_punishmentfiles_clean",
+                                    "lever_trainingfiles_clean"))
 
 allexperimentfiles %<>% rbindlist(idcol = "experiment")
 
-allexperimentfiles %<>%
-  rename("filename" = "V1") 
 # allexperimentfiles[!grepl("_\\d+", allexperimentfiles$filename),]
-allexperimentfiles[which(filename == "./U214/2019-0328-1327__DELAYED PUNISHMENT.txt"),]$filename <- "./U214/2019-0328-1327_214_DELAYED PUNISHMENT.txt"
+#allexperimentfiles[which(filename == "./U214/2019-0328-1327__DELAYED PUNISHMENT.txt"),]$filename <- "./U214/2019-0328-1327_214_DELAYED PUNISHMENT.txt"
 allexperimentfiles$subdirectoryid = str_extract(allexperimentfiles$filename, regex("U\\d+", ignore_case = T))
 allexperimentfiles$labanimalid = str_extract(allexperimentfiles$filename, "_\\d+") %>% gsub("_", "U", .)
 
