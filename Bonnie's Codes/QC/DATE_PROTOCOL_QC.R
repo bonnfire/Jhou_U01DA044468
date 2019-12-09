@@ -49,19 +49,23 @@ allexperimentfiles %>%
 
 
 allexperimentdatedobandbroadcohorts <- allexperimentfiles %>% 
-  dplyr::mutate(subdirectoryid_edit = gsub("u", "U", subdirectoryid)) %>% 
-  left_join(., rfidandid[,c("shipmentcohort", "labanimalid")], by = c("subdirectoryid_edit" = "labanimalid") ) %>%
-  # dplyr::filter(subdirectoryid == labanimalid) %>%
-  extractfromfilename() %>%
-  left_join(., rfidandid[,c("dob", "labanimalid")], by = "labanimalid") %>% 
-  dplyr::mutate(experimentage = as.numeric(difftime(date, dob, units = "days")),
-                broadcohorts = round(shipmentcohort, 0),
-                shipmentcohort = as.character(shipmentcohort)) %>% 
-  dplyr::group_by(subdirectoryid_edit, experiment) %>%
-  plyr::arrange(date) %>%
-  do(head(., n=1)) %>%
-  select(subdirectoryid_edit, shipmentcohort, broadcohorts, experimentage) %>% 
-  ungroup() 
+  dplyr::mutate(subdirectoryid_edit = gsub("u", "U", subdirectoryid)) %>% # checked that all end with numbers 
+  left_join(., Jhou_SummaryAll_updated[, c("labanimalid", "wakeforestid", "shipmentcohort")], by = c("subdirectoryid_edit" = "labanimalid")) %>% 
+  left_join(., WFU_Jhou_test_df[,c("cohort", "dob","labanimalid")], by = c("wakeforestid" = "labanimalid") ) %>%
+  mutate(date = gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(filename, "[[:digit:]]{4}[-][[:digit:]]{4}")),
+         date =  as.POSIXct(date, tz = "UTC"),
+         time = stringr::str_extract(filename, "[[:digit:]]{4}(?=_)"),
+         time = gsub('([[:digit:]]{2})([[:digit:]]{2})', '\\1:\\2', time),
+         shipmentcohort = as.numeric(shipmentcohort) %>% round(3),
+         experimentage = as.numeric(difftime(date, dob, units = "days"))) %>% 
+  rename("protocolcohort" = "shipmentcohort", 
+         "shipmentcohort" = "cohort")
+
+  # dplyr::group_by(subdirectoryid_edit, experiment) %>%
+  # plyr::arrange(date) %>%
+  # do(head(., n=1)) %>%
+  # select(subdirectoryid_edit, shipmentcohort, broadcohorts, experimentage) %>% 
+  # ungroup() 
   # %>%
   # mutate(experiment = factor(experiment, levels=c("runwayfiles", "progpunfiles", "delayed_punishmentfiles", "progratiofiles", "locomotorfiles"))) %>% 
   # dplyr::arrange(experiment)
@@ -81,14 +85,16 @@ allexperimentdatedobandbroadcohorts <- allexperimentfiles %>%
 
 
 allexperimentdatedobandbroadcohorts_graph <- allexperimentdatedobandbroadcohorts
-allexperimentdatedobandbroadcohorts_graph$experiment <- with(allexperimentdatedobandbroadcohorts_graph,paste(experiment,shipmentcohort,sep="_"))
+allexperimentdatedobandbroadcohorts_graph$experiment <- with(allexperimentdatedobandbroadcohorts_graph,paste(experiment,protocolcohort,sep="_"))
 
-shipmentcohortsinorder <- allexperimentdatedobandbroadcohorts$shipmentcohort %>% unique() %>% as.numeric() %>% sort %>% as.character()
+protocolcohortsinorder <- allexperimentdatedobandbroadcohorts$protocolcohort %>% unique() %>% sort %>% as.character()
 
-cohort1_8.1_order <- paste0(c("runwayfiles",  "progpunfiles", "progratiofiles", "locomotorfiles","delayed_punishmentfiles"), "_",  rep(shipmentcohortsinorder[1:22], each = 5))
-cohort8.2_order <- paste0(c("runwayfiles", "progpunfiles", "progratiofiles", "locomotorfiles",  "delayed_punishmentfiles"), "_", rep(shipmentcohortsinorder[23], each = 5))
-cohort8.3_9.2_order <- paste0(c("runwayfiles", "progpunfiles", "progratiofiles", "locomotorfiles", "delayed_punishmentfiles"), "_", rep(shipmentcohortsinorder[24:26], each = 5))
-cohort10.1_order <- paste0(c("runwayfiles", "locomotorfiles", "progpunfiles", "progratiofiles", "locomotorfiles", "delayed_punishmentfiles"), "_", rep(shipmentcohortsinorder[27:33], each = 5)) #temporarily adding :33 to create 155 levels
+cohort1_3.4_order <- paste0(c("runwayfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles", "locomotorfiles","delayed_punishmentfiles"), "_",  rep(protocolcohortsinorder[1:8], each = 6))
+cohort3.5_order <- paste0(c("runwayfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles", "delayed_punishmentfiles", "locomotorfiles"), "_",  rep(protocolcohortsinorder[9], each = 6))
+cohort4.1_8.2_order <- paste0(c("runwayfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles","locomotorfiles", "delayed_punishmentfiles"), "_",  rep(protocolcohortsinorder[10:23], each = 6))
+cohort8.3_order <- paste0(c("runwayfiles", "locomotorfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles",  "delayed_punishmentfiles", "locomotorfiles2"), "_", rep(protocolcohortsinorder[24], each = 6))
+cohort9.1_order <- paste0(c("runwayfiles",  "locomotorfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles", "locomotorfiles2", "delayed_punishmentfiles"), "_", rep(protocolcohortsinorder[25], each = 6))
+cohort9.2_12.2order <- paste0(c("runwayfiles", "locomotorfiles1a", "locomotorfiles1b", "lever_trainingfiles", "progpunfiles", "progratiofiles", "locomotorfiles2a", "locomotorfiles2b", "delayed_punishmentfiles"), "_", rep(protocolcohortsinorder[26:33], each = 6)) #temporarily adding :33 to create 155 levels
 
 # cohorts 1-8.2: runway, locomotor, food dep, lever press train, prog shock,prog ratio, locomotor, delayed 
 # cohort 8.2:  runway, prog shock, prog ratio, locomotor, delayed
