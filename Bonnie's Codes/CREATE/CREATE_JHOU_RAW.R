@@ -191,11 +191,11 @@ readrunway <- function(x){
 }
 
 
-runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE)
+runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #3983 files 
 runwayfiles_clean[grepl("^m.*\\.log",runwayfiles_clean)] # remove error and duplicate files
 
 str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
-runwayfiles_clean <- runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 1269 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
+runwayfiles_clean <- runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 3929 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
 
 # note the 4221 id in one file, but seems to be no error files so below code is unneeded
 # files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] 
@@ -349,9 +349,9 @@ locomotorfiles_clean[grepl("[(]", locomotorfiles_clean)] # there is one duplicat
 
 duplicatedfiles <- grep("[(]\\d[)]", locomotorfiles_clean, value = T) %>% 
   gsub(" [(]\\d[)]", "", .) # go through 764 all files; create 1 files that have duplicates
-removeduplicatefiles <- subset(locomotorfiles_clean, !(locomotorfiles_clean %in% duplicatedfiles)) #763, found 1 to remove
+locomotorfiles_clean <- subset(locomotorfiles_clean, !(locomotorfiles_clean %in% duplicatedfiles)) #877, found 1 to remove
 
-rawfiles_locomotor <- lapply(removeduplicatefiles, read_locomotor) %>% 
+rawfiles_locomotor <- lapply(locomotorfiles_clean, read_locomotor) %>% 
   rbindlist(fill = T) %>%
   select(V1, filename) %>%
   rename("bincounts" = "V1") %>%
@@ -483,7 +483,10 @@ Jhou_Raw_Locomotor <- lapply(rawfiles_locomotor_wide_split, function(x){
 # group by and tail
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive punishment") # using their copy to prevent any copy issues
 progpunfiles <- list.files(path=".", pattern=".*CONFLICT.*.txt", full.names=TRUE, recursive=TRUE) # some don't have the U designation bc they are not placed into the folders yet
-progpunfiles_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] # clean out errors # XX DO LATER, CREATE SUBSET OF ONES THAT DON'T FOLLOW FORMAT
+progpunfiles_clean <-  progpunfiles[ ! grepl("error", progpunfiles, ignore.case = TRUE) ] # clean out errors 
+
+progpunfiles[ grepl("error", progpunfiles, ignore.case = TRUE) ] # CREATE SUBSET OF FILENAMES THAT DON'T FOLLOW FORMAT
+
 # no results for grepl("[(]) so no duplicate files? 
 create_progpuntable <- function(x){
   thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
@@ -620,8 +623,11 @@ progressivepunishment <- left_join(x = progpundata_categories_wcat, y = progpun_
 ### EXP 4: Progressive ratio
 # max ratio
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive ratio")
-progratiofiles_clean <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) 
-progratiofiles_clean <- progratiofiles_clean[ ! grepl("error", progratiofiles_clean, ignore.case = TRUE) ] 
+progratiofiles <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) 
+progratiofiles_clean <- progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_corrected)?.txt", negate = F)]
+
+# progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_corrected)?.txt", negate = T)] gives the subset of filenames that don't follow the format
+
 readmaxratio <- function(x){
   maxratio <- fread(paste0("grep -B1 \"TIMEOUT\\\\s\\\\s\" " , "'", x, "'", " | awk '{print $4; exit}'"))
   maxratio$filename <- x
@@ -831,8 +837,6 @@ readlevertraining <- function(x){
   levertraining$filename <- x
   return(levertraining)
 }
-
-
 
 test <- lapply(lever_trainingfiles_clean[1:10], readlevertraining) 
 test_rm <- test[sapply(test, function(x) ncol(x)) > 1] # remove the null datatables

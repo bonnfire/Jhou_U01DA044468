@@ -12,7 +12,8 @@ allexperimentfiles <- lapply(list(runwayfiles_clean,
 locomotorfiles_clean,
 progpunfiles_clean,
 progratiofiles_clean,
-delayed_punishmentfiles_clean), function(x){
+delayed_punishmentfiles_clean, 
+lever_trainingfiles_clean), function(x){
   x <- as.data.frame(matrix(x))
   x$V1 <- as.character(x$V1)
   return(x)})
@@ -67,6 +68,18 @@ allexperimentdatedobandbroadcohorts <- allexperimentfiles %>%
 
 
 ## CREATE GRAPH DATASET WITH CORRECT ORDER OF X AXES
+
+#### From Alen (12/5)
+
+# For the order of behaviors, there are some variations especially in the order of locomotor . 
+# For cohorts 1.1 - 3.4  = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment.
+# For cohort 3.5 = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Delayed Punishment --> Locomotor.
+# For cohorts 4.1 - 8.2 = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment.
+# For cohort 8.3 = Runway --> Food deprivation -->  Locomotor --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Delayed Punishment --> Locomotor.
+# For cohort 9.1 =  Runway --> Food deprivation -->  Locomotor --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment. 
+# For cohorts 9.2 - current = Runway --> Locomotor x2 --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor x2 --> Delayed Punishment. 
+
+
 allexperimentdatedobandbroadcohorts_graph <- allexperimentdatedobandbroadcohorts
 allexperimentdatedobandbroadcohorts_graph$experiment <- with(allexperimentdatedobandbroadcohorts_graph,paste(experiment,shipmentcohort,sep="_"))
 
@@ -332,7 +345,8 @@ lapply(runwayfiles_clean[2500:2550], readrunway) %>% rbindlist(fill = T)
 
 lapply(experimentfilesbyexperiment, length)
 
-# because the id's represented in each experiment differs so much, i want to check them against the master table
+# because the id's represented in each experiment differs so much, i want to check them against the 
+master table
 # create a master sheet of id's from wfu, join to the excel sheet to get the u numbers, 
 WFU_Jhou_findidindropbox <- WFU_Jhou_test_df %>% 
   left_join(., rfidandid[,c("labanimalid", "wakeforestid") ], by = c("labanimalnumber"= "wakeforestid")) %>%
@@ -347,14 +361,6 @@ sapply(subset(WFU_Jhou_findidindropbox, select = runway:delayedpun), sum)
 
 
 
-#### From Alen (12/5)
 
-# For the order of behaviors, there are some variations especially in the order of locomotor . 
-# For cohorts 1.1 - 3.4  = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment.
-# For cohort 3.5 = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Delayed Punishment --> Locomotor.
-# For cohorts 4.1 - 8.2 = Runway --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment.
-# For cohort 8.3 = Runway --> Food deprivation -->  Locomotor --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Delayed Punishment --> Locomotor.
-# For cohort 9.1 =  Runway --> Food deprivation -->  Locomotor --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor --> Delayed Punishment. 
-# For cohorts 9.2 - current = Runway --> Locomotor x2 --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor x2 --> Delayed Punishment. 
 
 
