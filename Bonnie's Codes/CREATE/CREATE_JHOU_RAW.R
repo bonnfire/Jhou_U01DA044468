@@ -822,10 +822,25 @@ delayedpunishment <- delayedpun_delays_df %>%
 ### RAW TEXT  Lever training ###
 ################################
 # extract all file names, split into the cohorts mentioned in the protocols sheet, and write separate functions for them
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Lever training")
+lever_trainingfiles <- list.files(path=".", pattern=".*LEVER.*.txt", full.names=TRUE, recursive=TRUE) # 5736 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
+lever_trainingfiles_clean <- lever_trainingfiles[str_detect(lever_trainingfiles, "/U\\d+(\\D+)?/\\d{4}-\\d{4}-\\d{4}_\\d+_LEVER TRAINING(_corrected)?.txt", negate = F)] # 5721 files # including the files that contain PP ??? XX 
+
+readlevertraining <- function(x){
+  levertraining <- fread(paste0("grep -o '[0-9]* OUT OF [0-9]*' ", "'", x, "'"), fill = T)
+  levertraining$filename <- x
+  return(levertraining)
+}
 
 
 
-
+test <- lapply(lever_trainingfiles_clean[1:10], readlevertraining) 
+test_rm <- test[sapply(test, function(x) ncol(x)) > 1] # remove the null datatables
+test_df <- test_rm %>% 
+  rbindlist(fill = T) %>% 
+  select(-c(V2, V3)) %>% 
+  rename("completedtrials" = "V1",
+         "totaltrials" = "V4")
 
 ##################################
 # Create list of all experiments
