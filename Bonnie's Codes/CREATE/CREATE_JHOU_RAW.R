@@ -35,9 +35,9 @@ library(readxl)
 
 # extract info from filename
 extractfromfilename <- function(df){
-  if(df == "rawfiles_prepcalc"){
-    df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
-  }
+  # if(df == "rawfiles_prepcalc"){
+  #   df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
+  # }
   df$labanimalid <- stringr::str_extract(df$filename, "U[[:digit:]]+[[:alpha:]]*")
   df$date <- gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(df$filename, "[[:digit:]]{4}[-][[:digit:]]{4}"))
   df$date <- as.POSIXct(df$date, tz = "UTC")
@@ -90,7 +90,7 @@ allexpfiles_datetime %>%
            timeinfile != timefilename)
 
 allexpfiles_datetime %>% 
-  dplyr::filter(timeinfile != timefilename)
+  dplyr::filter(timeinfile != timefilename) # results saved in Dropbox documentation (Questions_1)
 
 
 # know the number of na's in dataframe (currently 0) colSums(is.na(allexpfiles_datetime))
@@ -494,7 +494,7 @@ create_progpuntable <- function(x){
   return(thistrialrownumandshock)
 }
 
-progpunishment_df = lapply(files_clean, create_progpuntable) %>%
+progpunishment_df = lapply(progpunfiles_clean, create_progpuntable) %>%
   rbindlist(fill = T)
 colnames(progpunishment_df) = c("trialnum", "shockma", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 10/28 WORKING 
 # summary(progpunishment_df) # 60 NA's

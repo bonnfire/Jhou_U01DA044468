@@ -18,7 +18,7 @@ u01.importxlsx <- function(xlname){
 } 
 
 Jhou_Excel <- u01.importxlsx("U01 Master sheet_readonly.xlsx")
-Jhou_Excel_updated <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx")
+# Jhou_Excel_updated <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx") # since 12/11 this file has disappeared
 
 ################################
 ########### Summary All ########
@@ -51,15 +51,29 @@ Jhou_SummaryAll[which(is.na(Jhou_SummaryAll$sex)|Jhou_SummaryAll$sex == "```"),]
 
 Jhou_SummaryAll %<>% 
   mutate(wakeforestid = gsub(".*-->", "", wakeforestid),
-         shipmentcohort = as.character(round(as.numeric(shipmentcohort)),3)) %<>%
+         shipmentcohort = as.character(round(as.numeric(shipmentcohort), 2)),
+         wfucohort = as.character(round(as.numeric(shipmentcohort)),3)) %<>%
+  select(labanimalid, shipmentcohort, wfucohort, everything()) %>% 
   dplyr::filter(!is.na(wakeforestid)) 
 
+# account for the switch that Alen documented over email
+newrow <- Jhou_SummaryAll[53,]
+Jhou_SummaryAll <- rbind(Jhou_SummaryAll[1:52,],newrow,Jhou_SummaryAll[-(1:52),])
+Jhou_SummaryAll[54, ] <- Jhou_SummaryAll %>% 
+  slice(54) %>% 
+  mutate(labanimalid = "U52", 
+         wakeforestid = "TJ053")
+Jhou_SummaryAll[52, ] <- Jhou_SummaryAll %>% 
+  slice(52) %>% 
+  mutate(labanimalid = "U53", 
+         wakeforestid = "TJ052")
+Jhou_SummaryAll <- Jhou_SummaryAll[-53,]
 # extract their copy of the WFU shipment information and qc in QC_Jhou_WFU.R; left the ``` sex 
 
 
 
 ################################
-###(update) Summary All ########
+###(update) Summary All ######## # since 12/11 the file is no longer there
 ################################
 
 WFU_Jhou_df <-  WFU_Jhou_test_df %>% 
