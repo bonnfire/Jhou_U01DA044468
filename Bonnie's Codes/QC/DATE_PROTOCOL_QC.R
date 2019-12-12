@@ -47,11 +47,9 @@ allexperimentfiles %>%
 #  dplyr::filter(subdirectoryid != labanimalid) 
 
 
-
-
-allexperimentdatedobandbroadcohorts <- allexperimentfiles %>% 
-  dplyr::mutate(subdirectoryid_edit = gsub("u", "U", subdirectoryid)) %>% # checked that all end with numbers 
-  left_join(., Jhou_SummaryAll_updated[, c("labanimalid", "wakeforestid", "shipmentcohort")], by = c("subdirectoryid_edit" = "labanimalid")) %>% 
+allexperiment_meta <- allexperimentfiles %>% 
+  dplyr::mutate(subdirectoryid = toupper(subdirectoryid)) %>% # checked that all end with numbers 
+  left_join(., Jhou_SummaryAll[, c("labanimalid", "wakeforestid", "shipmentcohort")], by = c("subdirectoryid" = "labanimalid")) %>% 
   left_join(., WFU_Jhou_test_df[,c("cohort", "dob","labanimalid")], by = c("wakeforestid" = "labanimalid") ) %>%
   mutate(date = gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(filename, "[[:digit:]]{4}[-][[:digit:]]{4}")),
          date =  as.POSIXct(date, tz = "UTC"),
@@ -61,6 +59,8 @@ allexperimentdatedobandbroadcohorts <- allexperimentfiles %>%
          experimentage = as.numeric(difftime(date, dob, units = "days"))) %>% 
   rename("protocolcohort" = "shipmentcohort", 
          "shipmentcohort" = "cohort")
+
+allexperiment_meta %>% dplyr::filter(is.na(dob))
 
   # dplyr::group_by(subdirectoryid_edit, experiment) %>%
   # plyr::arrange(date) %>%
