@@ -858,22 +858,22 @@ levertraining_raw <- sapply(test_df$filename, readbox) %>%
   select(-c(V1, V2)) %>% 
   merge(test_df,.) %>% 
   extractfromfilename() %>% 
-  merge(Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort")],., by = "labanimalid") %>% 
+  WFUjoin.raw() %>% 
   select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, filename)
 
 ##################################
 # Create list of all experiments
 ##################################
-Jhou_raw <- list(
-  "runway" = runway,
-  "progratio" = progratio,
-  "delayedpunishment" = delaypunishment,
-)
+# Jhou_raw <- list(
+#   "runway" = runway,
+#   "progratio" = progratio,
+#   "delayedpunishment" = delaypunishment,
+# )
 
 ## Appending info from WFU data 
 # Add rfid, sex, cohort
 WFUjoin.raw <- function(rawdf){
-  joindf <- merge(x = DF1, y = DF2[ , c("Client", "LO")], by = "Client", all.x=TRUE)
+  joindf <- merge(Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort")], rawdf, by = "labanimalid") 
   return(joindf)
 } 
 
