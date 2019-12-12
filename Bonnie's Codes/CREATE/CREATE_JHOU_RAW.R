@@ -680,7 +680,7 @@ progratio <- progratio %>%
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Delayed punishment") # while dropbox is updating the clone
 
 delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # 5781 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
-delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_corrected)?.txt", negate = F)] # 5648 files
+delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_corrected)?.txt", negate = F)] # 5873 files
 # delayed_punishmentfiles_clean <-  delayed_punishmentfiles[ ! grepl("error", delayed_punishmentfiles, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team) 
 
 create_delayedpuntable <- function(x){
@@ -690,13 +690,13 @@ create_delayedpuntable <- function(x){
 }
 
 delayedpunishment_df = lapply(delayed_punishmentfiles_clean, create_delayedpuntable) %>%
-  rbindlist(fill = T) # 50408 THIS TRIAL LINES from 5648 unique files
-colnames(delayedpunishment_df) = c("trialnum", "shockma", "rownum", "filename") 
+  rbindlist(fill = T) # 52389 THIS TRIAL LINES from 5873 unique files
+colnames(c) = c("trialnum", "shockma", "rownum", "filename") 
 # summary(delayedpunishment_df) # 73 NA's
 # naniar::vis_miss(delayedpunishment_df)
 
 delayedpunishment_df_complete <- delayedpunishment_df %>% 
-  dplyr::filter(complete.cases(.)) %>%  
+  dplyr::filter(complete.cases(.)) %>%  # since the 73 na cases seem to be from the same file, same trial, all blocked off 
   group_by(filename) %>% 
   do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to the last two per filename # 11127 THIS TRIAL LINES (TTL) from 5,575 unique files (should be 11150, or 5575*2, so we are missing cases )
 
@@ -783,6 +783,23 @@ delayedpun_delays_df %<>%
   select(-V2) %<>%
   rename("delay" = "V1") %<>% 
   mutate(delay = gsub("SEC", "", delay))
+
+# rearrange to be more similar to lever training 
+readbox <- function(x){
+  boxes <- fread(paste0("grep -oEm1 \"(box|station) [0-9]+\" ", "'", x, "'"))
+  return(boxes)
+}
+levertraining_raw <- sapply(test_df$filename, readbox) %>% 
+  t() %>% 
+  as.data.frame() %>% 
+  tibble::rownames_to_column(var = "filename") %>% 
+  mutate(box = paste(V1, as.character(V2))) %>% 
+  select(-c(V1, V2)) %>% 
+  merge(test_df,.) %>% 
+  extractfromfilename() %>% 
+  WFUjoin.raw() %>% 
+  select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, filename)
+#### end of lever training code
 
 delayedpun_boxes <- function(x){
   boxandstations <- fread(paste0("awk '/Started script/{print $(NF-1) \" \" $NF}' ", "'", x, "'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
