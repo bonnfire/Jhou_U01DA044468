@@ -85,10 +85,10 @@ allexperiment_meta %>% dplyr::filter(is.na(dob))
 # For cohorts 9.2 - current = Runway --> Locomotor x2 --> Food deprivation --> Lever Training --> Progressive Punishment --> Progressive Ratio --> Locomotor x2 --> Delayed Punishment. 
 
 
-allexperimentdatedobandbroadcohorts_graph <- allexperimentdatedobandbroadcohorts
-allexperimentdatedobandbroadcohorts_graph$experiment <- with(allexperimentdatedobandbroadcohorts_graph,paste(experiment,protocolcohort,sep="_"))
+allexperiment_meta_graph <- allexperiment_meta
+allexperiment_meta_graph$experiment <- with(allexperiment_meta_graph,paste(experiment,protocolcohort,sep="_"))
 
-protocolcohortsinorder <- allexperimentdatedobandbroadcohorts$protocolcohort %>% unique() %>% sort %>% as.character()
+protocolcohortsinorder <- allexperiment_meta_graph$protocolcohort %>% unique() %>% sort %>% as.character()
 
 cohort1_3.4_order <- paste0(c("runwayfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles", "locomotorfiles","delayed_punishmentfiles"), "_",  rep(protocolcohortsinorder[1:8], each = 6))
 cohort3.5_order <- paste0(c("runwayfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles", "delayed_punishmentfiles", "locomotorfiles"), "_",  rep(protocolcohortsinorder[9], each = 6))
@@ -97,21 +97,28 @@ cohort8.3_order <- paste0(c("runwayfiles", "locomotorfiles", "lever_trainingfile
 cohort9.1_order <- paste0(c("runwayfiles",  "locomotorfiles", "lever_trainingfiles", "progpunfiles", "progratiofiles", "locomotorfiles2", "delayed_punishmentfiles"), "_", rep(protocolcohortsinorder[25], each = 6))
 cohort9.2_12.2order <- paste0(c("runwayfiles", "locomotorfiles1a", "locomotorfiles1b", "lever_trainingfiles", "progpunfiles", "progratiofiles", "locomotorfiles2a", "locomotorfiles2b", "delayed_punishmentfiles"), "_", rep(protocolcohortsinorder[26:33], each = 6)) #temporarily adding :33 to create 155 levels
 
-allexperimentdatedobandbroadcohorts_graph$experiment <- factor(allexperimentdatedobandbroadcohorts_graph$experiment,
-                                                         levels=c(cohort1_8.1_order,cohort8.2_order,cohort8.3_9.2_order,cohort10.1_order ))
+allexperiment_meta_graph$experiment <- factor(allexperiment_meta_graph$experiment,
+                                                         levels=c(cohort1_3.4_order,
+                                                                  cohort3.5_order,
+                                                                  cohort4.1_8.2_order,
+                                                                  cohort8.3_order,
+                                                                  cohort9.1_order,
+                                                                  cohort9.2_12.2order))
 #### test ggplot code 
 # filter some cohorts (1 through 8.2 to test if the code will change for 8.2)
-test_graph <- allexperimentdatedobandbroadcohorts_graph %>% 
-  dplyr::filter(shipmentcohort %in% shipmentcohortsinorder[1:2])
+test_graph <- allexperiment_meta_graph %>% 
+  dplyr::filter(shipmentcohort %in% protocolcohortsinorder[1:2])
 cohort1_2.1_order <- paste0(c("runwayfiles",  "progpunfiles","delayed_punishmentfiles", "progratiofiles", "locomotorfiles"), "_", rep(shipmentcohortsinorder[1:2], each = 5))
 test_graph$experiment <- factor(test_graph$experiment, levels=cohort1_2.1_order)
 
 test_graph$experiment <- factor(test_graph$experiment, levels=c(cohort1_8.1_order,cohort8.2_order))
 
-ggplot(test_graph, aes(experiment,experimentage, group = subdirectoryid_edit)) + 
+allexperiment_meta_graph %>% 
+  dplyr::filter(protocolcohort %in% protocolcohortsinorder[1:2]) %>% 
+ggplot(aes(experiment,experimentage, group = subdirectoryid)) + 
   geom_line() +
   geom_point() +
-  facet_grid(. ~ shipmentcohort, scales = "free_x") + 
+  facet_grid(. ~ protocolcohort, scales = "free_x") + 
   labs(title = "experiment age by cohort") + 
   # scale_x_discrete(labels = gsub(".\\d+", "", test_graph$experiment)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))

@@ -838,13 +838,28 @@ readlevertraining <- function(x){
   return(levertraining)
 }
 
-test <- lapply(lever_trainingfiles_clean[1:10], readlevertraining) 
+test <- lapply(lever_trainingfiles_clean[1:100], readlevertraining) 
 test_rm <- test[sapply(test, function(x) ncol(x)) > 1] # remove the null datatables
 test_df <- test_rm %>% 
   rbindlist(fill = T) %>% 
   select(-c(V2, V3)) %>% 
   rename("completedtrials" = "V1",
          "totaltrials" = "V4")
+
+readbox <- function(x){
+  boxes <- fread(paste0("grep -oEm1 \"(box|station) [0-9]+\" ", "'", x, "'"))
+  return(boxes)
+}
+levertraining_raw <- sapply(test_df$filename, readbox) %>% 
+  t() %>% 
+  as.data.frame() %>% 
+  tibble::rownames_to_column(var = "filename") %>% 
+  mutate(box = paste(V1, as.character(V2))) %>% 
+  select(-c(V1, V2)) %>% 
+  merge(test_df,.) %>% 
+  extractfromfilename() %>% 
+  merge(Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort")],., by = "labanimalid") %>% 
+  select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, filename)
 
 ##################################
 # Create list of all experiments
