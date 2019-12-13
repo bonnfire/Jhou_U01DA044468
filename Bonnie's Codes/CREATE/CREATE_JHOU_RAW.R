@@ -784,36 +784,28 @@ delayedpun_delays_df %<>%
   rename("delay" = "V1") %<>% 
   mutate(delay = gsub("SEC", "", delay))
 
-# rearrange to be more similar to lever training 
 readbox <- function(x){
   boxes <- fread(paste0("grep -oEm1 \"(box|station) [0-9]+\" ", "'", x, "'"))
   return(boxes)
 }
-levertraining_raw <- sapply(test_df$filename, readbox) %>% 
+delayedpun_boxes_df <- sapply(delayedpun_delays_df$filename, readbox) %>% 
   t() %>% 
   as.data.frame() %>% 
   tibble::rownames_to_column(var = "filename") %>% 
   mutate(box = paste(V1, as.character(V2))) %>% 
-  select(-c(V1, V2)) %>% 
-  merge(test_df,.) %>% 
-  extractfromfilename() %>% 
-  WFUjoin.raw() %>% 
-  select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, filename)
-#### end of lever training code
+  select(-c(V1, V2)) # 5552 files, no na, and boxes min 1 max 8
 
-delayedpun_boxes <- function(x){
-  boxandstations <- fread(paste0("awk '/Started script/{print $(NF-1) \" \" $NF}' ", "'", x, "'"), header=F, fill=T, showProgress = F, verbose = F) %>% as.data.frame()
-  boxandstations$filename <- x
-  return(boxandstations)
-}
+# %>% 
+#   merge(test_df,.) %>% 
+#   extractfromfilename() %>% 
+#   WFUjoin.raw() %>% 
+#   select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, filename)
 
-delayedpun_boxesandstations_df = lapply(unique(delayed_data_df_valid$filename), delayedpun_boxes) %>% 
-  rbindlist(fill = T) # 5552 files, no na, and boxes min 1 max 8
-colnames(delayedpun_boxesandstations_df) = c("boxorstation", "boxorstationumber", "filename")
+
 
 # XXX concern (some animals have more than one box designation):
-delayedpun_boxesandstations_df$labanimalid <- stringr::str_extract(delayedpun_boxesandstations_df$filename, regex("U[[:digit:]]+[[:alpha:]]*", ignore_case=T))
-delayedpun_boxesandstations_df %>% select(-filename) %>% distinct() %>% add_count(labanimalid) %>% dplyr::filter(n!=1) %>% as.data.frame()
+delayedpun_boxes_df$labanimalid <- stringr::str_extract(delayedpun_boxes_df$filename, regex("U[[:digit:]]+[[:alpha:]]*", ignore_case=T))
+delayedpun_boxes_df %>% select(-filename) %>% distinct() %>% add_count(labanimalid) %>% dplyr::filter(n!=1) %>% as.data.frame()
   
 # morethanone <- delayedpun_boxesandstations_df %>%
 #   select(labanimalid, boxorstationumber) %>%
@@ -823,7 +815,7 @@ delayedpun_boxesandstations_df %>% select(-filename) %>% distinct() %>% add_coun
 
 delayedpunishment <- delayedpun_delays_df %>% 
   dplyr::filter(!is.na(delay)) %>%    
-  left_join(., delayedpun_boxesandstations_df, by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
+  left_join(., delayedpun_boxes_df[,c("filename", "box")], by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
   left_join(., delayedpundata_categories_wcat, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
   left_join(., delayedpun_presses_df, by = "filename") %>% 
   extractfromfilename() %>% # extract file information for preparation for appending to rfid
@@ -833,12 +825,15 @@ delayedpunishment <- delayedpun_delays_df %>%
   rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
   select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
   group_by(labanimalid) %>% 
-  mutate(session = as.character(dplyr::row_number())) %>%  # add delay, extract from file!!!  
+  mutate(session = as.character(dplyr::row_number())) %>%  
   ungroup() %>%
-  left_join(., rfidandid, by = "labanimalid") %>% 
-  dplyr::filter(resolution != "EXCLUDE_ALL_BEHAVIORS"|is.na(resolution)) # remove two animals (U84 and U85 bc exclude all behaviors)
+  WFUjoin.raw() %>%
+  select(shipmentcohort, labanimalid, rfid, date, time, session, delay, everything())  %>% 
+  select(-filename, filename)
+# dplyr::filter(resolution != "EXCLUDE_ALL_BEHAVIORS"|is.na(resolution)) # remove two animals (U84 and U85 bc exclude all behaviors)
 
 # to do: check the validity of the columns and the cell formatting 
+## and use resolutions column to filter out data
 
 
 ################################
