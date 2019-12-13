@@ -344,25 +344,23 @@ read_locomotor <- function(x){
 # sed -n /MINUTE/,/END/p 2019-1016-1111_456_LOCOMOTOR_BASIC.txt | awk '/^[0-9]/{print $2}'
 
 locomotorfiles <- list.files(path=".", pattern=".*LOCOMOTOR.*.txt", full.names=TRUE, recursive=TRUE) # note the 4221 id in one file, but seems to be no error files so below code is unneeded
-locomotorfiles_clean <-  locomotorfiles[ ! grepl("error", locomotorfiles, ignore.case = TRUE) ]
-locomotorfiles_clean[grepl("[(]", locomotorfiles_clean)] # there is one duplicate file
-
-duplicatedfiles <- grep("[(]\\d[)]", locomotorfiles_clean, value = T) %>% 
-  gsub(" [(]\\d[)]", "", .) # go through 764 all files; create 1 files that have duplicates
-locomotorfiles_clean <- subset(locomotorfiles_clean, !(locomotorfiles_clean %in% duplicatedfiles)) #877, found 1 to remove
+# locomotorfiles_clean <- locomotorfiles[str_detect(locomotorfiles, "/{U}\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_LOCOMOTOR_BASIC.txt", negate = F)] # turning off and allowing for code below until XX resolved u subdirectories
+locomotorfiles_clean <- locomotorfiles[str_detect(locomotorfiles, "/[Uu]\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_LOCOMOTOR_BASIC.txt", negate = F)] # 
 
 rawfiles_locomotor <- lapply(locomotorfiles_clean, read_locomotor) %>% 
   rbindlist(fill = T) %>%
   select(V1, filename) %>%
   rename("bincounts" = "V1") %>%
-  mutate(bincounts = as.numeric(bincounts)) # using sed rather than awk results in less NA (only 26 here); XX 10/29 ADDED TO DOCUMENT FILE NA IS COMING FROM FILES NOT HAVING END SESSION
-
+  mutate(bincounts = as.numeric(bincounts)) %>%  # using sed rather than awk results in less NA (only 26 here); XX 10/29 ADDED TO DOCUMENT FILE NA IS COMING FROM FILES NOT HAVING END SESSION
+  dplyr::filter(!is.na(bincounts))
 # post call (11/7) changes: minute31 in U112 into minute30 (do later); and remove files that don't have all thirty values (more robust)
-rawfiles_locomotor %<>% group_by(filename) %<>% add_count %<>% dplyr::filter(n>=30) %<>% select(-n) %<>% ungroup()
+# 12/13 changes: do minute31 to minute30 change above and remove files that don't have all thirty values (more robust)
 
-# rawfiles_locomotor %>% filter(is.na(bincounts)) %>% count(filename) %>% summary(n) some are missing one and other files are missing all data
+# rawfiles_locomotor %>% dplyr::filter(!is.na(bincounts)) %>% group_by(filename) %>% add_count %>% ungroup() %>% select(n) %>% table()
+# rawfiles_locomotor %>% dplyr::filter(!is.na(bincounts)) %>% group_by(filename) %>% add_count %>% ungroup() %>% dplyr::filter(n == 31)
 
-# rawfiles_locomotor_long <- rawfiles_locomotor[!grepl("[[:punct:]]", as.character(rawfiles_locomotor$bincounts)), ] # clean out invalid observations (timestamps) 
+# rawfiles_locomotor %<>% group_by(filename) %<>% add_count %<>% dplyr::filter(n>=30) %<>% select(-n) %<>% ungroup()
+
 # rawfiles_locomotor_long <- droplevels(rawfiles_locomotor_long) #(from 243 levels to 117)
 i <- 1
 j <- 1
@@ -375,30 +373,22 @@ repeat {
   }
 } #add session information
 
-# library(tidyverse)
 rawfiles_locomotor_wide <- spread(rawfiles_locomotor, minute, bincounts) %>% # spread from long to wide
   as.data.table()
 # get code from https://stackoverflow.com/questions/57037860/how-to-reorder-column-names-in-r-numerically
 # reorder the columns
 setcolorder(rawfiles_locomotor_wide, c(1, order(as.numeric(gsub("minute", "", names(rawfiles_locomotor_wide)[-1]))) + 1))
 
-# deal with na values first before calculating sums and means 
-
-
 ## to do: 
 # starting U294, add the first 15 minutes average and last 15 minutes average
 # for U311, U312 and starting U315 to U328, take the same two averages for the second session
-
-
 # investigate the number of na's and compare that to how they are coding na's (as blanks)
-#################### might delete later 11/1 waiting to hear back from jhou's team; excel sheet seems to have just moved it #######################################
-rawfiles_locomotor_wide[which(rawfiles_locomotor_wide$filename == "./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt"),]$minute30 <- rawfiles_locomotor_wide[which(rawfiles_locomotor_wide$filename == "./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt"),]$minute31
-rawfiles_locomotor_wide <- select(rawfiles_locomotor_wide, -minute31)
 
+# see the incomplete cases
 res <- as.data.frame(rawfiles_locomotor_wide)[!complete.cases(as.data.frame(rawfiles_locomotor_wide)),]
 res[-1] <- as.numeric(is.na(res[-1]))
 res
-################################
+
 
 # add means and sums as jhou's lab does
 rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
@@ -406,33 +396,34 @@ rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
 rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
-  mutate(labanimalid = gsub('/u', '/U', filename),
-         labanimalid = str_extract(labanimalid, '(U[[:digit:]]+)')) %>%
-  left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
-  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) # add rfid colum # add cohort column (XX WERE THESE DIVIDED INTO COHORTS) # this code changes it back to dataframe
+  mutate(labanimalid = toupper(rawfiles_locomotor_wide$filename) %>% str_extract('(U[[:digit:]]+)')) %>%   
+  WFUjoin.raw() %>% #append to wfu info
+  select(labanimalid, rfid, shipmentcohort, date, time, everything()) %>% # code changes data.table back to data.frame
+  select(-filename, filename)
 
 
-# remove the rows with almost all na's # two files ./U175/2019-0209-1959_175_LOCOMOTOR_BASIC.txt(all); ./U412/2019-0918-1102_412_LOCOMOTOR_BASIC.txt (almost all)
-# remove the rows with all 0's
-# remove the rows that they have noted to remove EXCLUDE_LOCOMOTOR
-# remove duplicated files
-# add the experiment age
-rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
-  dplyr::filter(bintotal != 0) %>% 
-  dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", resolution)) %>%
-  dplyr::mutate(experimentage = as.numeric(difftime(date, dob, units = "days")))
-
-rawfiles_locomotor_wide <- rawfiles_locomotor_wide[!duplicated(rawfiles_locomotor_wide[-1]),]
-
-# check the number of files is even before adding session info 
-rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4) %>% View()
-## look into these three files cases???? 11/7 
-
-
-# remove the first file for the 5 file cases (11/1 remove two files)
-rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>% 
-  group_by(labanimalid) %>% 
-  do(tail(., 4)) 
+# XX review and remove after the call
+# # remove the rows with almost all na's # two files ./U175/2019-0209-1959_175_LOCOMOTOR_BASIC.txt(all); ./U412/2019-0918-1102_412_LOCOMOTOR_BASIC.txt (almost all)
+# # remove the rows with all 0's
+# # remove the rows that they have noted to remove EXCLUDE_LOCOMOTOR
+# # remove duplicated files
+# # add the experiment age
+# rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>%
+#   dplyr::filter(bintotal != 0) %>%
+#   dplyr::filter(!grepl("EXCLUDE_LOCOMOTOR", resolution)) %>%
+#   dplyr::mutate(experimentage = as.numeric(difftime(date, dob, units = "days")))
+# 
+# rawfiles_locomotor_wide <- rawfiles_locomotor_wide[!duplicated(rawfiles_locomotor_wide[-1]),]
+# 
+# # check the number of files is even before adding session info
+# rawfiles_locomotor_wide %>% add_count(labanimalid) %>% dplyr::filter(n != 1, n!=2, n!=4) %>% View()
+# ## look into these three files cases???? 11/7
+# 
+# 
+# remove the first file for the 5 file cases (11/1 remove two such animals)
+# rawfiles_locomotor_wide <- rawfiles_locomotor_wide %>%
+#   group_by(labanimalid) %>%
+#   do(tail(., 4))
 
 
 
