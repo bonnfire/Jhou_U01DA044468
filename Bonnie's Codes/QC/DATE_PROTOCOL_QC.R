@@ -113,15 +113,81 @@ test_graph$experiment <- factor(test_graph$experiment, levels=cohort1_2.1_order)
 
 test_graph$experiment <- factor(test_graph$experiment, levels=c(cohort1_8.1_order,cohort8.2_order))
 
-allexperiment_meta_graph %>% 
-  dplyr::filter(protocolcohort %in% protocolcohortsinorder[1:2]) %>% 
+pdf("protocol_exp_age_qc.pdf", onefile = T)
+
+protocolorder1 <- allexperiment_meta_graph %>% 
+  dplyr::filter(protocolcohort %in% protocolcohortsinorder[1:8]) %>% 
 ggplot(aes(experiment,experimentage, group = subdirectoryid)) + 
   geom_line() +
-  geom_point() +
+  geom_point(size = 0.1) +
   facet_grid(. ~ protocolcohort, scales = "free_x") + 
   labs(title = "experiment age by cohort") + 
   # scale_x_discrete(labels = gsub(".\\d+", "", test_graph$experiment)) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+
+
+protocolorder2 <- allexperiment_meta_graph %>% 
+  dplyr::filter(protocolcohort %in% protocolcohortsinorder[9]) %>% 
+  ggplot(aes(experiment,experimentage, group = subdirectoryid)) + 
+  geom_line() +
+  geom_point(size = 0.1) +
+  facet_grid(. ~ protocolcohort, scales = "free_x") + 
+  labs(title = "experiment age by cohort") + 
+  # scale_x_discrete(labels = gsub(".\\d+", "", test_graph$experiment)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+
+protocolorder3 <- allexperiment_meta_graph %>% 
+  dplyr::filter(protocolcohort %in% protocolcohortsinorder[10:23]) %>% 
+  ggplot(aes(experiment,experimentage, group = subdirectoryid)) + 
+  geom_line() +
+  geom_point(size = 0.1) +
+  facet_grid(. ~ protocolcohort, scales = "free_x") + 
+  labs(title = "experiment age by cohort") + 
+  # scale_x_discrete(labels = gsub(".\\d+", "", test_graph$experiment)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+
+protocolorder4_5 <- allexperiment_meta_graph %>% 
+  dplyr::filter(protocolcohort %in% protocolcohortsinorder[24:25]) %>% 
+  ggplot(aes(experiment,experimentage, group = subdirectoryid)) + 
+  geom_line() +
+  geom_point(size = 0.1) +
+  facet_grid(. ~ protocolcohort, scales = "free_x") + 
+  labs(title = "experiment age by cohort, should be two setups") + 
+  # scale_x_discrete(labels = gsub(".\\d+", "", test_graph$experiment)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+
+
+protocolorder6 <- allexperiment_meta_graph %>% 
+  dplyr::filter(protocolcohort %in% protocolcohortsinorder[26:33]) %>% 
+  ggplot(aes(experiment,experimentage, group = subdirectoryid)) + 
+  geom_line() +
+  geom_point(size = 0.1) +
+  facet_grid(. ~ protocolcohort, scales = "free_x") + 
+  labs(title = "experiment age by cohort, should be two setups") + 
+  # scale_x_discrete(labels = gsub(".\\d+", "", test_graph$experiment)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+
+print(protocolorder1)
+print(protocolorder2)
+print(protocolorder3)
+print(protocolorder4_5)
+print(protocolorder6)
+
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 test_graph2 <- allexperimentdatedobandbroadcohorts_graph %>% 
   dplyr::filter(shipmentcohort %in% shipmentcohortsinorder[24:33])

@@ -148,28 +148,32 @@ runwayhab_v_removelastcolumn <- runwayhab_v_ %>%
   select(-whatisthis)
   #1205 files (complete cases)
 
-runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
+# runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
+# 
+# runwayhab_v_explainna <- runwayhab_v_removelastcolumn %>%
+#   extractfromfilename() %>%
+#   mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA),
+#          cannotfindreachtime = ifelse(labanimalid %in% notexplainedinexcelbutmissing$labanimalid,"Cannot find reach time", NA))
+# 
+# notexplainedinexcelbutmissing <- runwayhab_v_explainna %>%   
+#   dplyr::filter((is.na(hab_reachtime) | is.na(hab_loc2_3_reachtime)), is.na(notedinexcel) ) 
+# 
+# # animals that only have two files but one is na so what to do? 
+# runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% dplyr::filter(n == 2) %>% select(labanimalid) %>% unique()
+# # gives you the context for which you are missing the files from
+# runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% rename("numberoffilesindir"= "n") %>% dplyr::filter(is.na(hab_reachtime)) %>% add_count() %>% rename("numberofnafilesindir" = "n") %>% View()
+# 
+# runwayhab_v_tail2 <- runwayhab_v_removelastcolumn %>% 
+#   extractfromfilename() %>% 
+#   mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA)) %>%
+#   group_by(labanimalid) %>% 
+#   do(tail(., n=2))
 
-runwayhab_v_explainna <- runwayhab_v_removelastcolumn %>%
-  extractfromfilename() %>%
-  mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA),
-         cannotfindreachtime = ifelse(labanimalid %in% notexplainedinexcelbutmissing$labanimalid,"Cannot find reach time", NA))
-
-notexplainedinexcelbutmissing <- runwayhab_v_explainna %>%   
-  dplyr::filter((is.na(hab_reachtime) | is.na(hab_loc2_3_reachtime)), is.na(notedinexcel) ) 
-
-# animals that only have two files but one is na so what to do? 
-runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% dplyr::filter(n == 2) %>% select(labanimalid) %>% unique()
-# gives you the context for which you are missing the files from
-runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% rename("numberoffilesindir"= "n") %>% dplyr::filter(is.na(hab_reachtime)) %>% add_count() %>% rename("numberofnafilesindir" = "n") %>% View()
-
-runwayhab_v_tail2 <- runwayhab_v_removelastcolumn %>% 
+runwayhab_v_tail2 <- runwayhab_v_removelastcolumn %>%
   extractfromfilename() %>% 
-  mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA)) %>%
   group_by(labanimalid) %>% 
-  do(tail(., n=2))
-
-
+  do(tail(., n=2)) %>% #878 lab animalid
+  ungroup()
 
 
 
@@ -192,7 +196,7 @@ readrunway <- function(x){
 
 
 runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #3983 files 
-runwayfiles_clean[grepl("^m.*\\.log",runwayfiles_clean)] # remove error and duplicate files
+# runwayfiles_clean[grepl("^m.*\\.log",runwayfiles_clean)] # remove error and duplicate files
 
 str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
 runwayfiles_clean <- runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 3929 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
