@@ -125,7 +125,7 @@ readrunwayhab <- function(x){
   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runwayhab_reach$filename <- x
   if(grepl("U194|U197|U198|U199|U262|U415|U96", x, ignore.case = T)){
-    runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T)
+    runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T) # XX figure out how this vector of id's is being generated 
   } else{
   runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
   }
