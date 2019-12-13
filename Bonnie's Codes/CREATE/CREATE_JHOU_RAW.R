@@ -474,11 +474,8 @@ Jhou_Raw_Locomotor <- lapply(rawfiles_locomotor_wide_split, function(x){
 # group by and tail
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive punishment") # using their copy to prevent any copy issues
 progpunfiles <- list.files(path=".", pattern=".*CONFLICT.*.txt", full.names=TRUE, recursive=TRUE) # some don't have the U designation bc they are not placed into the folders yet
-progpunfiles_clean <-  progpunfiles[ ! grepl("error", progpunfiles, ignore.case = TRUE) ] # clean out errors 
+progpunfiles_clean <- progpunfiles[str_detect(progpunfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_FOOD[[:space:]]?CONFLICT(_corrected)?.txt", negate = F)] 
 
-progpunfiles[ grepl("error", progpunfiles, ignore.case = TRUE) ] # CREATE SUBSET OF FILENAMES THAT DON'T FOLLOW FORMAT
-
-# no results for grepl("[(]) so no duplicate files? 
 create_progpuntable <- function(x){
   thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
   thistrialrownumandshock$filename<-x
@@ -486,28 +483,26 @@ create_progpuntable <- function(x){
 }
 
 progpunishment_df = lapply(progpunfiles_clean, create_progpuntable) %>%
-  rbindlist(fill = T)
-colnames(progpunishment_df) = c("trialnum", "shockma", "rownum", "filename") # this line isn't working for some files for which the values cannot be found 10/28 WORKING 
-# summary(progpunishment_df) # 60 NA's
-# progpunishment_df
+  rbindlist(fill = T) #100% present
+colnames(progpunishment_df) = c("trialnum", "shockma", "rownum", "filename")
 
 progpunishment_df_complete <- progpunishment_df %>% 
   dplyr::filter(complete.cases(.)) %>%  
   group_by(filename) %>% 
-  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to two per filename # XX SCREENSHOT ADDED TO DOCUMENT ONLY ON CASES THAT HAVE THE VALUES WE NEED; 6193 cases
+  do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to two per filename # XX SCREENSHOT ADDED TO DOCUMENT ONLY ON CASES THAT HAVE THE VALUES WE NEED; 6553 cases
 
-progpunishment_df %>% count(filename) %>% subset(n!=2) # XX made note to Alen 10/18, follow up again 
-oneobservation_details <- progpunishment_df %>% 
-  group_by(filename) %>%
-  mutate(count = n()) %>% 
-  ungroup() %>% 
-  filter(count != 2); head(oneobservation_details) # 96 observations
+progpunishment_df_complete %>% count(filename) %>% subset(n!=2) # XX made note to Alen 10/18, follow up again; 12/13 only one case XX ask about during call
+# oneobservation_details <- progpunishment_df %>% 
+#   group_by(filename) %>%
+#   mutate(count = n()) %>% 
+#   ungroup() %>% 
+#   filter(count != 2); head(oneobservation_details) # 96 observations
 
-data_df_valid <- progpunishment_df_complete %>% 
-  group_by(filename) %>%
-  mutate(count = n()) %>% 
-  ungroup() %>% 
-  dplyr::filter(count == 2) # use the valid files before they respond about the other ones 6170
+# data_df_valid <- progpunishment_df_complete %>% 
+#   group_by(filename) %>%
+#   mutate(count = n()) %>% 
+#   ungroup() %>% 
+#   dplyr::filter(count == 2) # use the valid files before they respond about the other ones 6170
 
 # create categorization table 
 create_progpuntable_tocategorize <- function(x){
@@ -556,8 +551,8 @@ create_progpuntable_tocategorize <- function(x){
 
 # data2_valid_subset <- data2_valid[1:100,]
 # data_categories_test = create_progpuntable_tocategorize(data2_valid_subset) # test subset 
-
-progpundata_categories = create_progpuntable_tocategorize(data_df_valid) # test on valid datapoints until Jhou team returns comment 
+progpunishment_df_complete <- progpunishment_df_complete %>% add_count(filename) %>% subset(n==2) %>% select(-n)
+progpundata_categories = create_progpuntable_tocategorize(progpunishment_df_complete) # test on valid datapoints until Jhou team returns comment #100% present
 
 progpundata_categories_wcat <- progpundata_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
@@ -570,9 +565,11 @@ progpun_presses <- function(x){
   presses$filename <- x
   return(presses)
 }
-progpun_presses_df = lapply(files_clean, progpun_presses) %>% 
-  rbindlist(fill = T) # 3168 cases, 47 na and left presses min 55 max 434
-colnames(progpun_presses_df) = c("activepresses", "inactivepresses", "filename")
+progpun_presses_df = lapply(progpundata_categories_wcat$filename, progpun_presses) %>% 
+  rbindlist(fill = T) %>% # 3168 cases, 47 na and left presses min 55 max 434
+  merge(progpundata_categories_wcat, .) %>% 
+  rename("activepresses" = "V1", 
+         "inactivepresses" = "V2")
 
 
 progpun_boxes <- function(x){
@@ -585,6 +582,29 @@ progpun_boxesandstations_df = lapply(files_clean, progpun_boxes) %>%
   rbindlist(fill = T) # 3168 cases, no na, and left presses min 1 max 8
 colnames(progpun_boxesandstations_df) = c("boxorstation", "boxorstationumber", "filename")
 
+
+readbox <- function(x){
+  boxes <- fread(paste0("grep -oEm1 \"(box|station) [0-9]+\" ", "'", x, "'"))
+  return(boxes)
+}
+progpun_raw <- sapply(progpun_presses_df$filename, readbox) %>% 
+  t() %>% 
+  as.data.frame() %>% 
+  tibble::rownames_to_column(var = "filename") %>% 
+  mutate(box = paste(V1, as.character(V2))) %>% 
+  select(-c(V1, V2)) %>% 
+  merge(progpun_presses_df,.) %>% 
+  extractfromfilename() %>% 
+  WFUjoin.raw() %>% 
+  mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
+         shockoflastattemptedblock = lastshock) %>% 
+  rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
+  select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
+  group_by(labanimalid) %>% 
+  mutate(session = as.character(dplyr::row_number() - 1)) %>%
+  select(shipmentcohort, labanimalid, rfid, date, time, session, box, everything()) %>% 
+  select(-filename, filename)
+
 # XXX concern (some animals have more than one box designation): 
 # boxesandstations_df$labanimalid <- stringr::str_extract(boxesandstations_df$filename, "U[[:digit:]]+[[:alpha:]]*")
 # morethanone <- boxesandstations_df %>%
@@ -593,19 +613,19 @@ colnames(progpun_boxesandstations_df) = c("boxorstation", "boxorstationumber", "
 # morethanone2 <- morethanone %>% count(labanimalid) %>% filter(n != 1)
 # cases <- subset(rawfiles_box, rawfiles_box$labanimalid %in% morethanone2$labanimalid)
 # cases # just 6 and 8 now XX already made note to Tom Jhou's team
-
-progressivepunishment <- left_join(x = progpundata_categories_wcat, y = progpun_presses_df, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
-  left_join(., progpun_boxesandstations_df, by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
-  extractfromfilename() %>% # extract file information for preparation for appending to rfid
-  # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
-  mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
-         shockoflastattemptedblock = lastshock) %>% 
-  rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
-  select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
-  group_by(labanimalid) %>% 
-  mutate(session = as.character(dplyr::row_number() - 1)) %>%  # add session 
-  ungroup() %>%
-  left_join(., rfidandid, by = "labanimalid") 
+# 
+# progressivepunishment <- left_join(x = progpundata_categories_wcat, y = progpun_presses_df, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
+#   left_join(., progpun_boxesandstations_df, by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
+#   extractfromfilename() %>% # extract file information for preparation for appending to rfid
+#   # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
+#   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
+#          shockoflastattemptedblock = lastshock) %>% 
+#   rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
+#   select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
+#   group_by(labanimalid) %>% 
+#   mutate(session = as.character(dplyr::row_number() - 1)) %>%  # add session 
+#   ungroup() %>%
+#   left_join(., rfidandid, by = "labanimalid") 
 
 ################################
 ### RAW TEXT  Prog ratio #######
