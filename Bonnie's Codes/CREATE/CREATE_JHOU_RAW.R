@@ -632,13 +632,13 @@ readmaxratio <- function(x){
   maxratio <- fread(paste0("grep -B1 \"TIMEOUT\\\\s\\\\s\" " , "'", x, "'", " | awk '{print $4; exit}'"))
   maxratio$filename <- x
   return(maxratio)
-}
-# get the max ratio from the line before TIMEOUT
+} # get the max ratio from the line before TIMEOUT
 progratio_maxratio <- lapply(progratiofiles_clean, readmaxratio) 
-progratio_maxratio_df <- rbindlist(progratio_maxratio, fill = T) %>%
+progratio_maxratio_rm <- progratio_maxratio[sapply(progratio_maxratio, function(x) ncol(x)) > 1] # remove the null datatables
+progratio_maxratio_df <- rbindlist(progratio_maxratio_rm, fill = T) %>%
   rename("maxratio" = "V1") %>% 
-  select(-NUMBER) %>%
-  mutate(maxratio = as.numeric(maxratio)) # XX why are there 30 NA's
+  select(-NUMBER) %>% # 100% empty column 
+  mutate(maxratio = as.numeric(maxratio)) 
 
 # rawfiles_maxratio <- extractfromfilename(rawfiles_maxratio)
 # rawfiles_maxratio %>% summary() seems like the machine generated two trials of data, so we will remove the initial one with the next line
@@ -651,22 +651,26 @@ readpresses <- function(x){
   return(presses)
 }
 # get the max ratio from the line before TIMEOUT
-progratio_presses <- lapply(progratiofiles_clean, readpresses) 
-progratio_presses_df <- rbindlist(progratio_presses, fill = T) %>%
+progratio_presses <- lapply(progratio_maxratio_df$filename, readpresses) 
+progratio_presses_rm <- progratio_presses[sapply(progratio_presses, function(x) ncol(x)) > 1] # remove the null datatables
+progratio_presses_df <- rbindlist(progratio_presses_rm, fill = T) %>%
   rename("activepresses" = "V1",
          "inactivepresses" = "V2") # again there are 30 NA's  
 
 # join to create final raw df
 progratio <- left_join(progratio_maxratio_df, progratio_presses_df, by = "filename") # 10/28 bring to Alen's attention -- these cases for which there are only timeout lines and no pre-timeout value so no maxratio value 
 progratio <- progratio %>% 
-  dplyr::filter(!grepl("error", filename), !is.na(activepresses)) %>%
+ #  dplyr::filter(!grepl("error", filename), !is.na(activepresses)) %>%
   extractfromfilename() %>%
   group_by(labanimalid) %>% 
   mutate(session = as.character(dplyr::row_number())) %>% 
   ungroup() %>% 
+  WFUjoin.raw() %>% 
+  select(labanimalid, rfid, shipmentcohort, date, time, session, activepresses, inactivepresses, filename)%>%
+  arrange(labanimalid) # 100% present data
+
   mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>%
   arrange(labanimalid)
-# better organizational for ordering and consider this for other files; ADD BEGINNING ZEROES TO COHORT/ID'S
 # reorder based on labanimalid  
 #  progratio %>% group_by(labanimalid) %>% add_count(n = n()) %>% dplyr::filter(max(as.numeric(session)) != n) %>% select(labanimalid) %>% unique()
 
