@@ -669,8 +669,8 @@ progratio <- progratio %>%
   select(labanimalid, rfid, shipmentcohort, date, time, session, activepresses, inactivepresses, filename)%>%
   arrange(labanimalid) # 100% present data
 
-  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>%
-  arrange(labanimalid)
+  # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>%
+  # arrange(labanimalid)
 # reorder based on labanimalid  
 #  progratio %>% group_by(labanimalid) %>% add_count(n = n()) %>% dplyr::filter(max(as.numeric(session)) != n) %>% select(labanimalid) %>% unique()
 
