@@ -804,15 +804,39 @@ delayedpun_delays_df %<>%
   mutate(delay = gsub("SEC", "", delay))
 
 readbox <- function(x){
-  boxes <- fread(paste0("grep -oEm1 \"(box|station) [0-9]+\" ", "'", x, "'"))
+  boxes <- fread(paste0("grep -oEi \"(box|station) [0-9]+\" ", "'", x, "'"))
   return(boxes)
 }
-delayedpun_boxes_df <- sapply(delayedpun_delays_df$filename, readbox) %>% 
-  t() %>% 
-  as.data.frame() %>% 
-  tibble::rownames_to_column(var = "filename") %>% 
-  mutate(box = paste(V1, as.character(V2))) %>% 
-  select(-c(V1, V2)) # 5552 files, no na, and boxes min 1 max 8
+# delayedpun_boxes_df <- sapply(delayedpun_delays_df$filename, readbox) %>% 
+#   t() %>% 
+#   as.data.frame() %>% 
+#   tibble::rownames_to_column(var = "filename") %>% 
+#   mutate(box = paste(V1, as.character(V2))) %>% 
+#   select(-c(V1, V2)) # 5552 files, no na, and boxes min 1 max 8
+
+delayedpun_boxes <- lapply(delayedpun_delays_df$filename, readbox) 
+names(delayedpun_boxes) <- delayedpun_delays_df$filename
+delayedpun_boxes_df <- delayedpun_boxes %>%  
+  rbindlist(idcol = "filename") %>% 
+  group_by(filename) %>% 
+  mutate(position = paste0("find_", 1:n())) %>% 
+  ungroup() %>% 
+  mutate(boxstation = paste(V1, V2)) %>% 
+  select(-c(V1, V2)) %>% 
+  spread(position, boxstation) 
+
+# within the same file 
+delayedpun_boxes_df %>% mutate(find_1_digit = readr::parse_number(find_1), find_2_digit = readr::parse_number(find_2)) %>% dplyr::filter(find_1_digit != find_2_digit) # looks good
+delayedpun_runindiffboxes <- delayedpun_boxes_df %>% mutate(find_1_digit = readr::parse_number(find_1), 
+                               find_2_digit = readr::parse_number(find_2), 
+                               subdir_id = str_extract(delayedpun_boxes_df$filename, regex("U\\d+[A-z]?", ignore_case = T))) %>% 
+  group_by(subdir_id) %>% 
+  mutate(uniquebox = n_distinct(find_1)) %>% 
+  ungroup() %>% 
+  group_by(subdir_id, find_1) %>% 
+  mutate(boxcount = n()) %>% 
+  ungroup() %>% 
+  dplyr::filter(uniquebox != 1)
 
 # %>% 
 #   merge(test_df,.) %>% 
