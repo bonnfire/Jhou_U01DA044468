@@ -96,6 +96,12 @@ allexpfiles_datetime %>%
 # know the number of na's in dataframe (currently 0) colSums(is.na(allexpfiles_datetime))
 
 ################################
+### RAW EXCEL Weights ##########
+################################
+
+gs_auth(new_user = TRUE)
+
+  ################################
 ### RAW TEXT Runway ############
 ################################
 
@@ -105,6 +111,12 @@ allexpfiles_datetime %>%
 
 # collect habituation data, label not habituated, use id's that did habituate to extract reach time, location 2, number of reversals from the Runway directory
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
+runwayhab_files_2 <- system("grep -rnwe 'CALCULATED SYRINGE DURATION USING 10ML SYRINGE IS 0 SECONDS'", intern = T) %>% 
+  gsub(":.*", "", x = .) %>% 
+  paste0("./", .)
+
+setdiff(runwayhab_files_clean, runwayhab_files_2)
+
 
 # runway hab files should only be 0 weights, so the non zero cases need to be noted 
 readrunwayhab_weight <- function(x){
@@ -117,10 +129,12 @@ runwayhab_files <- list.files(path = "." , pattern = "*.txt", full.names = T, re
 str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
 runwayhab_files_clean <- runwayhab_files[str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 1269 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
 # runwayhab_files_clean <- grep("^((?!error).)*$", runwayhab_files, value = T, perl = T) # mimic inverse matching with negative look arounds  # filter for clean filenames 
-runwayhab_weights <- lapply(runwayhab_files_clean, readrunwayhab_weight) %>% 
-  rbindlist(fill = T) %>% 
-  rename("ratweight" = "V1")
-runwayhab_weights_validfiles <- runwayhab_weights %>% extractfromfilename() %>% dplyr::filter(ratweight == 0) %>% select(filename) # 1262 valid files with 0 weights 
+# runwayhab_weights <- lapply(runwayhab_files_clean, readrunwayhab_weight) %>% 
+#   rbindlist(fill = T) %>% 
+#   rename("ratweight" = "V1")
+# runwayhab_weights_validfiles <- runwayhab_weights %>% extractfromfilename() %>% dplyr::filter(ratweight == 0) %>% select(filename) # 1262 valid files with 0 weights 
+runwayhab_weights_validfiles <- runwayhab_files_clean[which(runwayhab_files_clean %in% runwayhab_files_2)] # 1367 valid files with 0 parameters
+
 readrunwayhab <- function(x){
   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runwayhab_reach$filename <- x
@@ -141,12 +155,52 @@ runwayhab_v_ <- lapply(runwayhab_weights_validfiles$filename, readrunwayhab) %>%
          "location" = 'V2', 
          "locationnum" = "V3",
          "whatisthis" = "V1") # 1262 files
+
+runwayhab_reversals <- lapply(runwayhab_weights_validfiles$filename, read_runwayrevs) %>% rbindlist(fill = T) %>% rename("reversals" = "V1")
+
+
 # vis_miss(runwayhab_v_) wherever hab_reachtime is na so is hab_loc2_reachtime
 # runwayhab_v_ %>% dplyr::filter(is.na(hab_reachtime)) %>% vis_miss()
 runwayhab_v_removelastcolumn <- runwayhab_v_ %>% 
   dplyr::filter(is.na(whatisthis), !is.na(hab_reachtime) ) %>% 
-  select(-whatisthis)
+  select(-whatisthis) %>% 
+  left_join(., runwayhab_reversals, by = "filename")
   #1205 files (complete cases)
+
+
+# 1/2 Maya email: "when there are more than 2, yes you can extract the last consecutive 2 sessions"
+runwayhab_v_tail2 <- runwayhab_v_removelastcolumn %>%
+  extractfromfilename() %>%
+  group_by(labanimalid) %>%
+  do(tail(., n=2)) %>% #878 lab animalid
+  ungroup()
+
+
+# include the files that were lost in the box/dropbox transition
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Tom_Jhou_U01DA044468_Dropbox_copy/Runway")
+u01.importxlsx <- function(xlname){
+  path_sheetnames <- excel_sheets(xlname)
+  df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname)
+  names(df) <- path_sheetnames
+  return(df)
+} 
+runwayhab_missing <- u01.importxlsx('U01 HS missing data habituation.xlsx')
+runwayhab_missing[[1]]$sex <- 'M'
+runwayhab_missing[[2]]$sex <- 'F'
+runwayhab_missing %<>% 
+  rbindlist() 
+names(runwayhab_missing) <- tolower(names(runwayhab_missing) )
+runwayhab_missing %<>%   
+  dplyr::filter(grepl("Habituation", trial, ignore.case = T)) 
+runwayhab_missing_rat_indices <- grep("U\\d+", runwayhab_missing$rat, ignore.case = T)
+runwayhab_missing_split <- split(runwayhab_missing, cumsum(1:nrow(runwayhab_missing) %in% runwayhab_missing_rat_indices))
+runwayhab_missing_formatted <- lapply(runwayhab_missing_split, function(x){
+  x <- x %>% 
+    mutate(rat = head(rat, 1))
+  return(x)
+}) %>% rbindlist() %>% 
+  mutate(date = as.Date(as.numeric(date), origin = "1899-12-30"))
+  
 
 # runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
 # 
@@ -168,13 +222,6 @@ runwayhab_v_removelastcolumn <- runwayhab_v_ %>%
 #   mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA)) %>%
 #   group_by(labanimalid) %>% 
 #   do(tail(., n=2))
-
-runwayhab_v_tail2 <- runwayhab_v_removelastcolumn %>%
-  extractfromfilename() %>% 
-  group_by(labanimalid) %>% 
-  do(tail(., n=2)) %>% #878 lab animalid
-  ungroup()
-
 
 
 

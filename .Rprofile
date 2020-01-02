@@ -28,6 +28,10 @@ library(stringr)
 library(ggplot2)
 library(lubridate)
 
+# for weights
+#install.packages('googlesheets')
+library(googlesheets)
+
 
 
 
