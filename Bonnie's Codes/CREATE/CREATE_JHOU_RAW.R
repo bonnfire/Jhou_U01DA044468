@@ -968,14 +968,15 @@ delayedpun_boxes_df %>% select(-filename) %>% distinct() %>% add_count(labanimal
 
 delayedpunishment <- delayedpun_delays_df %>% 
   dplyr::filter(!is.na(delay)) %>%    
-  left_join(., delayedpun_boxes_df[,c("filename", "box")], by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
+  left_join(., delayedpun_boxes_df[,c("filename", "find_1")], by = "filename") %>% # dim is all over the place (using the most limiting 3085, resulting has no na)
   left_join(., delayedpundata_categories_wcat, by = "filename") %>% # XX TOOK SCREENSHOT OF NA DELAY'S AND SENT THEM TO TOM'S TEAM
   left_join(., delayedpun_presses_df, by = "filename") %>% 
   extractfromfilename() %>% # extract file information for preparation for appending to rfid
   # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid) ) %>% 
   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
          shockoflastattemptedblock = lastshock) %>% 
-  rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
+  rename("box" = "find_1",
+    "numtrialsatlastshock" = "numleftpresseslast") %>% 
   select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
   group_by(labanimalid) %>% 
   mutate(session = as.character(dplyr::row_number())) %>%  
@@ -985,6 +986,11 @@ delayedpunishment <- delayedpun_delays_df %>%
   select(-filename, filename)
 # dplyr::filter(resolution != "EXCLUDE_ALL_BEHAVIORS"|is.na(resolution)) # remove two animals (U84 and U85 bc exclude all behaviors)
 
+# consistent within session
+# delayedpun_boxes_df %>% mutate(number1 = str_sub(find_1, -1), number2 = str_sub(find_2, -1) ) %>% dplyr::filter(number1 != number2) # so that's why we can use find_1 as proxy since the only difference is in station vs box 
+
+delayedpunishment %>% summary
+delayedpunishment %>% naniar::vis_miss()
 # to do: check the validity of the columns and the cell formatting 
 ## and use resolutions column to filter out data
 
@@ -1003,9 +1009,17 @@ readlevertraining <- function(x){
   return(levertraining)
 }
 
-test <- lapply(lever_trainingfiles_clean[1:100], readlevertraining) 
-test_rm <- test[sapply(test, function(x) ncol(x)) > 1] # remove the null datatables
-test_df <- test_rm %>% 
+# test <- lapply(lever_trainingfiles_clean[1:100], readlevertraining) 
+# test_rm <- test[sapply(test, function(x) ncol(x)) > 1] # remove the null datatables
+# test_df <- test_rm %>% 
+#   rbindlist(fill = T) %>% 
+#   select(-c(V2, V3)) %>% 
+#   rename("completedtrials" = "V1",
+#          "totaltrials" = "V4")
+
+lt <- lapply(lever_trainingfiles_clean, readlevertraining) 
+lt_rm <- lt[sapply(lt, function(x) ncol(x)) > 1] # remove the null datatables
+lt_df <- lt_rm %>% 
   rbindlist(fill = T) %>% 
   select(-c(V2, V3)) %>% 
   rename("completedtrials" = "V1",
@@ -1015,16 +1029,23 @@ readbox <- function(x){
   boxes <- fread(paste0("grep -oEm1 \"(box|station) [0-9]+\" ", "'", x, "'"))
   return(boxes)
 }
-levertraining_raw <- sapply(test_df$filename, readbox) %>% 
+levertraining_raw <- sapply(lt_df$filename, readbox) %>% 
   t() %>% 
   as.data.frame() %>% 
   tibble::rownames_to_column(var = "filename") %>% 
   mutate(box = paste(V1, as.character(V2))) %>% 
   select(-c(V1, V2)) %>% 
-  merge(test_df,.) %>% 
+  merge(lt_df,.) %>% 
   extractfromfilename() %>% 
   WFUjoin.raw() %>% 
-  select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, filename)
+  select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, experimentage, filename)
+
+
+levertraining_raw %>% naniar::vis_miss()
+levertraining_raw %>% summary()
+
+subset(levertraining_raw, experimentage < 0) 
+levertraining_raw_upload <- subset(levertraining_raw, experimentage > 0) 
 
 ##################################
 # Create list of all experiments
@@ -1038,7 +1059,9 @@ levertraining_raw <- sapply(test_df$filename, readbox) %>%
 ## Appending info from WFU data 
 # Add rfid, sex, cohort
 WFUjoin.raw <- function(rawdf){
-  joindf <- merge(Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort")], rawdf, by = "labanimalid") 
+  joindf <- merge(Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort", "dob")], rawdf, by = "labanimalid") %>% 
+    mutate(experimentage = as.numeric(date - dob)) %>%
+    select(-dob)
   return(joindf)
 } 
 
@@ -1059,11 +1082,30 @@ con <- dbConnect(drv, user='postgres', password='password', dbname='U01')
 dbListTables(con)
 
 #insert data into mytable from data frame
-df <- data.frame(fname = "Rosy", lname = "R.", age = 54)
 # dbWriteTable(con, "mytable", df, append = TRUE, row.names = FALSE)
 dbWriteTable(con, c("u01_tom_jhou", "jhou_runway"), value = runway)
 dbExistsTable(con, c("u01_tom_jhou", "jhou_runway"))
 
-# runway[ runway == "NA" ] <- NA
-# is.na(runway) <- runway == "NA"
+# pretenddata <- runway[0,] # create empty df with the same columns
+pretenddata <- runway %>% tail(1)
+dbWriteTable(myCon, "myTable", myTable, append = TRUE)
 
+
+# runway[ runway == "NA" ] <- NA
+# is.na(runway) <- runway == "NA
+
+
+dbWriteTable(con, c("public", "iris"), value = head(iris,10), overwrite = T)
+dbWriteTable(con, c("public", "iris"), value = head(iris,20), append = T)
+# dbWriteTable(con, c("public", "iris"), value = tail(head(iris, 20), 10), append = T, row.names = F)
+dbWriteTable(con, c("public", "iris"), value = pretend, overwrite = T, row.names = F)
+
+
+
+## SEND DATA TO POSTGRESQL DATABASE 
+dbWriteTable(con, c("u01_tom_jhou", "jhou_levertraining"), value = levertraining_raw_upload, row.names = F)
+dbExistsTable(con, c("u01_tom_jhou", "jhou_levertraining"))
+
+
+dbWriteTable(con, c("u01_tom_jhou", "jhou_delayedpunishment"), value = delayedpunishment, row.names = F)
+dbExistsTable(con, c("u01_tom_jhou", "jhou_delayedpunishment"))
