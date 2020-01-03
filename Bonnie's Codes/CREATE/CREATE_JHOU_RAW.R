@@ -119,11 +119,11 @@ setdiff(runwayhab_files_clean, runwayhab_files_2)
 
 
 # runway hab files should only be 0 weights, so the non zero cases need to be noted 
-readrunwayhab_weight <- function(x){
-  runwayhab_weight <- fread(paste0("awk '/WEIGHT/{print $4}' ", "'", x, "'"), fill = T)
-  runwayhab_weight$filename <- x
-  return(runwayhab_weight)
-}
+# readrunwayhab_weight <- function(x){
+#   runwayhab_weight <- fread(paste0("awk '/WEIGHT/{print $4}' ", "'", x, "'"), fill = T)
+#   runwayhab_weight$filename <- x
+#   return(runwayhab_weight)
+# }
 runwayhab_files <- list.files(path = "." , pattern = "*.txt", full.names = T, recursive = T)  # 1271 raw text files 
 
 str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
@@ -135,28 +135,61 @@ runwayhab_files_clean <- runwayhab_files[str_detect(runwayhab_files, "/U\\d+/\\d
 # runwayhab_weights_validfiles <- runwayhab_weights %>% extractfromfilename() %>% dplyr::filter(ratweight == 0) %>% select(filename) # 1262 valid files with 0 weights 
 runwayhab_weights_validfiles <- runwayhab_files_clean[which(runwayhab_files_clean %in% runwayhab_files_2)] # 1367 valid files with 0 parameters
 
+# readrunwayhab <- function(x){
+#   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
+#   runwayhab_reach$filename <- x
+#   if(grepl("U194|U197|U198|U199|U262|U415|U96", x, ignore.case = T)){
+#     runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T) # XX figure out how this vector of id's is being generated 
+#   } else{
+#   runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
+#   }
+#   runwayhabloc2$filename <- x
+#   
+#   runwayhab <- merge(runwayhab_reach, runwayhabloc2, by = "filename", all = T)
+#   return(runwayhab)
+# }
+
 readrunwayhab <- function(x){
   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runwayhab_reach$filename <- x
-  if(grepl("U194|U197|U198|U199|U262|U415|U96", x, ignore.case = T)){
-    runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T) # XX figure out how this vector of id's is being generated 
-  } else{
-  runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
-  }
+  
+  runwayhabloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
+  runwayhabloc1$filename <- x
+  
+    if(grepl("U194|U197|U198|U199|U262|U415|U96", x, ignore.case = T)){
+      runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T) # XX figure out how this vector of id's is being generated
+    } else{
+    runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
+    }
   runwayhabloc2$filename <- x
   
-  runwayhab <- merge(runwayhab_reach, runwayhabloc2, by = "filename", all = T)
-  return(runwayhab)
+  runwayhablocs <- merge(runwayhab_reach, merge(runwayhabloc1, runwayhabloc2, by = "filename"), by = "filename")
+  
+  return(runwayhablocs)
 }
-runwayhab_v_ <- lapply(runwayhab_weights_validfiles$filename, readrunwayhab) %>% 
-  rbindlist(fill = T) %>% 
-  rename("hab_reachtime" = "V1.x",
-         "hab_loc2_3_reachtime" = "V1.y",
-         "location" = 'V2', 
-         "locationnum" = "V3",
-         "whatisthis" = "V1") # 1262 files
 
-runwayhab_reversals <- lapply(runwayhab_weights_validfiles$filename, read_runwayrevs) %>% rbindlist(fill = T) %>% rename("reversals" = "V1")
+runwayhab_v_ <- lapply(runwayhab_weights_validfiles, readrunwayhab) %>% 
+  rbindlist(fill = T) 
+runwayhab_v_ %<>% 
+  rename("hab_reachtime" = "V1",
+         "hab_loc1" = "V1.x",
+         "hab_location1" = "V2.x",
+         "hab_locationnum1" = "V3.x",
+         "hab_loc2_3_reachtime" = "V1.y",
+         "hab_location2" = 'V2.y', 
+         "hab_locationnum2" = "V3.y"
+         #,"whatisthis" = "V1"
+         ) # 1262 files
+
+runwayhab_v_ %>% naniar::vis_miss()
+runwayhab_v_ %>% dplyr::filter(is.na(hab_reachtime)) %>% select(filename) %>% unlist() %>% as.character()
+runwayhab_v_ %>% dplyr::filter(!is.na(V2)) 
+runwayhab_v_ %>% dplyr::filter(is.na(hab_loc1)|is.na(hab_reachtime)) 
+
+# %>% select(filename) %>% unlist() %>% as.character()
+
+
+runwayhab_reversals <- lapply(runwayhab_weights_validfiles, read_runwayrevs) %>% rbindlist(fill = T) %>% rename("reversals" = "V1")
 
 
 # vis_miss(runwayhab_v_) wherever hab_reachtime is na so is hab_loc2_reachtime
@@ -164,7 +197,9 @@ runwayhab_reversals <- lapply(runwayhab_weights_validfiles$filename, read_runway
 runwayhab_v_removelastcolumn <- runwayhab_v_ %>% 
   dplyr::filter(is.na(whatisthis), !is.na(hab_reachtime) ) %>% 
   select(-whatisthis) %>% 
-  left_join(., runwayhab_reversals, by = "filename")
+  mutate(elapsedtime = trunc(hab_reachtime) - trunc(hab_loc2_3_reachtime)) %>% 
+  left_join(., runwayhab_reversals, by = "filename")  %>%
+  extractfromfilename()
   #1205 files (complete cases)
 
 
@@ -199,9 +234,13 @@ runwayhab_missing_formatted <- lapply(runwayhab_missing_split, function(x){
     mutate(rat = head(rat, 1))
   return(x)
 }) %>% rbindlist() %>% 
-  mutate(date = as.Date(as.numeric(date), origin = "1899-12-30"))
-  
-
+  mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin = "1899-12-30", tz="GMT")) %>% 
+  rename("labanimalid" = "rat",
+         "hab_loc1_reachtime" = "start latency", 
+         "hab_loc2_3_reachtime" = "start latency 2",
+         "hab_reachtime" = "goal times", 
+         "elapsedtime" = "run time", 
+         "reversals" = "# of reversals")
 # runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
 # 
 # runwayhab_v_explainna <- runwayhab_v_removelastcolumn %>%
@@ -217,12 +256,13 @@ runwayhab_missing_formatted <- lapply(runwayhab_missing_split, function(x){
 # # gives you the context for which you are missing the files from
 # runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% rename("numberoffilesindir"= "n") %>% dplyr::filter(is.na(hab_reachtime)) %>% add_count() %>% rename("numberofnafilesindir" = "n") %>% View()
 # 
-# runwayhab_v_tail2 <- runwayhab_v_removelastcolumn %>% 
-#   extractfromfilename() %>% 
-#   mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA)) %>%
-#   group_by(labanimalid) %>% 
-#   do(tail(., n=2))
 
+## extract last two relevant files; include this subset in email as concern
+runwayhab_v_removelastcolumn %>% add_count(labanimalid) %>% dplyr::filter( n == 1) %>% select(filename)
+
+## combine two sources of data
+runwayhab_merge <- rbindlist(list(runwayhab_v_tail2, runwayhab_missing_formatted), fill = T) %>% 
+  mutate_at(c("hab_reachtime", "hab_loc2_3_reachtime", "elapsedtime","reversals"), as.numeric)
 
 
 
@@ -261,15 +301,18 @@ runway_reach_df <- runway_reach %>%
 runway_reachtimeNA <- subset(runway_reach_df, is.na(reachtime)==T) ## XX Made note to Maya already; renoted 12/3; create subset to go back for reference; reassign the data var
 runway_reach_df %<>% dplyr::filter(!is.na(reachtime))
 
-# location2 and location3 (use to sub loc2 when na) time 
+# location2 and location3 (use to sub loc2 when na) time + add loc1 (1/2/20)
 readrunwayloc2_3 <- function(x){
+  runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
+  runwayloc1$filename <- x
+  
   runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
   runwayloc2$filename <- x
   
   runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
   runwayloc3$filename <- x
   
-  runwaylocs <- merge(runwayloc2, runwayloc3, by = "filename")
+  runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
   
   return(runwaylocs)
 }
@@ -277,20 +320,22 @@ readrunwayloc2_3 <- function(x){
 runway_loc2_3 <- lapply(runwayfiles_clean, readrunwayloc2_3) # test with runwayfiles_clean[1:10]
 
 
-lapply("./U102/2018-1201-1732_102_RUNWAY.txt", readrunwayloc2_3)
+# lapply("./U102/2018-1201-1732_102_RUNWAY.txt", readrunwayloc2_3)
 
 runway_loc2_3_df <- lapply(runway_loc2_3, function(x){
-  names(x) <- mgsub::mgsub(names(x),
-                           c("\\.x", "1\\.y", "2\\.y", "3\\.y"),
-                           c("", "4", "5", "6"))
-  if(ncol(x) == 7){
-  x <- x %>% rename("loc2_time" = "V1",
-              "location2" = "V2",
-              "locationnum2" = "V3",
-              "loc3_time" = "V4",
-              "location3" = "V5",
-              "locationnum3" = "V6")
-    
+  # names(x) <- mgsub::mgsub(names(x),
+  #                          c("\\.x", "1\\.y", "2\\.y", "3\\.y"),
+  #                          c("", "4", "5", "6"))
+  if(ncol(x) == 10){
+  # x <- x %>% rename("loc2_time" = "V1",
+  #             "location2" = "V2",
+  #             "locationnum2" = "V3",
+  #             "loc3_time" = "V4",
+  #             "location3" = "V5",
+  #             "locationnum3" = "V6")
+    names(x) <- c("filename", "loc1_time", "location1", "locationnum1", 
+                  "loc2_time", "location2", "locationnum2",
+                  "loc3_time", "location3", "locationnum3")
   # names(x) = c("filename", "loc2_time",
   #                     "location2",
   #                     "locationnum2",
@@ -298,20 +343,21 @@ runway_loc2_3_df <- lapply(runway_loc2_3, function(x){
   #                     "location3",
   #                     "locationnum3")
   } 
-  else if(ncol(x) == 4){ 
+  else if(ncol(x) == 7){ 
     # names(x) = c("filename", "loc2_time",
     #              "location2",
     #              "locationnum2")
-    x <- x %>%  rename("loc2_time" = "V1",
-                "location2" = "V2",
-                "locationnum2" = "V3")
+    # x <- x %>%  rename("loc2_time" = "V1",
+    #             "location2" = "V2",
+    #             "locationnum2" = "V3")
+    names(x) <- c("filename", "loc1_time", "location1", "locationnum1", 
+                  "loc2_time", "location2", "locationnum2")
   }
   return(x)  
 })
 
 runway_loc2_3_df <- rbindlist(runway_loc2_3_df, fill = T) %>% 
-  mutate(loc2_time = as.numeric(as.character(loc2_time)),
-         loc3_time = as.numeric(as.character(loc3_time)))
+  mutate_at(c("loc1_time", "loc2_time", "loc3_time"),  as.numeric)
 
 naniar::vis_miss(runway_loc2_3_df)
 
@@ -322,6 +368,15 @@ runway_loc2_3_df %>% dplyr::filter(locationnum2 != 2|locationnum3 != 3) # 20 cas
 
 runway_loc2_3_df %>% dplyr::filter(is.na(loc2_time)) %>% naniar::vis_miss() # if missing loc2, doesn't have loc3
 
+# bc of runway_loc2_3_df %>% dplyr::filter(!is.na(V1))
+runway_loc2_3_df %<>% 
+  mutate(loc1_time = ifelse(is.na(loc1_time) == T & V3 == 1, V1, loc1_time),
+         locationnum1 = ifelse(is.na(locationnum1) == T & V3 == 1, V3, locationnum1),
+         loc2_time = ifelse(is.na(loc2_time) == T & V3 == 2, V1, loc2_time),
+         locationnum2 = ifelse(is.na(locationnum2) == T & V3 == 2, V3, locationnum2),
+         loc3_time = ifelse(is.na(loc3_time) == T & V3 == 3, V1, loc3_time),
+         locationnum3 = ifelse(is.na(locationnum3) == T & V3 == 3, V3, locationnum3))
+
 rawfiles_calc <- left_join(runway_reach_df, runway_loc2_3_df, by = "filename") %>% 
   #filter(locationnum == 2) %>% 
   mutate(elapsedtime = trunc(reachtime) - trunc(loc2_time)) %>%  # turn to transmute once all edges are smooth 
@@ -329,13 +384,17 @@ rawfiles_calc <- left_join(runway_reach_df, runway_loc2_3_df, by = "filename") %
   extractfromfilename %>%  # sort by ascending filename and get animal id and exp date/time 
   left_join(., Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort", "dob")], by = "labanimalid") %>% # add rfid column, extracted from the Jhou_SummaryAll **note the swap situation has not been fixed 
   mutate(experimentage = as.numeric(date - dob)) %>%
-  select(rfid, labanimalid, shipmentcohort, date, time, experimentage, elapsedtime, filename) %>% 
+  select(rfid, labanimalid, shipmentcohort, date, time, experimentage, loc1_time, elapsedtime, filename) %>% 
   dplyr::filter(!rfid %in% Jhou_SummaryAll[,c("rfid", "resolution")][which(Jhou_SummaryAll$resolution %in% c("EXCLUDE_ALL_BEHAVIORS","EXCLUDE_RUNWAY")),]$rfid)
 # the rfid's being removed are all complete cases though
 
 naniar::vis_miss(rawfiles_calc) 
 
 subset(rawfiles_calc, is.na(elapsedtime)) 
+subset(rawfiles_calc, experimentage < 0) 
+rawfiles_calc_upload <- subset(rawfiles_calc, !is.na(elapsedtime)&elapsedtime > 0&!is.na(experimentage)&experimentage > 0 ) # we only want nonzero positive elapsedtimes and experimentages; will allow na's in location1
+
+# Jhou_SummaryAll %>% dplyr::filter(labanimalid == "U429") # bday seems correct 
 
 ## RUNWAY REVERSAL
 # redo reversals since it is only the number of lines of reversals between start and reaching goalbox 
@@ -350,10 +409,14 @@ runway_reversals <- lapply(runwayfiles_clean, read_runwayrevs) %>% rbindlist(fil
 names(runway_reversals) <- c("reversals", "filename")
 naniar::vis_miss(runway_reversals) # complete cases
 
-# bind reversals with runway data 
-runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>%  # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
-  select(rfid, labanimalid, shipmentcohort, date, time, experimentage, elapsedtime, reversals, filename) 
+# bind reversals with runway data ; leave rawfiles_calc with the questions on the dropbox 1/3 XX haven't asked Maya 
+# runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>%  # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
+#   select(rfid, labanimalid, shipmentcohort, date, time, experimentage, elapsedtime, reversals, filename) 
   
+
+# bind reversals with runway data
+runway <- left_join(rawfiles_calc_upload, runway_reversals, by = "filename") %>%  # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
+  select(rfid, labanimalid, shipmentcohort, date, time, experimentage, loc1_time, elapsedtime, reversals, filename)
 naniar::vis_miss(runway)
 
 # *optional* add session info
@@ -992,4 +1055,15 @@ assign()
 #################################################################################################
 ## CREATE FIRST SQL FILE FOR RUNWAY DATA
 drv <- dbDriver("PostgreSQL")
-con <- dbConnect(drv, user='user', password='password', dbname='U01', host='host')
+con <- dbConnect(drv, user='postgres', password='password', dbname='U01')
+dbListTables(con)
+
+#insert data into mytable from data frame
+df <- data.frame(fname = "Rosy", lname = "R.", age = 54)
+# dbWriteTable(con, "mytable", df, append = TRUE, row.names = FALSE)
+dbWriteTable(con, c("u01_tom_jhou", "jhou_runway"), value = runway)
+dbExistsTable(con, c("u01_tom_jhou", "jhou_runway"))
+
+# runway[ runway == "NA" ] <- NA
+# is.na(runway) <- runway == "NA"
+
