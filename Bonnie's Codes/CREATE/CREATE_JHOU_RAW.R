@@ -445,6 +445,8 @@ naniar::vis_miss(runway)
 ################################
 ### EXP 2: locomotor 
 
+# Starting with U311, there 
+
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Locomotor") 
 # extract bincounts from second column with data
 read_locomotor <- function(x){
@@ -459,7 +461,8 @@ read_locomotor <- function(x){
 
 locomotorfiles <- list.files(path=".", pattern=".*LOCOMOTOR.*.txt", full.names=TRUE, recursive=TRUE) # note the 4221 id in one file, but seems to be no error files so below code is unneeded
 # locomotorfiles_clean <- locomotorfiles[str_detect(locomotorfiles, "/{U}\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_LOCOMOTOR_BASIC.txt", negate = F)] # turning off and allowing for code below until XX resolved u subdirectories
-locomotorfiles_clean <- locomotorfiles[str_detect(locomotorfiles, "/[Uu]\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_LOCOMOTOR_BASIC.txt", negate = F)] # 
+locomotorfiles_clean <- locomotorfiles[str_detect(locomotorfiles, "/[Uu]\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_LOCOMOTOR_BASIC(_| corrected)?.txt", negate = F)] # 
+
 
 rawfiles_locomotor <- lapply(locomotorfiles_clean, read_locomotor) %>% 
   rbindlist(fill = T) %>%
@@ -509,11 +512,21 @@ rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
                                binmeans = rowMeans(.SD, na.rm=T)), .SDcols=names(rawfiles_locomotor_wide)[-1]]
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
-rawfiles_locomotor_wide <- extractfromfilename(rawfiles_locomotor_wide) %>%
+locomotor_raw <- extractfromfilename(rawfiles_locomotor_wide) %>%
   mutate(labanimalid = toupper(rawfiles_locomotor_wide$filename) %>% str_extract('(U[[:digit:]]+)')) %>%   
   WFUjoin.raw() %>% #append to wfu info
   select(labanimalid, rfid, shipmentcohort, date, time, everything()) %>% # code changes data.table back to data.frame
-  select(-filename, filename)
+  select(-filename, filename) %>% 
+  dplyr::filter(bintotal != 0) %>% 
+  dplyr::filter(rowSums(is.na(.[grep("minute", names(.))])) < 2) %>% 
+  dplyr::filter(!rfid %in% Jhou_SummaryAll[,c("rfid", "resolution")][grepl("EXCLUDE_LOCOMOTOR2", Jhou_SummaryAll$resolution),]$rfid)
+
+locomotor_raw_upload <- locomotor_raw %>% subset(experimentage > 0)
+
+
+locomotor_raw %>% add_count(labanimalid) %>% select(labanimalid, n) %>% ggplot() + geom_histogram(aes(n))
+
+## to assign session
 
 
 # XX review and remove after the call
@@ -557,8 +570,8 @@ bincounts <- c("Binned Counts","Binned Counts1",  "Binned Counts2","Binned Count
 
 # add count and assigning the session based on the number of counts
 # extract from between _id_ rather than from Uid # exclude those that are resolved to be exclude
-rawfiles_locomotor_wide_split <- split(rawfiles_locomotor_wide, rawfiles_locomotor_wide$labanimalid)
-Jhou_Raw_Locomotor <- lapply(rawfiles_locomotor_wide_split, function(x){
+rawfiles_locomotor_split <- split(locomotor_raw, locomotor_raw$labanimalid)
+Jhou_Raw_Locomotor <- lapply(rawfiles_locomotor_split, function(x){
   x <- x %>% 
     arrange(date, time)
   if(nrow(x) == 2){
@@ -567,11 +580,12 @@ Jhou_Raw_Locomotor <- lapply(rawfiles_locomotor_wide_split, function(x){
   else if(nrow(x) == 4){
     cbind(x, tail(bincounts,4))
   }
-  else{
+  else if(nrow(x) == 1){
     cbind(x,head(bincounts,1))
   }
 }) %>% 
-  rbindlist() 
+  rbindlist()  %>% #append to wfu info
+  select(labanimalid, rfid, shipmentcohort, date, time, session, everything())
 
 
 # to do: append bodyweightperc
@@ -784,7 +798,7 @@ progratio_presses_df <- rbindlist(progratio_presses_rm, fill = T) %>%
 
 # join to create final raw df
 progratio <- left_join(progratio_maxratio_df, progratio_presses_df, by = "filename") # 10/28 bring to Alen's attention -- these cases for which there are only timeout lines and no pre-timeout value so no maxratio value 
-progratio <- progratio %>% 
+progratio_raw <- progratio %>% 
  #  dplyr::filter(!grepl("error", filename), !is.na(activepresses)) %>%
   extractfromfilename() %>%
   group_by(labanimalid) %>% 
@@ -820,7 +834,7 @@ create_delayedpuntable <- function(x){
 
 delayedpunishment_df = lapply(delayed_punishmentfiles_clean, create_delayedpuntable) %>%
   rbindlist(fill = T) # 52389 THIS TRIAL LINES from 5873 unique files
-colnames(c) = c("trialnum", "shockma", "rownum", "filename") 
+colnames(delayedpunishment_df) = c("trialnum", "shockma", "rownum", "filename") 
 # summary(delayedpunishment_df) # 73 NA's
 # naniar::vis_miss(delayedpunishment_df)
 
@@ -955,10 +969,10 @@ delayedpun_runindiffboxes <- delayedpun_boxes_df %>% mutate(find_1_digit = readr
 #   select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, filename)
 
 
-
+# 1/3 turned into comment to avoid the labanimalid
 # XXX concern (some animals have more than one box designation):
-delayedpun_boxes_df$labanimalid <- stringr::str_extract(delayedpun_boxes_df$filename, regex("U[[:digit:]]+[[:alpha:]]*", ignore_case=T))
-delayedpun_boxes_df %>% select(-filename) %>% distinct() %>% add_count(labanimalid) %>% dplyr::filter(n!=1) %>% as.data.frame()
+# delayedpun_boxes_df$labanimalid <- stringr::str_extract(delayedpun_boxes_df$filename, regex("U[[:digit:]]+[[:alpha:]]*", ignore_case=T))
+# delayedpun_boxes_df %>% select(-filename) %>% distinct() %>% add_count(labanimalid) %>% dplyr::filter(n!=1) %>% as.data.frame()
   
 # morethanone <- delayedpun_boxesandstations_df %>%
 #   select(labanimalid, boxorstationumber) %>%
@@ -989,10 +1003,12 @@ delayedpunishment <- delayedpun_delays_df %>%
 # consistent within session
 # delayedpun_boxes_df %>% mutate(number1 = str_sub(find_1, -1), number2 = str_sub(find_2, -1) ) %>% dplyr::filter(number1 != number2) # so that's why we can use find_1 as proxy since the only difference is in station vs box 
 
-delayedpunishment %>% summary
-delayedpunishment %>% naniar::vis_miss()
+delayedpunishment %>% summary 
+delayedpunishment %>% naniar::vis_miss() #100% now 
 # to do: check the validity of the columns and the cell formatting 
 ## and use resolutions column to filter out data
+
+# subset(delayedpunishment, is.na(numtrialsatlastshock)) FIND OUT WHY THIS CODE ISN'T WORKING FOR U481 FOR EXAMPLE
 
 
 ################################
@@ -1108,4 +1124,8 @@ dbExistsTable(con, c("u01_tom_jhou", "jhou_levertraining"))
 
 
 dbWriteTable(con, c("u01_tom_jhou", "jhou_delayedpunishment"), value = delayedpunishment, row.names = F)
-dbExistsTable(con, c("u01_tom_jhou", "jhou_delayedpunishment"))
+dbExistsTable(con, c("u01_tom_jhou", "jhou_delayedpunishment")) #5935
+
+
+dbWriteTable(con, c("u01_tom_jhou", "jhou_progressivepunishment"), value = progpun_raw, row.names = F)
+dbExistsTable(con, c("u01_tom_jhou", "jhou_progressivepunishment")) #3276
