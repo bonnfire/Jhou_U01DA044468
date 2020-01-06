@@ -38,7 +38,7 @@ extractfromfilename <- function(df){
   # if(df == "rawfiles_prepcalc"){
   #   df$cohort <- stringr::str_extract(df$filename, "Cohort [[:digit:]]")
   # }
-  df$labanimalid <- stringr::str_extract(df$filename, "U[[:digit:]]+[[:alpha:]]*")
+  df$labanimalid <- stringr::str_extract(toupper(df$filename), "U[[:digit:]]+[[:alpha:]]*")
   df$date <- gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(df$filename, "[[:digit:]]{4}[-][[:digit:]]{4}"))
   df$date <- as.POSIXct(df$date, tz = "UTC")
   df$time <- stringr::str_extract(df$filename, "[[:digit:]]{4}(?=_)")
@@ -513,16 +513,13 @@ rawfiles_locomotor_wide[, `:=`(bintotal = rowSums(.SD, na.rm=T),
 
 # only one case for which the minute 31 appears, ./U112/2019-0121-0939_112_LOCOMOTOR_BASIC.txt
 locomotor_raw <- extractfromfilename(rawfiles_locomotor_wide) %>%
-  mutate(labanimalid = toupper(rawfiles_locomotor_wide$filename) %>% str_extract('(U[[:digit:]]+)')) %>%   
+  #mutate(labanimalid = toupper(rawfiles_locomotor_wide$filename) %>% str_extract('(U[[:digit:]]+)')) %>%   
   WFUjoin.raw() %>% #append to wfu info
   select(labanimalid, rfid, shipmentcohort, date, time, everything()) %>% # code changes data.table back to data.frame
   select(-filename, filename) %>% 
   dplyr::filter(bintotal != 0) %>% 
   dplyr::filter(rowSums(is.na(.[grep("minute", names(.))])) < 2) %>% 
   dplyr::filter(!rfid %in% Jhou_SummaryAll[,c("rfid", "resolution")][grepl("EXCLUDE_LOCOMOTOR2", Jhou_SummaryAll$resolution),]$rfid)
-
-locomotor_raw_upload <- locomotor_raw %>% subset(experimentage > 0)
-
 
 locomotor_raw %>% add_count(labanimalid) %>% select(labanimalid, n) %>% ggplot() + geom_histogram(aes(n))
 
@@ -585,8 +582,16 @@ Jhou_Raw_Locomotor <- lapply(rawfiles_locomotor_split, function(x){
   }
 }) %>% 
   rbindlist()  %>% #append to wfu info
-  select(labanimalid, rfid, shipmentcohort, date, time, session, everything())
+  select(labanimalid, rfid, shipmentcohort, date, time, session, everything()) %>% 
+  subset(experimentage > 0)
 
+# investigate minute 30 na comparison to the excel
+# which ones are na in raw but are not na in excel
+Jhou_Raw_Locomotor %>% subset(minute30 %>% is.na()) %>% dplyr::filter(!labanimalid %in% subset(Jhou_Locomotor, is.na(minute30))$labanimalid)
+# which ones are na in excel but not in raw
+
+# fixes the one na in raw but not na in excel
+# Jhou_Raw_Locomotor[which(Jhou_Raw_Locomotor$filename == "./U54/2018-1022-1248_54_LOCOMOTOR_BASIC.txt"),]$minute30 <- 4 # this file doens't have "END SESSION" # not needed anymore because id only needed to be reformatted 
 
 # to do: append bodyweightperc
 
@@ -763,7 +768,7 @@ progpun_raw <- sapply(progpun_presses_df$filename, readbox) %>%
 # max ratio
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive ratio")
 progratiofiles <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) 
-progratiofiles_clean <- progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_corrected)?.txt", negate = F)]
+progratiofiles_clean <- progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_|_corrected)?.txt", negate = F)]
 
 # progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_corrected)?.txt", negate = T)] gives the subset of filenames that don't follow the format
 
@@ -805,8 +810,14 @@ progratio_raw <- progratio %>%
   mutate(session = as.character(dplyr::row_number())) %>% 
   ungroup() %>% 
   WFUjoin.raw() %>% 
-  select(labanimalid, rfid, shipmentcohort, date, time, session, activepresses, inactivepresses, filename)%>%
-  arrange(labanimalid) # 100% present data
+  select(shipmentcohort, labanimalid, rfid, date, time, session, maxratio, everything())  %>% 
+  select(-filename, filename) %>%
+  arrange(labanimalid, session)  # 100% present data
+
+aggregate(session ~ labanimalid, data = progratio_raw, max) %>% mutate(session = as.numeric(session)) %>% select(session) %>% table()
+progratio_subjects_tempremove <- aggregate(session ~ labanimalid, data = progratio_raw, max) %>% mutate(session = as.numeric(session)) %>% subset(session != 4) %>% select(labanimalid) %>% unlist() %>% as.character()
+
+progratio_raw_upload <- progratio_raw %>% subset(!labanimalid %in% progratio_subjects_tempremove)
 
   # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>%
   # arrange(labanimalid)
@@ -1129,3 +1140,10 @@ dbExistsTable(con, c("u01_tom_jhou", "jhou_delayedpunishment")) #5935
 
 dbWriteTable(con, c("u01_tom_jhou", "jhou_progressivepunishment"), value = progpun_raw, row.names = F)
 dbExistsTable(con, c("u01_tom_jhou", "jhou_progressivepunishment")) #3276
+
+dbWriteTable(con, c("u01_tom_jhou", "jhou_locomotor"), value = Jhou_Raw_Locomotor, row.names = F)
+dbExistsTable(con, c("u01_tom_jhou", "jhou_locomotor")) #895
+
+dbWriteTable(con, c("u01_tom_jhou", "jhou_progressiveratio"), value = progratio_raw_upload, row.names = F)
+dbExistsTable(con, c("u01_tom_jhou", "jhou_progressiveratio")) #1848
+
