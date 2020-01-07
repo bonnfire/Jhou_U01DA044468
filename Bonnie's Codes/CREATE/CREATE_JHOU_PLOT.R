@@ -119,8 +119,20 @@ for (i in seq_along(onlymins)){
 }
 dev.off()
 
+## make this work for one and then put it into the fxn'
 
+temp = reshape(rawandexcel_locomotor, direction="long", varying=paste0("minute", 1:30), sep="") %>% 
+  rename("minute" = "time", "counts" = "minute") %>% 
+  subset(as.numeric(shipmentcohort) < 2)
+lattice::bwplot(counts ~ as.factor(minute) | shipmentcohort, data = temp) + latticeExtra::as.layer(lattice::xyplot(counts ~ as.factor(minute) | shipmentcohort, data = temp))
 
+for(i in 1:length(onlymins)){
+  ggplot(rawandexcel_locomotor, aes(x = shipmentcohort, group = shipmentcohort)) + geom_boxplot(aes_string(onlymins))
+}
+
+ggplot(subset(rawandexcel_locomotor, shipmentcohort == 1), minute1, group = shipmentcohort)) + geom_boxplot()
+
+ggplot(rawandexcel_locomotor, aes(x = shipmentcohort, y = minute1, group = shipmentcohort)) + geom_boxplot()
 
 
 
