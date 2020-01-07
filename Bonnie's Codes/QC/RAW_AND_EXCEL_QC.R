@@ -187,6 +187,12 @@ ggplot(rawfiles_locomotor_wide, aes(shipmentcohort, experimentage)) + geom_boxpl
 
 rawfiles_locomotor_wide %>% dplyr::filter(shipmentcohort == "3.1")
 
+
+## updated data from uploaded data (1/6)
+Jhou_Raw_Locomotor
+
+
+
 ################################
 #### Progressive Punishment ####
 ################################

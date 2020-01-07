@@ -13,25 +13,27 @@
 #          shipmentcohort = factor(rawfiles_locomotor_wide_graph$shipmentcohort, levels=sort(as.numeric(unique(rawfiles_locomotor_wide_graph$shipmentcohort))), ordered=TRUE))
 
 # trying with split data
-rawfiles_locomotor_wide_graph <- Jhou_Raw_Locomotor %>% 
+Jhou_Locomotor_Raw_graph <- Jhou_Raw_Locomotor %>% 
   mutate(shipmentcohort = trunc(as.numeric(Jhou_Raw_Locomotor$shipmentcohort)) %>% as.character(),
          shipmentcohort = factor(Jhou_Raw_Locomotor$shipmentcohort, levels=sort(as.numeric(unique(Jhou_Raw_Locomotor$shipmentcohort))), ordered=TRUE))
 
 
 Jhou_Locomotor_Excel_graph <- Jhou_Locomotor %>%  
-  left_join(., rfidandid, by = "labanimalid") %>%  # extract file information for preparation for appending to rfid
-  mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid))
+  merge(Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort", "dob")], ., by = "labanimalid") 
+# %>%  # extract file information for preparation for appending to rfid
+  # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid))
 
-locomotormeasures <- grep(pattern = "^(?=min|bin)", names(rawfiles_locomotor_wide_graph), perl = T, value = T)
-onlymins <-  grep(pattern = "^(min)", names(rawfiles_locomotor_wide_graph), perl = T, value = T)[-31]
+locomotormeasures <- grep(pattern = "^(?=min|bin)", names(Jhou_Locomotor_Raw_graph), perl = T, value = T)
+onlymins <-  grep(pattern = "^(min)", names(Jhou_Locomotor_Raw_graph), perl = T, value = T)[-31]
 onlymins_excel <- paste0(onlymins, "_excel")
 onlymins_raw <- paste0(onlymins, "_raw")
 
-joinrawtoexcel <- left_join(Jhou_Locomotor_Excel_graph,rawfiles_locomotor_wide_graph,  by = c("labanimalid", "session"))
+joinrawtoexcel <- left_join(Jhou_Locomotor_Excel_graph,subset(Jhou_Locomotor_Raw_graph, select = c("labanimalid", "session", onlymins)),  by = c("labanimalid", "session"))
 names(joinrawtoexcel) <- gsub(".x", "_excel", names(joinrawtoexcel))
 names(joinrawtoexcel) <- gsub(".y", "_raw", names(joinrawtoexcel))
 xlim <- lapply(joinrawtoexcel[onlymins_excel], range, na.rm=T)
 ylim <- lapply(joinrawtoexcel[onlymins_raw], range, na.rm=T)
+
 
 pdf("jhou_locomotor_compare.pdf", onefile = T)
 plot_list = list()
@@ -48,7 +50,7 @@ for (i in seq_along(onlymins)){
   #   theme(axis.text.x = element_text(angle = 45))
 
   plot_compare_list[[i]] <- ggplot(joinrawtoexcel, aes_string( onlymins_excel[i], onlymins_raw[i])) + 
-                                     geom_point(aes(color = shipmentcohort_excel)) +
+                                     geom_point(aes(color = shipmentcohort)) +
     # geom_text(aes_string(label=ifelse(onlymins_excel[i] == onlymins_raw[i], '', "labanimalid")),hjust=0,vjust=0) + 
     # geom_text(aes(label = labanimalid), data = joinrawtoexcel[joinrawtoexcel$labanimalid %in% excelhasbutnotraw$labanimalid,]) + # get excelhasbutnotraw from raw and excel qc
     labs(title = paste0("Comparison of ", onlymins[i], "_locomotor_U01_Jhou"),
@@ -68,8 +70,58 @@ for (i in seq_along(onlymins)){
   
   
 }
-
 dev.off()
+
+
+inexcelnotraw_locomotor <- anti_join(subset(Jhou_Locomotor, select = c("labanimalid", "session", onlymins)), 
+          subset(Jhou_Raw_Locomotor, select = c("labanimalid", "session", onlymins)),
+          by = c("labanimalid", onlymins)) ## 44 entries
+
+rawandexcel_locomotor <- full_join(subset(Jhou_Locomotor, select = c("labanimalid", "session", onlymins)), 
+                                     subset(Jhou_Raw_Locomotor, select = c("labanimalid", "session", onlymins)),
+                                     by = c("labanimalid", onlymins)) %>% #ignoring the sessions for now 
+  merge(Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort")], ., by = "labanimalid") 
+
+
+pdf("jhou_locomotorfulljoin.pdf", onefile = T)
+plot_list = list()
+plot_compare_list = list()
+
+
+
+for (i in seq_along(onlymins)){
+  # 
+  # plot_list[[i]] <- ggplot(rawfiles_locomotor_wide_graph, aes(x=shipmentcohort))+ 
+  #   geom_boxplot(aes_string(y = locomotormeasures[i])) + 
+  #   labs(title = paste0(locomotor_dd$var_graphtext[i], "_locomotor_U01_Jhou"),
+  #        y = locomotor_dd$var_graphtext[i], x = "Cohort") +
+  #   theme(axis.text.x = element_text(angle = 45))
+  
+  plot_compare_list[[i]] <- ggplot(rawandexcel_locomotor, aes_string(onlymins)) + 
+    geom_point(aes(color = shipmentcohort)) +
+    # geom_text(aes_string(label=ifelse(onlymins_excel[i] == onlymins_raw[i], '', "labanimalid")),hjust=0,vjust=0) + 
+    # geom_text(aes(label = labanimalid), data = joinrawtoexcel[joinrawtoexcel$labanimalid %in% excelhasbutnotraw$labanimalid,]) + # get excelhasbutnotraw from raw and excel qc
+    labs(title = paste0("Cohort breakdown of ", onlymins[i], "_locomotor_U01_Jhou")) + 
+    scale_x_continuous(limits = xlim[[i]]) + 
+    scale_y_continuous(limits = xlim[[i]]) + 
+    geom_abline(slope = 1, intercept = 0, size = 0.5, alpha = 0.5)
+  
+  
+  # geom_text(aes(CPI, HDI, label = Country), data = dat[dat$Country %in% pointsToLabel,])
+  
+  
+  #plot_compare_list[[i]] <- ggplot(data = test, aes(x=minute1.x, y = minute1.y)) + geom_point()
+  
+  #  print(plot_list[[i]])
+  print(plot_compare_list[[i]])
+  
+  
+}
+dev.off()
+
+
+
+
 
 
 #########################################################
@@ -141,6 +193,13 @@ for (i in seq_along(progpunmeasures)){
 }
 
 dev.off()
+
+# change to prog pun text
+inexcelnotraw_progpun <- anti_join(subset(Jhou_Locomotor, select = c("labanimalid", "session", onlymins)), 
+                                     subset(progpun_raw, select = c("labanimalid", "session", onlymins)),
+                                     by = c("labanimalid", onlymins))
+
+
 ###################################################################
 # Progressive ratio
 ##################################################################
@@ -168,6 +227,8 @@ for (i in seq_along(progratiomeasures)){
   }
 
 dev.off()
+
+
 
 ###################################################################
 # Delayed punishment
