@@ -112,65 +112,13 @@ gs_auth(new_user = TRUE)
 # collect habituation data, label not habituated, use id's that did habituate to extract reach time, location 2, number of reversals from the Runway directory
 
 ## FIRST FROM RUNWAY HABITUATION FOLDER 
-## AND THEN FROM RUNWAY EXCEL
+## AND THEN FROM RUNWAY HABITUATION EXCEL
+## USE RUNWAY EXCEL TO LABEL MISSING DATA AS "NEVER HABITUATED" 
+
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
 runwayhab_files_2 <- system("grep -rnwe 'CALCULATED SYRINGE DURATION USING 10ML SYRINGE IS 0 SECONDS'", intern = T) %>% 
   gsub(":.*", "", x = .) %>% 
   paste0("./", .)
-
-# setdiff(runwayhab_files_clean, runwayhab_files_2) # those in x but not in y setdiff(x,y )
-# setdiff(runwayhab_files_2, runwayhab_files_clean)
-
-# runway hab files should only be 0 weights, so the non zero cases need to be noted 
-# readrunwayhab_weight <- function(x){
-#   runwayhab_weight <- fread(paste0("awk '/WEIGHT/{print $4}' ", "'", x, "'"), fill = T)
-#   runwayhab_weight$filename <- x
-#   return(runwayhab_weight)
-# }
-# runwayhab_files <- list.files(path = "." , pattern = "*.txt", full.names = T, recursive = T)  # 1378 raw text files 
-# 
-# str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
-# runwayhab_files_clean <- runwayhab_files[str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 1269 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
-# # runwayhab_files_clean <- grep("^((?!error).)*$", runwayhab_files, value = T, perl = T) # mimic inverse matching with negative look arounds  # filter for clean filenames 
-# # runwayhab_weights <- lapply(runwayhab_files_clean, readrunwayhab_weight) %>% 
-# #   rbindlist(fill = T) %>% 
-# #   rename("ratweight" = "V1")
-# # runwayhab_weights_validfiles <- runwayhab_weights %>% extractfromfilename() %>% dplyr::filter(ratweight == 0) %>% select(filename) # 1262 valid files with 0 weights 
-# runwayhab_weights_validfiles <- runwayhab_files_clean[which(runwayhab_files_clean %in% runwayhab_files_2)] # 1367 valid files with 0 parameters
-
-# readrunwayhab <- function(x){
-#   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
-#   runwayhab_reach$filename <- x
-#   if(grepl("U194|U197|U198|U199|U262|U415|U96", x, ignore.case = T)){
-#     runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T) # XX figure out how this vector of id's is being generated 
-#   } else{
-#   runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
-#   }
-#   runwayhabloc2$filename <- x
-#   
-#   runwayhab <- merge(runwayhab_reach, runwayhabloc2, by = "filename", all = T)
-#   return(runwayhab)
-# }
-
-# readrunwayhab <- function(x){
-#   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
-#   runwayhab_reach$filename <- x
-#   
-#   runwayhabloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
-#   runwayhabloc1$filename <- x
-#   
-#     if(grepl("U194|U197|U198|U199|U262|U415|U96", x, ignore.case = T)){
-#       runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T) # XX figure out how this vector of id's is being generated
-#     } else{
-#     runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
-#     }
-#   runwayhabloc2$filename <- x
-#   
-#   runwayhablocs <- merge(runwayhab_reach, merge(runwayhabloc1, runwayhabloc2, by = "filename"), by = "filename")
-#   
-#   return(runwayhablocs)
-# }
-
 
 runwayhab_v_ <- lapply(runwayhab_weights_validfiles, readrunwayhab) %>% 
   rbindlist(fill = T) 
