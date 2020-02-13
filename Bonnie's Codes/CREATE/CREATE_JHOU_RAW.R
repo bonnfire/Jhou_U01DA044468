@@ -304,7 +304,7 @@ runway_files <- system("grep -irI \"number of infusions\" | grep -o -P '.*(:)'",
   paste0("./", .)
 
 str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
-
+setdiff(runway_files,runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)])
 
 
 
