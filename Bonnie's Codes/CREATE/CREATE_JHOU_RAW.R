@@ -110,13 +110,16 @@ gs_auth(new_user = TRUE)
 # 3 habituation sessions + 12 cocaine sessions. At 3-4 sessions/day, this takes 4-5 days.
 
 # collect habituation data, label not habituated, use id's that did habituate to extract reach time, location 2, number of reversals from the Runway directory
+
+## FIRST FROM RUNWAY HABITUATION FOLDER 
+## AND THEN FROM RUNWAY EXCEL
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
 runwayhab_files_2 <- system("grep -rnwe 'CALCULATED SYRINGE DURATION USING 10ML SYRINGE IS 0 SECONDS'", intern = T) %>% 
   gsub(":.*", "", x = .) %>% 
   paste0("./", .)
 
-setdiff(runwayhab_files_clean, runwayhab_files_2)
-
+# setdiff(runwayhab_files_clean, runwayhab_files_2) # those in x but not in y setdiff(x,y )
+# setdiff(runwayhab_files_2, runwayhab_files_clean)
 
 # runway hab files should only be 0 weights, so the non zero cases need to be noted 
 # readrunwayhab_weight <- function(x){
@@ -124,16 +127,16 @@ setdiff(runwayhab_files_clean, runwayhab_files_2)
 #   runwayhab_weight$filename <- x
 #   return(runwayhab_weight)
 # }
-runwayhab_files <- list.files(path = "." , pattern = "*.txt", full.names = T, recursive = T)  # 1271 raw text files 
-
-str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
-runwayhab_files_clean <- runwayhab_files[str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 1269 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
-# runwayhab_files_clean <- grep("^((?!error).)*$", runwayhab_files, value = T, perl = T) # mimic inverse matching with negative look arounds  # filter for clean filenames 
-# runwayhab_weights <- lapply(runwayhab_files_clean, readrunwayhab_weight) %>% 
-#   rbindlist(fill = T) %>% 
-#   rename("ratweight" = "V1")
-# runwayhab_weights_validfiles <- runwayhab_weights %>% extractfromfilename() %>% dplyr::filter(ratweight == 0) %>% select(filename) # 1262 valid files with 0 weights 
-runwayhab_weights_validfiles <- runwayhab_files_clean[which(runwayhab_files_clean %in% runwayhab_files_2)] # 1367 valid files with 0 parameters
+# runwayhab_files <- list.files(path = "." , pattern = "*.txt", full.names = T, recursive = T)  # 1378 raw text files 
+# 
+# str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
+# runwayhab_files_clean <- runwayhab_files[str_detect(runwayhab_files, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 1269 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
+# # runwayhab_files_clean <- grep("^((?!error).)*$", runwayhab_files, value = T, perl = T) # mimic inverse matching with negative look arounds  # filter for clean filenames 
+# # runwayhab_weights <- lapply(runwayhab_files_clean, readrunwayhab_weight) %>% 
+# #   rbindlist(fill = T) %>% 
+# #   rename("ratweight" = "V1")
+# # runwayhab_weights_validfiles <- runwayhab_weights %>% extractfromfilename() %>% dplyr::filter(ratweight == 0) %>% select(filename) # 1262 valid files with 0 weights 
+# runwayhab_weights_validfiles <- runwayhab_files_clean[which(runwayhab_files_clean %in% runwayhab_files_2)] # 1367 valid files with 0 parameters
 
 # readrunwayhab <- function(x){
 #   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
@@ -149,24 +152,25 @@ runwayhab_weights_validfiles <- runwayhab_files_clean[which(runwayhab_files_clea
 #   return(runwayhab)
 # }
 
-readrunwayhab <- function(x){
-  runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
-  runwayhab_reach$filename <- x
-  
-  runwayhabloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
-  runwayhabloc1$filename <- x
-  
-    if(grepl("U194|U197|U198|U199|U262|U415|U96", x, ignore.case = T)){
-      runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T) # XX figure out how this vector of id's is being generated
-    } else{
-    runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
-    }
-  runwayhabloc2$filename <- x
-  
-  runwayhablocs <- merge(runwayhab_reach, merge(runwayhabloc1, runwayhabloc2, by = "filename"), by = "filename")
-  
-  return(runwayhablocs)
-}
+# readrunwayhab <- function(x){
+#   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
+#   runwayhab_reach$filename <- x
+#   
+#   runwayhabloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
+#   runwayhabloc1$filename <- x
+#   
+#     if(grepl("U194|U197|U198|U199|U262|U415|U96", x, ignore.case = T)){
+#       runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"), fill = T) # XX figure out how this vector of id's is being generated
+#     } else{
+#     runwayhabloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"), fill = T)
+#     }
+#   runwayhabloc2$filename <- x
+#   
+#   runwayhablocs <- merge(runwayhab_reach, merge(runwayhabloc1, runwayhabloc2, by = "filename"), by = "filename")
+#   
+#   return(runwayhablocs)
+# }
+
 
 runwayhab_v_ <- lapply(runwayhab_weights_validfiles, readrunwayhab) %>% 
   rbindlist(fill = T) 
@@ -177,13 +181,14 @@ runwayhab_v_ %<>%
          "hab_locationnum1" = "V3.x",
          "hab_loc2_3_reachtime" = "V1.y",
          "hab_location2" = 'V2.y', 
-         "hab_locationnum2" = "V3.y"
-         #,"whatisthis" = "V1"
+         "hab_locationnum2" = "V3.y",
+         "whatisthis" = "V2",
+         "whatisthis2" = "V3"
          ) # 1262 files
 
 runwayhab_v_ %>% naniar::vis_miss()
 runwayhab_v_ %>% dplyr::filter(is.na(hab_reachtime)) %>% select(filename) %>% unlist() %>% as.character()
-runwayhab_v_ %>% dplyr::filter(!is.na(V2)) 
+runwayhab_v_ %>% dplyr::filter(!is.na(whatisthis)) 
 runwayhab_v_ %>% dplyr::filter(is.na(hab_loc1)|is.na(hab_reachtime)) 
 
 # %>% select(filename) %>% unlist() %>% as.character()
@@ -263,6 +268,64 @@ runwayhab_v_removelastcolumn %>% add_count(labanimalid) %>% dplyr::filter( n == 
 ## combine two sources of data
 runwayhab_merge <- rbindlist(list(runwayhab_v_tail2, runwayhab_missing_formatted), fill = T) %>% 
   mutate_at(c("hab_reachtime", "hab_loc2_3_reachtime", "elapsedtime","reversals"), as.numeric)
+
+
+
+
+############# redo 2/12
+readrunwayhab_reach <-  function(x){
+  runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
+  runwayhab_reach$filename <- x
+  return(runwayhab_reach)
+}
+readrunwayhab_locs <- function(x){
+
+  runwayhabloc1 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ",
+                                "'", x, "'; then grep -Pm1 'LOCATION\\s\\t1' ",
+                                "'", x, "'; else grep -Pm1 'LOCATION\\s\\t2' ", 
+                                "'", x, "'; fi"), fill = T)
+  runwayhabloc1$filename <- x
+  
+  
+  runwayhabloc2 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ",
+                                "'", x, "' && grep -Pq 'LOCATION\\s\\t2' ", "'", x, "'",
+                                "; then grep -Pm1 'LOCATION\\s\\t2' ",
+                                "'", x, "'; else grep -Pm1 'LOCATION\\s\\t3' ", 
+                                "'", x, "'; fi"), fill = T)
+  runwayhabloc2$filename <- x
+  
+  runwayhablocs <- merge(runwayhabloc1, runwayhabloc2, by = "filename")
+  return(runwayhablocs)
+}
+
+runwayhab_reach_test <- lapply(runwayhab_files_2, readrunwayhab_reach) 
+runwayhab_reach_test_df <- runwayhab_reach_test %>% rbindlist(fill = T) %>% 
+  rename("hab_reachtime" = "V1")
+         
+runwayhab_test <- lapply(runwayhab_files_2, readrunwayhab_locs)
+runwayhab_test_df <- runwayhab_test %>% rbindlist(fill = T) %>% 
+  mutate(V1.x = coalesce(V1.x, V1),
+         V2.x = coalesce(V2.x, V2),
+         V3.x = coalesce(V3.x, V3)) %>% 
+  select(-one_of("V1", "V2", "V3")) %>% 
+  rename("hab_loc1_reachtime" = "V1.x",
+         "hab_location1" = "V2.x",
+         "hab_locationnum1" = "V3.x",
+         "hab_loc2_reachtime" = "V1.y",
+         "hab_location2" = 'V2.y', 
+         "hab_locationnum2" = "V3.y")
+
+lapply(runwayhab_test, ncol) %>% unlist() %>% as.data.frame() %>% mutate(row = row_number()) %>% subset(.!=8)
+
+runway_habituation_df <- merge(runwayhab_reach_test_df, runwayhab_test_df, by = "filename") %>% 
+  select(-matches("location")) %>% 
+  mutate(latency = hab_loc2_reachtime - hab_loc1_reachtime)
+runway_habituation_df %>% subset(latency < 0)
+
+
+
+
+
 
 
 
