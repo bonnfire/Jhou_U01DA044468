@@ -297,6 +297,22 @@ runwayhab_merge_df %>%  filter_if(is.numeric, any_vars(is.na(.))) %>% as.data.fr
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
 
 # reach time and qc the times from in files
+
+# use these files
+runway_files <- system("grep -irI \"number of infusions\" | grep -o -P '.*(:)'", intern = T) %>% 
+  gsub(":.*", "", x = .) %>% 
+  paste0("./", .)
+
+str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
+
+
+
+
+
+
+
+
+## ***************************************************************************************************************************************
 readrunway <- function(x){
   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runway$filename <- x
@@ -304,7 +320,7 @@ readrunway <- function(x){
 }
 
 
-runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #3983 files 
+runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #4513 files 
 # runwayfiles_clean[grepl("^m.*\\.log",runwayfiles_clean)] # remove error and duplicate files
 
 str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
