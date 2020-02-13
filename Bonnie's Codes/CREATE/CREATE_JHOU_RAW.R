@@ -199,23 +199,29 @@ runwayhab_merge <- rbindlist(list(runwayhab_v_tail2, runwayhab_missing_formatted
 
 
 ############# redo 2/12
+
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
+
+# use these files
+runwayhab_files_2 <- system("grep -rnwe 'CALCULATED SYRINGE DURATION USING 10ML SYRINGE IS 0 SECONDS'", intern = T) %>% 
+  gsub(":.*", "", x = .) %>% 
+  paste0("./", .)
+
+# get reach data
 readrunwayhab_reach <-  function(x){
   runwayhab_reach <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
   runwayhab_reach$filename <- x
   return(runwayhab_reach)
 }
+# get the loc 1 and loc 2 data
 readrunwayhab_locs <- function(x){
 
-  runwayhabloc1 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ",
-                                "'", x, "'; then grep -Pm1 'LOCATION\\s\\t1' ",
-                                "'", x, "'; else grep -Pm1 'LOCATION\\s\\t2' ", 
+  runwayhabloc1 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ", "'", x, "'; then grep -Pm1 'LOCATION\\s\\t1' ", "'", x, "'; else grep -Pm1 'LOCATION\\s\\t2' ", 
                                 "'", x, "'; fi"), fill = T)
   runwayhabloc1$filename <- x
   
   
-  runwayhabloc2 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ",
-                                "'", x, "' && grep -Pq 'LOCATION\\s\\t2' ", "'", x, "'",
-                                "; then grep -Pm1 'LOCATION\\s\\t2' ",
+  runwayhabloc2 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ", "'", x, "' && grep -Pq 'LOCATION\\s\\t2' ", "'", x, "'", "; then grep -Pm1 'LOCATION\\s\\t2' ",
                                 "'", x, "'; else grep -Pm1 'LOCATION\\s\\t3' ", 
                                 "'", x, "'; fi"), fill = T)
   runwayhabloc2$filename <- x
@@ -224,11 +230,11 @@ readrunwayhab_locs <- function(x){
   return(runwayhablocs)
 }
 
-runwayhab_reach_test <- lapply(runwayhab_files_2, readrunwayhab_reach) 
+runwayhab_reach_test <- lapply(runwayhab_files_2, readrunwayhab_reach) #1411 files
 runwayhab_reach_test_df <- runwayhab_reach_test %>% rbindlist(fill = T) %>% 
   rename("hab_reachtime" = "V1")
          
-runwayhab_test <- lapply(runwayhab_files_2, readrunwayhab_locs)
+runwayhab_test <- lapply(runwayhab_files_2, readrunwayhab_locs) #1411 files
 runwayhab_test_df <- runwayhab_test %>% rbindlist(fill = T) %>% 
   mutate(V1.x = coalesce(V1.x, V1),
          V2.x = coalesce(V2.x, V2),
@@ -239,43 +245,30 @@ runwayhab_test_df <- runwayhab_test %>% rbindlist(fill = T) %>%
          "hab_locationnum1" = "V3.x",
          "hab_loc2_reachtime" = "V1.y",
          "hab_location2" = 'V2.y', 
-         "hab_locationnum2" = "V3.y")
+         "hab_locationnum2" = "V3.y") %>% 
+  select(-matches("location"))
 
 # lapply(runwayhab_test, ncol) %>% unlist() %>% as.data.frame() %>% mutate(row = row_number()) %>% subset(.!=8)
 
-runway_habituation_df <- merge(runwayhab_reach_test_df, runwayhab_test_df, by = "filename") %>% 
+runway_habituation_df <- merge(runwayhab_reach_test_df, runwayhab_test_df, by = "filename") %>% # 1409
   mutate(latency = trunc(hab_loc2_reachtime) - trunc(hab_loc1_reachtime),
          run_time = trunc(hab_reachtime) - trunc(hab_loc2_reachtime)) %>% distinct()
 
 
 # to fix the location 2 before location 1 cases
 runwayhab_loc2_fix <- lapply(runway_habituation_df[which(runway_habituation_df$latency < 0),]$filename, function(x){
-  runwayhab_loc2 <- fread(paste0("awk '/LOCATION\\s\\t1/,0' ", "'", x, "'", " | awk '/LOCATION\\s\\t2/{print $1}'"))
+  runwayhab_loc2 <- fread(paste0("awk '/LOCATION\\s\\t1/,0' ", "'", x, "'", " | awk '/LOCATION\\s\\t2/{print $1}'"), fill = T)
   runwayhab_loc2$filename <- x
   return(runwayhab_loc2)
-  }) %>% rbindlist() %>% rename("hab_loc2_reachtime_fix" = "V1")
+  }) %>% rbindlist(fill = T) %>% rename("hab_loc2_reachtime_fix" = "V1")
 
 # add the correct values 
 runway_habituation_df <- runway_habituation_df %>% 
   left_join(., runwayhab_loc2_fix, by = "filename") %>% 
   mutate(hab_loc2_reachtime = coalesce(hab_loc2_reachtime_fix, hab_loc2_reachtime),
          latency = trunc(hab_loc2_reachtime) - trunc(hab_loc1_reachtime),
-         run_time = trunc(hab_reachtime) - trunc(hab_loc2_reachtime)) %>% distinct()
-
-# never habituated from Excel files
-# Jhou_Excel$Runway %>% select(`Animal ID`, U381) %>% View()
-neverhab_xl_ids <- names(Jhou_Excel$Runway)[which(grepl("never habituate", Jhou_Excel$Runway[2,], ignore.case = T))]
-runway_habituation_df <- runway_habituation_df %>% 
-  mutate(labanimalid = toupper(filename) %>% str_extract('(U[[:digit:]]+)')) %>% 
-  mutate(neverhab_xl = ifelse(labanimalid %in% neverhab_xl_ids, "yes", "no")) %>% 
-  mutate_at(vars(-one_of("filename", "labanimalid", "neverhab_xl")), funs(ifelse(neverhab_xl == "yes", NA, .))) 
-
-runway_habituation_df <- runway_habituation_df %>%
-  group_by(labanimalid) %>%
-  do(tail(., n=2)) %>% #488 lab animalid
-  ungroup()
-
-
+         run_time = trunc(hab_reachtime) - trunc(hab_loc2_reachtime)) %>% distinct() %>% 
+  select(-hab_loc2_reachtime_fix) #1462
 
 ## add runway reversal data 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
@@ -284,15 +277,19 @@ read_runwayrevs <- function(x){
   reversals$filename <- x 
   return(reversals)
 }
-
 runway_reversals <- lapply(runway_habituation_df$filename, read_runwayrevs) %>% rbindlist(fill = T) %>% 
   rename("reversals" = "V1") %>% distinct()
 # naniar::vis_miss(runway_reversals) # complete cases
+runway_habituation_df <- left_join(runway_habituation_df, runway_reversals, by = "filename") # 1462
 
-runway_habituation_df <- left_join(runway_habituation_df, runway_reversals, by = "filename")
+# exclude to only last two files
+runway_habituation_df <- runway_habituation_df %>%
+  mutate(labanimalid = toupper(filename) %>% str_extract('(U[[:digit:]]+)')) %>% 
+  group_by(labanimalid) %>%
+  do(tail(., n=2)) %>% #488 lab animalid
+  ungroup()
 
-
-
+### processing the missing files from habituation excel
 # include the files that were lost in the box/dropbox transition
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Tom_Jhou_U01DA044468_Dropbox_copy/Runway")
 u01.importxlsx <- function(xlname){
@@ -320,6 +317,8 @@ runwayhab_missing <- lapply(split(runwayhab_missing, cumsum(1:nrow(runwayhab_mis
   select(-one_of("time", "weight_g")) %>% 
   mutate_at(c("hab_loc1_reachtime", "hab_loc2_reachtime", "run_time","reversals"), as.numeric)
 
+
+
 # runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
 # 
 # runwayhab_v_explainna <- runwayhab_v_removelastcolumn %>%
@@ -345,6 +344,12 @@ runwayhab_merge <- rbindlist(list(runway_habituation_df, runwayhab_missing), fil
   mutate_at(c("hab_reachtime", "hab_loc2_3_reachtime", "elapsedtime","reversals"), as.numeric)
 
 
+# never habituated from Excel files
+# Jhou_Excel$Runway %>% select(`Animal ID`, U381) %>% View()
+neverhab_xl_ids <- names(Jhou_Excel$Runway)[which(grepl("never habituate", Jhou_Excel$Runway[2,], ignore.case = T))]
+runway_habituation_df <- runway_habituation_df %>% 
+  mutate(neverhab_xl = ifelse(labanimalid %in% neverhab_xl_ids, "yes", "no")) %>% 
+  mutate_at(vars(-one_of("filename", "labanimalid", "neverhab_xl")), funs(ifelse(neverhab_xl == "yes", NA, .))) 
 
 
 
