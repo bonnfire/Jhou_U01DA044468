@@ -318,10 +318,25 @@ runwayhab_test_df <- runwayhab_test %>% rbindlist(fill = T) %>%
 lapply(runwayhab_test, ncol) %>% unlist() %>% as.data.frame() %>% mutate(row = row_number()) %>% subset(.!=8)
 
 runway_habituation_df <- merge(runwayhab_reach_test_df, runwayhab_test_df, by = "filename") %>% 
-  select(-matches("location")) %>% 
-  mutate(latency = hab_loc2_reachtime - hab_loc1_reachtime)
-runway_habituation_df %>% subset(latency < 0)
+  # select(-matches("location")) %>% 
+  mutate(latency = trunc(hab_loc2_reachtime) - trunc(hab_loc1_reachtime),
+    elapsedtime = trunc(hab_reachtime) - trunc(hab_loc2_reachtime))
+# runway_habituation_df %>% subset(latency < 0)
 
+# never habituated from Excel files
+Jhou_Excel$Runway %>% select(`Animal ID`, U381) %>% View()
+neverhab_xl_ids <- names(Jhou_Excel$Runway)[which(grepl("never habituate", Jhou_Excel$Runway[2,], ignore.case = T))]
+runway_habituation_df <- runway_habituation_df %>% 
+  mutate(labanimalid = toupper(filename) %>% str_extract('(U[[:digit:]]+)'),
+         latency =  replace(latency, labanimalid %in% neverhab_xl_ids, NA),
+         elapsedtime =  replace(elapsedtime, labanimalid %in% neverhab_xl_ids, NA)) 
+  # mutate_at(vars(one_of("latency", "elapsedtime")), replace(., labanimalid %in% neverhab_xl_ids, NA))
+  # mutate_at(vars(one_of("latency", "elapsedtime")), ifelse(labanimalid %in% neverhab_xl_ids, NA, .))
+  # mutate_cond(labanimalid %in% neverhab_xl_ids, latency = NA, elapsedtime = NA)
+
+# example file of two location 2
+# example file of no location 
+# example file of no reach
 
 
 
