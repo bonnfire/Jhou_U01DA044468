@@ -120,28 +120,6 @@ runwayhab_files_2 <- system("grep -rnwe 'CALCULATED SYRINGE DURATION USING 10ML 
   gsub(":.*", "", x = .) %>% 
   paste0("./", .)
 
-runwayhab_v_ <- lapply(runwayhab_weights_validfiles, readrunwayhab) %>% 
-  rbindlist(fill = T) 
-runwayhab_v_ %<>% 
-  rename("hab_reachtime" = "V1",
-         "hab_loc1" = "V1.x",
-         "hab_location1" = "V2.x",
-         "hab_locationnum1" = "V3.x",
-         "hab_loc2_3_reachtime" = "V1.y",
-         "hab_location2" = 'V2.y', 
-         "hab_locationnum2" = "V3.y",
-         "whatisthis" = "V2",
-         "whatisthis2" = "V3"
-         ) # 1262 files
-
-runwayhab_v_ %>% naniar::vis_miss()
-runwayhab_v_ %>% dplyr::filter(is.na(hab_reachtime)) %>% select(filename) %>% unlist() %>% as.character()
-runwayhab_v_ %>% dplyr::filter(!is.na(whatisthis)) 
-runwayhab_v_ %>% dplyr::filter(is.na(hab_loc1)|is.na(hab_reachtime)) 
-
-# %>% select(filename) %>% unlist() %>% as.character()
-
-
 runwayhab_reversals <- lapply(runwayhab_weights_validfiles, read_runwayrevs) %>% rbindlist(fill = T) %>% rename("reversals" = "V1")
 
 
