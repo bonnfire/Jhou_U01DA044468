@@ -315,28 +315,116 @@ runwayhab_test_df <- runwayhab_test %>% rbindlist(fill = T) %>%
          "hab_location2" = 'V2.y', 
          "hab_locationnum2" = "V3.y")
 
-lapply(runwayhab_test, ncol) %>% unlist() %>% as.data.frame() %>% mutate(row = row_number()) %>% subset(.!=8)
+# lapply(runwayhab_test, ncol) %>% unlist() %>% as.data.frame() %>% mutate(row = row_number()) %>% subset(.!=8)
 
 runway_habituation_df <- merge(runwayhab_reach_test_df, runwayhab_test_df, by = "filename") %>% 
-  # select(-matches("location")) %>% 
   mutate(latency = trunc(hab_loc2_reachtime) - trunc(hab_loc1_reachtime),
-    elapsedtime = trunc(hab_reachtime) - trunc(hab_loc2_reachtime))
-# runway_habituation_df %>% subset(latency < 0)
+         run_time = trunc(hab_reachtime) - trunc(hab_loc2_reachtime)) %>% distinct()
+
+
+# to fix the location 2 before location 1 cases
+runwayhab_loc2_fix <- lapply(runway_habituation_df[which(runway_habituation_df$latency < 0),]$filename, function(x){
+  runwayhab_loc2 <- fread(paste0("awk '/LOCATION\\s\\t1/,0' ", "'", x, "'", " | awk '/LOCATION\\s\\t2/{print $1}'"))
+  runwayhab_loc2$filename <- x
+  return(runwayhab_loc2)
+  }) %>% rbindlist() %>% rename("hab_loc2_reachtime_fix" = "V1")
+
+# add the correct values 
+runway_habituation_df <- runway_habituation_df %>% 
+  left_join(., runwayhab_loc2_fix, by = "filename") %>% 
+  mutate(hab_loc2_reachtime = coalesce(hab_loc2_reachtime_fix, hab_loc2_reachtime),
+         latency = trunc(hab_loc2_reachtime) - trunc(hab_loc1_reachtime),
+         run_time = trunc(hab_reachtime) - trunc(hab_loc2_reachtime)) %>% distinct()
 
 # never habituated from Excel files
-Jhou_Excel$Runway %>% select(`Animal ID`, U381) %>% View()
+# Jhou_Excel$Runway %>% select(`Animal ID`, U381) %>% View()
 neverhab_xl_ids <- names(Jhou_Excel$Runway)[which(grepl("never habituate", Jhou_Excel$Runway[2,], ignore.case = T))]
 runway_habituation_df <- runway_habituation_df %>% 
-  mutate(labanimalid = toupper(filename) %>% str_extract('(U[[:digit:]]+)'),
-         latency =  replace(latency, labanimalid %in% neverhab_xl_ids, NA),
-         elapsedtime =  replace(elapsedtime, labanimalid %in% neverhab_xl_ids, NA)) 
-  # mutate_at(vars(one_of("latency", "elapsedtime")), replace(., labanimalid %in% neverhab_xl_ids, NA))
-  # mutate_at(vars(one_of("latency", "elapsedtime")), ifelse(labanimalid %in% neverhab_xl_ids, NA, .))
-  # mutate_cond(labanimalid %in% neverhab_xl_ids, latency = NA, elapsedtime = NA)
+  mutate(labanimalid = toupper(filename) %>% str_extract('(U[[:digit:]]+)')) %>% 
+  mutate(neverhab_xl = ifelse(labanimalid %in% neverhab_xl_ids, "yes", "no")) %>% 
+  mutate_at(vars(-one_of("filename", "labanimalid", "neverhab_xl")), funs(ifelse(neverhab_xl == "yes", NA, .))) 
 
-# example file of two location 2
-# example file of no location 
-# example file of no reach
+runway_habituation_df <- runway_habituation_df %>%
+  group_by(labanimalid) %>%
+  do(tail(., n=2)) %>% #488 lab animalid
+  ungroup()
+
+
+
+## add runway reversal data 
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
+read_runwayrevs <- function(x){
+  reversals <- fread(paste0("sed -n '/OPENING/,/REACHED/p' ", "'", x, "'", " | grep -c \"REVERSAL\""))
+  reversals$filename <- x 
+  return(reversals)
+}
+
+runway_reversals <- lapply(runway_habituation_df$filename, read_runwayrevs) %>% rbindlist(fill = T) %>% 
+  rename("reversals" = "V1") %>% distinct()
+# naniar::vis_miss(runway_reversals) # complete cases
+
+runway_habituation_df <- left_join(runway_habituation_df, runway_reversals, by = "filename")
+
+
+
+# include the files that were lost in the box/dropbox transition
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Tom_Jhou_U01DA044468_Dropbox_copy/Runway")
+u01.importxlsx <- function(xlname){
+  path_sheetnames <- excel_sheets(xlname)
+  df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname)
+  names(df) <- path_sheetnames
+  return(df)
+} 
+runwayhab_missing <- u01.importxlsx('U01 HS missing data habituation.xlsx') %>%  # previously was two sheets that provided sex info, but can get this from merging onto the master tables
+  rbindlist() %>% janitor::clean_names() %>% 
+  dplyr::filter(grepl("Habituation", trial, ignore.case = T)) 
+
+runwayhab_missing <- lapply(split(runwayhab_missing, cumsum(1:nrow(runwayhab_missing) %in% grep("U\\d+", runwayhab_missing$rat, ignore.case = T))), function(x){
+  x <- x %>% 
+    mutate(rat = head(rat, 1),
+           rat = gsub("U0", "U", rat))
+  return(x)
+}) %>% rbindlist() %>% 
+  mutate(date = openxlsx::convertToDate(date)) %>% 
+  rename("labanimalid" = "rat",
+         "hab_loc1_reachtime" = "start_latency", 
+         "hab_loc2_reachtime" = "start_latency_2",
+         "hab_reachtime" = "goal_times", 
+         "reversals" = "number_of_reversals") %>% 
+  select(-one_of("time", "weight_g")) %>% 
+  mutate_at(c("hab_loc1_reachtime", "hab_loc2_reachtime", "run_time","reversals"), as.numeric)
+
+# runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
+# 
+# runwayhab_v_explainna <- runwayhab_v_removelastcolumn %>%
+#   extractfromfilename() %>%
+#   mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA),
+#          cannotfindreachtime = ifelse(labanimalid %in% notexplainedinexcelbutmissing$labanimalid,"Cannot find reach time", NA))
+# 
+# notexplainedinexcelbutmissing <- runwayhab_v_explainna %>%   
+#   dplyr::filter((is.na(hab_reachtime) | is.na(hab_loc2_3_reachtime)), is.na(notedinexcel) ) 
+# 
+# # animals that only have two files but one is na so what to do? 
+# runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% dplyr::filter(n == 2) %>% select(labanimalid) %>% unique()
+# # gives you the context for which you are missing the files from
+# runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% rename("numberoffilesindir"= "n") %>% dplyr::filter(is.na(hab_reachtime)) %>% add_count() %>% rename("numberofnafilesindir" = "n") %>% View()
+# 
+
+## extract last two relevant files; include this subset in email as concern
+runwayhab_v_removelastcolumn %>% add_count(labanimalid) %>% dplyr::filter( n == 1) %>% select(filename)
+
+
+## combine two sources of data
+runwayhab_merge <- rbindlist(list(runway_habituation_df, runwayhab_missing), fill = T) %>% 
+  mutate_at(c("hab_reachtime", "hab_loc2_3_reachtime", "elapsedtime","reversals"), as.numeric)
+
+
+
+
+
+
+
+
 
 
 
