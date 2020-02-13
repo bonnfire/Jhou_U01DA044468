@@ -284,10 +284,15 @@ runway_habituation_df <- left_join(runway_habituation_df, runway_reversals, by =
 
 # exclude to only last two files
 runway_habituation_df <- runway_habituation_df %>%
-  mutate(labanimalid = toupper(filename) %>% str_extract('(U[[:digit:]]+)')) %>% 
+  mutate(labanimalid = toupper(filename) %>% str_extract('(U[[:digit:]]+)'),
+         date = gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(filename, "[[:digit:]]{4}[-][[:digit:]]{4}")),
+         time = gsub('([[:digit:]]{2})([[:digit:]]{2})', '\\1:\\2', stringr::str_extract(filename, "[[:digit:]]{4}(?=_)"))) %>%
   group_by(labanimalid) %>%
   do(tail(., n=2)) %>% #488 lab animalid
+  arrange(date, time) %>% 
+  mutate(trial = paste("Habituation", row_number())) %>% 
   ungroup()
+  
 
 ### processing the missing files from habituation excel
 # include the files that were lost in the box/dropbox transition
@@ -308,16 +313,34 @@ runwayhab_missing <- lapply(split(runwayhab_missing, cumsum(1:nrow(runwayhab_mis
            rat = gsub("U0", "U", rat))
   return(x)
 }) %>% rbindlist() %>% 
-  mutate(date = openxlsx::convertToDate(date)) %>% 
+  mutate(date = openxlsx::convertToDate(date) %>% as.character()) %>% 
   rename("labanimalid" = "rat",
          "hab_loc1_reachtime" = "start_latency", 
          "hab_loc2_reachtime" = "start_latency_2",
          "hab_reachtime" = "goal_times", 
          "reversals" = "number_of_reversals") %>% 
   select(-one_of("time", "weight_g")) %>% 
-  mutate_at(c("hab_loc1_reachtime", "hab_loc2_reachtime", "run_time","reversals"), as.numeric)
+  mutate_at(c("hab_reachtime", "hab_loc1_reachtime", "hab_loc2_reachtime", "run_time","reversals"), as.numeric)
 
 
+## combine two sources of data
+runwayhab_merge_df <- rbindlist(list(runway_habituation_df, runwayhab_missing), fill = T) %>% 
+  mutate(date = lubridate::ymd(date))
+
+# never habituated from Excel files
+# Jhou_Excel$Runway %>% select(`Animal ID`, U381) %>% View()
+neverhab_xl_ids <- names(Jhou_Excel$Runway)[which(grepl("never habituate", Jhou_Excel$Runway[2,], ignore.case = T))]
+runwayhab_merge_df <- runwayhab_merge_df %>% 
+  mutate(neverhab_xl = ifelse(labanimalid %in% neverhab_xl_ids, "yes", "no")) %>% 
+  mutate_at(vars(-one_of("filename", "labanimalid", "neverhab_xl")), funs(ifelse(neverhab_xl == "yes", NA, .))) 
+
+# quick qc 
+# did any of the excel ones overlap with raw? 
+runwayhab_merge_df %>% add_count(labanimalid) %>% subset(n != 2)
+
+
+## extract last two relevant files; include this subset in email as concern
+# runwayhab_v_removelastcolumn %>% add_count(labanimalid) %>% dplyr::filter( n == 1) %>% select(filename)
 
 # runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
 # 
@@ -334,27 +357,6 @@ runwayhab_missing <- lapply(split(runwayhab_missing, cumsum(1:nrow(runwayhab_mis
 # # gives you the context for which you are missing the files from
 # runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% rename("numberoffilesindir"= "n") %>% dplyr::filter(is.na(hab_reachtime)) %>% add_count() %>% rename("numberofnafilesindir" = "n") %>% View()
 # 
-
-## extract last two relevant files; include this subset in email as concern
-runwayhab_v_removelastcolumn %>% add_count(labanimalid) %>% dplyr::filter( n == 1) %>% select(filename)
-
-
-## combine two sources of data
-runwayhab_merge <- rbindlist(list(runway_habituation_df, runwayhab_missing), fill = T) %>% 
-  mutate_at(c("hab_reachtime", "hab_loc2_3_reachtime", "elapsedtime","reversals"), as.numeric)
-
-
-# never habituated from Excel files
-# Jhou_Excel$Runway %>% select(`Animal ID`, U381) %>% View()
-neverhab_xl_ids <- names(Jhou_Excel$Runway)[which(grepl("never habituate", Jhou_Excel$Runway[2,], ignore.case = T))]
-runway_habituation_df <- runway_habituation_df %>% 
-  mutate(neverhab_xl = ifelse(labanimalid %in% neverhab_xl_ids, "yes", "no")) %>% 
-  mutate_at(vars(-one_of("filename", "labanimalid", "neverhab_xl")), funs(ifelse(neverhab_xl == "yes", NA, .))) 
-
-
-
-
-
 
 
 
