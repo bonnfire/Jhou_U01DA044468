@@ -115,90 +115,6 @@ gs_auth(new_user = TRUE)
 ## AND THEN FROM RUNWAY HABITUATION EXCEL
 ## USE RUNWAY EXCEL TO LABEL MISSING DATA AS "NEVER HABITUATED" 
 
-setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
-runwayhab_files_2 <- system("grep -rnwe 'CALCULATED SYRINGE DURATION USING 10ML SYRINGE IS 0 SECONDS'", intern = T) %>% 
-  gsub(":.*", "", x = .) %>% 
-  paste0("./", .)
-
-runwayhab_reversals <- lapply(runwayhab_weights_validfiles, read_runwayrevs) %>% rbindlist(fill = T) %>% rename("reversals" = "V1")
-
-
-# vis_miss(runwayhab_v_) wherever hab_reachtime is na so is hab_loc2_reachtime
-# runwayhab_v_ %>% dplyr::filter(is.na(hab_reachtime)) %>% vis_miss()
-runwayhab_v_removelastcolumn <- runwayhab_v_ %>% 
-  dplyr::filter(is.na(whatisthis), !is.na(hab_reachtime) ) %>% 
-  select(-whatisthis) %>% 
-  mutate(elapsedtime = trunc(hab_reachtime) - trunc(hab_loc2_3_reachtime)) %>% 
-  left_join(., runwayhab_reversals, by = "filename")  %>%
-  extractfromfilename()
-  #1205 files (complete cases)
-
-
-# 1/2 Maya email: "when there are more than 2, yes you can extract the last consecutive 2 sessions"
-runwayhab_v_tail2 <- runwayhab_v_removelastcolumn %>%
-  extractfromfilename() %>%
-  group_by(labanimalid) %>%
-  do(tail(., n=2)) %>% #878 lab animalid
-  ungroup()
-
-
-# include the files that were lost in the box/dropbox transition
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Tom_Jhou_U01DA044468_Dropbox_copy/Runway")
-u01.importxlsx <- function(xlname){
-  path_sheetnames <- excel_sheets(xlname)
-  df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname)
-  names(df) <- path_sheetnames
-  return(df)
-} 
-runwayhab_missing <- u01.importxlsx('U01 HS missing data habituation.xlsx')
-runwayhab_missing[[1]]$sex <- 'M'
-runwayhab_missing[[2]]$sex <- 'F'
-runwayhab_missing %<>% 
-  rbindlist() 
-names(runwayhab_missing) <- tolower(names(runwayhab_missing) )
-runwayhab_missing %<>%   
-  dplyr::filter(grepl("Habituation", trial, ignore.case = T)) 
-runwayhab_missing_rat_indices <- grep("U\\d+", runwayhab_missing$rat, ignore.case = T)
-runwayhab_missing_split <- split(runwayhab_missing, cumsum(1:nrow(runwayhab_missing) %in% runwayhab_missing_rat_indices))
-runwayhab_missing_formatted <- lapply(runwayhab_missing_split, function(x){
-  x <- x %>% 
-    mutate(rat = head(rat, 1))
-  return(x)
-}) %>% rbindlist() %>% 
-  mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin = "1899-12-30", tz="GMT")) %>% 
-  rename("labanimalid" = "rat",
-         "hab_loc1_reachtime" = "start latency", 
-         "hab_loc2_3_reachtime" = "start latency 2",
-         "hab_reachtime" = "goal times", 
-         "elapsedtime" = "run time", 
-         "reversals" = "# of reversals")
-# runwayhab_notes_fromexcel <- tJhou_Runway_notes %>% dplyr::filter(grepl("habituate", notes, ignore.case = T )) 
-# 
-# runwayhab_v_explainna <- runwayhab_v_removelastcolumn %>%
-#   extractfromfilename() %>%
-#   mutate(notedinexcel = ifelse(labanimalid %in% runwayhab_notes_fromexcel$animalid, runwayhab_notes_fromexcel$notes, NA),
-#          cannotfindreachtime = ifelse(labanimalid %in% notexplainedinexcelbutmissing$labanimalid,"Cannot find reach time", NA))
-# 
-# notexplainedinexcelbutmissing <- runwayhab_v_explainna %>%   
-#   dplyr::filter((is.na(hab_reachtime) | is.na(hab_loc2_3_reachtime)), is.na(notedinexcel) ) 
-# 
-# # animals that only have two files but one is na so what to do? 
-# runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% dplyr::filter(n == 2) %>% select(labanimalid) %>% unique()
-# # gives you the context for which you are missing the files from
-# runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% rename("numberoffilesindir"= "n") %>% dplyr::filter(is.na(hab_reachtime)) %>% add_count() %>% rename("numberofnafilesindir" = "n") %>% View()
-# 
-
-## extract last two relevant files; include this subset in email as concern
-runwayhab_v_removelastcolumn %>% add_count(labanimalid) %>% dplyr::filter( n == 1) %>% select(filename)
-
-## combine two sources of data
-runwayhab_merge <- rbindlist(list(runwayhab_v_tail2, runwayhab_missing_formatted), fill = T) %>% 
-  mutate_at(c("hab_reachtime", "hab_loc2_3_reachtime", "elapsedtime","reversals"), as.numeric)
-
-
-
-
-############# redo 2/12
 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
 
@@ -283,12 +199,15 @@ runway_reversals <- lapply(runway_habituation_df$filename, read_runwayrevs) %>% 
 runway_habituation_df <- left_join(runway_habituation_df, runway_reversals, by = "filename") # 1462
 
 # exclude to only last two files
+# 1/2 Maya email: "when there are more than 2, yes you can extract the last consecutive 2 sessions"
+
 runway_habituation_df <- runway_habituation_df %>%
   mutate(labanimalid = toupper(filename) %>% str_extract('(U[[:digit:]]+)'),
          date = gsub("[-]([[:digit:]]{2})([[:digit:]]{2})", "-\\1-\\2", stringr::str_extract(filename, "[[:digit:]]{4}[-][[:digit:]]{4}")),
          time = gsub('([[:digit:]]{2})([[:digit:]]{2})', '\\1:\\2', stringr::str_extract(filename, "[[:digit:]]{4}(?=_)"))) %>%
+  dplyr::filter(!is.na(run_time)) %>% 
   group_by(labanimalid) %>%
-  do(tail(., n=2)) %>% #488 lab animalid
+  do(tail(., n=2)) %>%
   arrange(date, time) %>% 
   mutate(trial = paste("Habituation", row_number())) %>% 
   ungroup()
@@ -337,6 +256,7 @@ runwayhab_merge_df <- runwayhab_merge_df %>%
 # quick qc 
 # did any of the excel ones overlap with raw? 
 runwayhab_merge_df %>% add_count(labanimalid) %>% subset(n != 2)
+runwayhab_merge_df %>%  filter_if(is.numeric, any_vars(is.na(.))) %>% as.data.frame()
 
 
 ## extract last two relevant files; include this subset in email as concern
@@ -357,6 +277,9 @@ runwayhab_merge_df %>% add_count(labanimalid) %>% subset(n != 2)
 # # gives you the context for which you are missing the files from
 # runwayhab_v_explainna %>% dplyr::filter(!is.na(cannotfindreachtime)) %>% group_by(labanimalid) %>% add_count() %>% rename("numberoffilesindir"= "n") %>% dplyr::filter(is.na(hab_reachtime)) %>% add_count() %>% rename("numberofnafilesindir" = "n") %>% View()
 # 
+
+
+
 
 
 
