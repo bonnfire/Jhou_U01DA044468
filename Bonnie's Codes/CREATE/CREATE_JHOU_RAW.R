@@ -131,14 +131,14 @@ readrunwayhab_reach <-  function(x){
 }
 # get the loc 1 and loc 2 data
 readrunwayhab_locs <- function(x){
-
-  runwayhabloc1 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ", "'", x, "'; then grep -Pm1 'LOCATION\\s\\t1' ", "'", x, "'; else grep -Pm1 'LOCATION\\s\\t2' ", 
+  
+  runwayhabloc1 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ", "'", x, "'; then awk '/LOCATION\\s\\t1/{print $1; exit}' ", "'", x, "'; else awk '/LOCATION\\s\\t2/{print $1; exit}' ",
                                 "'", x, "'; fi"), fill = T)
   runwayhabloc1$filename <- x
   
   
-  runwayhabloc2 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ", "'", x, "' && grep -Pq 'LOCATION\\s\\t2' ", "'", x, "'", "; then grep -Pm1 'LOCATION\\s\\t2' ",
-                                "'", x, "'; else grep -Pm1 'LOCATION\\s\\t3' ", 
+  runwayhabloc2 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ", "'", x, "' && grep -Pq 'LOCATION\\s\\t2' ", "'", x, "'", "; then awk '/LOCATION\\s\\t2/{print $1; exit}' ",
+                                "'", x, "'; else awk '/LOCATION\\s\\t3/{print $1; exit}' ",
                                 "'", x, "'; fi"), fill = T)
   runwayhabloc2$filename <- x
   
@@ -146,23 +146,24 @@ readrunwayhab_locs <- function(x){
   return(runwayhablocs)
 }
 
-runwayhab_reach_test <- lapply(runwayhab_files_2, readrunwayhab_reach) #1411 files
-runwayhab_reach_test_df <- runwayhab_reach_test %>% rbindlist(fill = T) %>% 
-  rename("hab_reachtime" = "V1")
-         
-runwayhab_test <- lapply(runwayhab_files_2, readrunwayhab_locs) #1411 files
-runwayhab_test_df <- runwayhab_test %>% rbindlist(fill = T) %>% 
-  mutate(V1.x = coalesce(V1.x, V1),
-         V2.x = coalesce(V2.x, V2),
-         V3.x = coalesce(V3.x, V3)) %>% 
-  select(-one_of("V1", "V2", "V3")) %>% 
-  rename("hab_loc1_reachtime" = "V1.x",
-         "hab_location1" = "V2.x",
-         "hab_locationnum1" = "V3.x",
-         "hab_loc2_reachtime" = "V1.y",
-         "hab_location2" = 'V2.y', 
-         "hab_locationnum2" = "V3.y") %>% 
-  select(-matches("location"))
+### XX PICK UP HERE AND REWRITE THE VARIABLE NAMES NOW WITH AWK
+# runwayhab_reach_test <- lapply(runwayhab_files_2, readrunwayhab_reach) #1411 files
+# runwayhab_reach_test_df <- runwayhab_reach_test %>% rbindlist(fill = T) %>% 
+#   rename("hab_reachtime" = "V1")
+#          
+# runwayhab_test <- lapply(runwayhab_files_2, readrunwayhab_locs) #1411 files
+# runwayhab_test_df <- runwayhab_test %>% rbindlist(fill = T) %>% 
+#   mutate(V1.x = coalesce(V1.x, V1),
+#          V2.x = coalesce(V2.x, V2),
+#          V3.x = coalesce(V3.x, V3)) %>% 
+#   select(-one_of("V1", "V2", "V3")) %>% 
+#   rename("hab_loc1_reachtime" = "V1.x",
+#          "hab_location1" = "V2.x",
+#          "hab_locationnum1" = "V3.x",
+#          "hab_loc2_reachtime" = "V1.y",
+#          "hab_location2" = 'V2.y', 
+#          "hab_locationnum2" = "V3.y") %>% 
+#   select(-matches("location"))
 
 # lapply(runwayhab_test, ncol) %>% unlist() %>% as.data.frame() %>% mutate(row = row_number()) %>% subset(.!=8)
 
@@ -298,18 +299,6 @@ setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
 
 # reach time and qc the times from in files
 
-# use these files
-runway_files <- system("grep -irI \"number of infusions\" | grep -o -P '.*(:)'", intern = T) %>% 
-  gsub(":.*", "", x = .) %>% 
-  paste0("./", .)
-
-str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
-setdiff(runway_files,runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)])
-
-
-
-
-
 
 
 ## ***************************************************************************************************************************************
@@ -324,85 +313,78 @@ runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=T
 # runwayfiles_clean[grepl("^m.*\\.log",runwayfiles_clean)] # remove error and duplicate files
 
 str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
-runwayfiles_clean <- runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = F)] # 3929 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273)
+runwayfiles_clean <- runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY_?.txt", negate = F)] # 4462 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273) ## and the id's that have the a appended are duplicated, as is "./U427/2019-0917-1632_427_RUNWAY-2.txt" 
 
 # note the 4221 id in one file, but seems to be no error files so below code is unneeded
 # files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] 
 # runwayfiles_clean <- gsub(" ", "\\\\ ", runwayfiles_clean) # not the issue for not being able to access the files
 
-runway_reach <- lapply(runwayfiles_clean, readrunway) 
-runway_reach_df <- runway_reach %>% 
-  rbindlist(fill = T) %>% # run on runwayfiles_clean[3000:3100] for test # 12/3 - 36 warnings of returning NULL data table
+runway_reach <- lapply(runwayfiles_clean, function(x){
+  runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
+  runway$filename <- x
+  return(runway)}) 
+runway_reach_df <- runway_reach %>% rbindlist(fill = T) %>% # run on runwayfiles_clean[3000:3100] for test # 12/3 - 36 warnings of returning NULL data table # 2/13 - 42 warnings
   rename("reachtime" = "V1")
 
-# evaluate NA reachtime cases
-runway_reachtimeNA <- subset(runway_reach_df, is.na(reachtime)==T) ## XX Made note to Maya already; renoted 12/3; create subset to go back for reference; reassign the data var
-runway_reach_df %<>% dplyr::filter(!is.na(reachtime))
-
 # location2 and location3 (use to sub loc2 when na) time + add loc1 (1/2/20)
-readrunwayloc2_3 <- function(x){
-  runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
-  runwayloc1$filename <- x
+# readrunwayloc2_3 <- function(x){
+#   runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
+#   runwayloc1$filename <- x
+#   
+#   runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
+#   runwayloc2$filename <- x
+#   
+#   runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
+#   runwayloc3$filename <- x
+#   
+#   runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
+#   
+#   return(runwaylocs)
+# }
+# runway_loc2_3 <- lapply(runwayfiles_clean, readrunwayloc2_3) # test with runwayfiles_clean[1:10]
+
+readrunwayhab_locs <- function(x){
   
-  runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
-  runwayloc2$filename <- x
+  runwayhabloc1 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ", "'", x, "'; then awk '/LOCATION\\s\\t1/{print $1; exit}' ", "'", x, "'; else awk '/LOCATION\\s\\t2/{print $1; exit}' ",
+                                "'", x, "'; fi"), fill = T)
+  runwayhabloc1$filename <- x
   
-  runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
-  runwayloc3$filename <- x
   
-  runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
-  
-  return(runwaylocs)
+  runwayhabloc2 <- fread(paste0("if grep -Pq 'LOCATION\\s\\t1' ", "'", x, "' && grep -Pq 'LOCATION\\s\\t2' ", "'", x, "'", "; then awk '/LOCATION\\s\\t2/{print $1; exit}' ",
+                                "'", x, "'; else awk '/LOCATION\\s\\t3/{print $1; exit}' ",
+                                "'", x, "'; fi"), fill = T)
+  runwayhabloc2$filename <- x
+
+  runwayhablocs <- merge(runwayhabloc1, runwayhabloc2, by = "filename")
+  return(runwayhablocs)
 }
 
-runway_loc2_3 <- lapply(runwayfiles_clean, readrunwayloc2_3) # test with runwayfiles_clean[1:10]
+runway_loc1_2 <- lapply(runwayfiles_clean, readrunwayhab_locs) # test with runwayfiles_clean[1:10]
+runway_loc1_2_df <- runway_loc1_2 %>% rbindlist(fill = T) %>%
+  mutate(V1.x = coalesce(V1.x, V1)) %>% 
+  select(-V1) %>% 
+  rename("loc1_reachtime" = "V1.x", 
+         "loc2_reachtime" = "V1.y") %>% 
+  mutate_at(vars(matches("time")), as.numeric) %>% 
+  mutate(latency = hab_loc2_reachtime - hab_loc1_reachtime)
+runway_loc1_2_df %>% subset(latency < 0)
 
+# to fix the location 2 before location 1 cases
+runway_loc2_fix <- lapply(runway_loc1_2_df[which(runway_loc1_2_df$latency < 0),]$filename, function(x){
+  runway_loc2 <- fread(paste0("awk '/LOCATION\\s\\t1/,0' ", "'", x, "'", " | awk '/LOCATION\\s\\t2/{print $1}'"), fill = T)
+  runway_loc2$filename <- x
+  return(runway_loc2)
+}) %>% rbindlist(fill = T) %>% rename("loc2_reachtime_fix" = "V1")
+runway_loc2_fix %>% subset(is.na(loc2_reachtime_fix)) ## BRINGS UP PROBLEM OF LOCATION 1 COMING AFTER LOCATION 2 
 
-# lapply("./U102/2018-1201-1732_102_RUNWAY.txt", readrunwayloc2_3)
+# add the correct values 
+runway_loc1_2_df <- runway_loc1_2_df %>% 
+  left_join(., runway_loc2_fix, by = "filename") %>% 
+  mutate(loc2_reachtime = coalesce(loc2_reachtime_fix, loc2_reachtime),
+         latency = trunc(loc2_reachtime) - trunc(loc1_reachtime),
+         run_time = trunc(reachtime) - trunc(loc2_reachtime)) %>% distinct() %>% 
+  select(-loc2_reachtime_fix) #1462
 
-runway_loc2_3_df <- lapply(runway_loc2_3, function(x){
-  # names(x) <- mgsub::mgsub(names(x),
-  #                          c("\\.x", "1\\.y", "2\\.y", "3\\.y"),
-  #                          c("", "4", "5", "6"))
-  if(ncol(x) == 10){
-  # x <- x %>% rename("loc2_time" = "V1",
-  #             "location2" = "V2",
-  #             "locationnum2" = "V3",
-  #             "loc3_time" = "V4",
-  #             "location3" = "V5",
-  #             "locationnum3" = "V6")
-    names(x) <- c("filename", "loc1_time", "location1", "locationnum1", 
-                  "loc2_time", "location2", "locationnum2",
-                  "loc3_time", "location3", "locationnum3")
-  # names(x) = c("filename", "loc2_time",
-  #                     "location2",
-  #                     "locationnum2",
-  #                     "loc3_time",
-  #                     "location3",
-  #                     "locationnum3")
-  } 
-  else if(ncol(x) == 7){ 
-    # names(x) = c("filename", "loc2_time",
-    #              "location2",
-    #              "locationnum2")
-    # x <- x %>%  rename("loc2_time" = "V1",
-    #             "location2" = "V2",
-    #             "locationnum2" = "V3")
-    names(x) <- c("filename", "loc1_time", "location1", "locationnum1", 
-                  "loc2_time", "location2", "locationnum2")
-  }
-  return(x)  
-})
-
-runway_loc2_3_df <- rbindlist(runway_loc2_3_df, fill = T) %>% 
-  mutate_at(c("loc1_time", "loc2_time", "loc3_time"),  as.numeric)
-
-naniar::vis_miss(runway_loc2_3_df)
-
-# make sure that loc2 and loc3 are expected values; and then use 3 to sub in for 2 
-# loc2non2 <- subset(runway_loc2_df, is.na(locationnum)) # Noted to Maya and Alen # originally != 2 but changed to is.na because of summary(runway_loc2_df$locationnum) 
-# run this code to view cases for which the data was imputed by the photobeam 3
-runway_loc2_3_df %>% dplyr::filter(locationnum2 != 2|locationnum3 != 3) # 20 cases; all loc 3 are being moved to loc 2 automatically 
 
 runway_loc2_3_df %>% dplyr::filter(is.na(loc2_time)) %>% naniar::vis_miss() # if missing loc2, doesn't have loc3
 
@@ -477,6 +459,14 @@ naniar::vis_miss(runway)
 # from the runway protocols file, a disqualifying runway habituation file is one for which "the animals take more than a minute"..
 # we repeat the habituation sessions until the animal takes less than a minute 
 
+
+
+
+##############################
+# moving comments down 
+# evaluate NA reachtime cases
+subset(runway_reach_df, is.na(reachtime)==T) ## XX Made note to Maya already; renoted 12/3; create subset to go back for reference; reassign the data var
+runway_reach_df %<>% dplyr::filter(!is.na(reachtime))
 
 ################################
 ### RAW TEXT  Locomotor ########
