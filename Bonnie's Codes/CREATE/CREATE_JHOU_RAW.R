@@ -87,7 +87,7 @@ allexpfiles_datetime <- left_join(allexpfiles_date, allexpfiles_time, by = "file
          timeinfile = str_extract(timeinfile, "\\d+:\\d+")) 
 allexpfiles_datetime %>% 
   dplyr::filter(dateinfile != date_filename | 
-           timeinfile != timefilename)
+                  timeinfile != timefilename)
 
 allexpfiles_datetime %>% 
   dplyr::filter(timeinfile != timefilename) # results saved in Dropbox documentation (Questions_1)
@@ -101,7 +101,7 @@ allexpfiles_datetime %>%
 
 gs_auth(new_user = TRUE)
 
-  ################################
+################################
 ### RAW TEXT Runway ############
 ################################
 
@@ -177,7 +177,7 @@ runwayhab_loc2_fix <- lapply(runway_habituation_df[which(runway_habituation_df$l
   runwayhab_loc2 <- fread(paste0("awk '/LOCATION\\s\\t1/,0' ", "'", x, "'", " | awk '/LOCATION\\s\\t2/{print $1}'"), fill = T)
   runwayhab_loc2$filename <- x
   return(runwayhab_loc2)
-  }) %>% rbindlist(fill = T) %>% rename("hab_loc2_reachtime_fix" = "V1")
+}) %>% rbindlist(fill = T) %>% rename("hab_loc2_reachtime_fix" = "V1")
 
 # add the correct values 
 runway_habituation_df <- runway_habituation_df %>% 
@@ -212,7 +212,7 @@ runway_habituation_df <- runway_habituation_df %>%
   arrange(date, time) %>% 
   mutate(trial = paste("Habituation", row_number())) %>% 
   ungroup()
-  
+
 
 ### processing the missing files from habituation excel
 # include the files that were lost in the box/dropbox transition
@@ -354,7 +354,7 @@ readrunwayhab_locs <- function(x){
                                 "'", x, "'; else awk '/LOCATION\\s\\t3/{print $1; exit}' ",
                                 "'", x, "'; fi"), fill = T)
   runwayhabloc2$filename <- x
-
+  
   runwayhablocs <- merge(runwayhabloc1, runwayhabloc2, by = "filename")
   return(runwayhablocs)
 }
@@ -425,7 +425,7 @@ read_runwayrevs <- function(x){
   reversals <- fread(paste0("sed -n '/OPENING/,/REACHED/p' ", "'", x, "'", " | grep -c \"REVERSAL\""))
   reversals$filename <- x 
   return(reversals)
-  }
+}
 
 runway_reversals <- lapply(runwayfiles_clean, read_runwayrevs) %>% rbindlist(fill = T)
 names(runway_reversals) <- c("reversals", "filename")
@@ -434,7 +434,7 @@ naniar::vis_miss(runway_reversals) # complete cases
 # bind reversals with runway data ; leave rawfiles_calc with the questions on the dropbox 1/3 XX haven't asked Maya 
 # runway <- left_join(rawfiles_calc, runway_reversals, by = "filename") %>%  # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
 #   select(rfid, labanimalid, shipmentcohort, date, time, experimentage, elapsedtime, reversals, filename) 
-  
+
 
 # bind reversals with runway data
 runway <- left_join(rawfiles_calc_upload, runway_reversals, by = "filename") %>%  # clean out upstream find -name regular expression to exclude files that don't contain the exp name; see subset(., is.na(rfid))
@@ -463,13 +463,25 @@ naniar::vis_miss(runway)
 
 
 
+
+
+
+
+
+
+
+
+
 ## COMPLETE REDO OF RUNWAY CALCULATIONS
 readrunway_opening <- function(x){
-  firsttwolocations <- fread(paste0("grep -ra5 \"OPENING\ ", "'", x, "'",
-               "| grep -im2 \"LOCATION\" | grep -oE \".*:[0-9]+(.[0-9]+)?\""))
+  firsttwolocations <- fread(paste0("grep -ra5 \"OPENING\" ", "'", x, "'",
+                                    " | grep -im2 \"LOCATION\" | awk '{print $1}'"))
+  firsttwolocations$filename <- x
+  return(firsttwolocations)
 }
 
-runway_loc1_2_grep <- system("grep -ra5 \"OPENING\" | grep -irm2 \"LOCATION\" | grep -oE \".*:[0-9]+(.[0-9]+)?\"", intern = T)
+runwaytest <- lapply(runwayfiles_clean[3000:3100], readrunway_opening) %>% rbindlist(fill = T)
+# runway_loc1_2_grep <- system("grep -ra5 \"OPENING\" | grep -irm2 \"LOCATION\" | grep -oE \".*:[0-9]+(.[0-9]+)?\"", intern = T)
 
 
 
@@ -636,7 +648,7 @@ Jhou_Raw_Locomotor <- lapply(rawfiles_locomotor_split, function(x){
     arrange(date, time)
   if(nrow(x) == 2){
     cbind(x, tail(head(bincounts,3),2))
-    }
+  }
   else if(nrow(x) == 4){
     cbind(x, tail(bincounts,4))
   }
@@ -718,7 +730,7 @@ create_progpuntable_tocategorize <- function(x){
     lastshock = fread(paste0("awk 'NR == " , x$rownum[i+1]," {print $13}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F) %>% data.frame()
     # might use reg exp (?:([1-9]?[0-9])[a-zA-Z ]{0,20}(?:arrests|arrested))
     lastshock$filename <-x$filename[i]
-
+    
     filelasttwoandlast <- merge(numleftpressesbwlasttwo,numleftpresseslast, by = "filename") %>% 
       rename("numleftpressesbwlasttwo" = "V1.x", 
              "numleftpresseslast" = "V1.y") %>% # for each file, merge the count of LEFTPRESSES occurences
@@ -726,7 +738,7 @@ create_progpuntable_tocategorize <- function(x){
       merge(., lastshock, by = "filename") %>% 
       rename("secondtolastshock" = "V1.x", 
              "lastshock" = "V1.y") # for each file, merge the MA value (last two)
-
+    
     # names(filelasttwoandlast) = c("filename", "numleftpressesbwlasttwo","numleftpresseslast", "secondtolastshock", "lastshock")
     # numofsessions[[i]] <- filelasttwoandlast # add to list 
     
@@ -737,7 +749,7 @@ create_progpuntable_tocategorize <- function(x){
     #   filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>%
     #     rename("delay" = "V1")
     # }
-
+    
     numofsessions[[i]] <- filelasttwoandlast
   }
   numofsessions_df = do.call(rbind, numofsessions)
@@ -867,7 +879,7 @@ progratio_presses_df <- rbindlist(progratio_presses_rm, fill = T) %>%
 # join to create final raw df
 progratio <- left_join(progratio_maxratio_df, progratio_presses_df, by = "filename") # 10/28 bring to Alen's attention -- these cases for which there are only timeout lines and no pre-timeout value so no maxratio value 
 progratio_raw <- progratio %>% 
- #  dplyr::filter(!grepl("error", filename), !is.na(activepresses)) %>%
+  #  dplyr::filter(!grepl("error", filename), !is.na(activepresses)) %>%
   extractfromfilename() %>%
   group_by(labanimalid) %>% 
   mutate(session = as.character(dplyr::row_number())) %>% 
@@ -882,8 +894,8 @@ progratio_subjects_tempremove <- aggregate(session ~ labanimalid, data = prograt
 
 progratio_raw_upload <- progratio_raw %>% subset(!labanimalid %in% progratio_subjects_tempremove)
 
-  # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>%
-  # arrange(labanimalid)
+# mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>%
+# arrange(labanimalid)
 # reorder based on labanimalid  
 #  progratio %>% group_by(labanimalid) %>% add_count(n = n()) %>% dplyr::filter(max(as.numeric(session)) != n) %>% select(labanimalid) %>% unique()
 
@@ -1026,8 +1038,8 @@ delayedpun_boxes_df <- delayedpun_boxes %>%
 # within the same file 
 delayedpun_boxes_df %>% mutate(find_1_digit = readr::parse_number(find_1), find_2_digit = readr::parse_number(find_2)) %>% dplyr::filter(find_1_digit != find_2_digit) # looks good
 delayedpun_runindiffboxes <- delayedpun_boxes_df %>% mutate(find_1_digit = readr::parse_number(find_1), 
-                               find_2_digit = readr::parse_number(find_2), 
-                               subdir_id = str_extract(delayedpun_boxes_df$filename, regex("U\\d+[A-z]?", ignore_case = T))) %>% 
+                                                            find_2_digit = readr::parse_number(find_2), 
+                                                            subdir_id = str_extract(delayedpun_boxes_df$filename, regex("U\\d+[A-z]?", ignore_case = T))) %>% 
   group_by(subdir_id) %>% 
   mutate(uniquebox = n_distinct(find_1)) %>% 
   ungroup() %>% 
@@ -1047,7 +1059,7 @@ delayedpun_runindiffboxes <- delayedpun_boxes_df %>% mutate(find_1_digit = readr
 # XXX concern (some animals have more than one box designation):
 # delayedpun_boxes_df$labanimalid <- stringr::str_extract(delayedpun_boxes_df$filename, regex("U[[:digit:]]+[[:alpha:]]*", ignore_case=T))
 # delayedpun_boxes_df %>% select(-filename) %>% distinct() %>% add_count(labanimalid) %>% dplyr::filter(n!=1) %>% as.data.frame()
-  
+
 # morethanone <- delayedpun_boxesandstations_df %>%
 #   select(labanimalid, boxorstationumber) %>%
 #   unique() %>% count(labanimalid) %>% filter(n != 1)
@@ -1064,7 +1076,7 @@ delayedpunishment <- delayedpun_delays_df %>%
   mutate(shockoflastcompletedblock = ifelse(lastshock_cat == "Complete", lastshock, secondtolastshock),
          shockoflastattemptedblock = lastshock) %>% 
   rename("box" = "find_1",
-    "numtrialsatlastshock" = "numleftpresseslast") %>% 
+         "numtrialsatlastshock" = "numleftpresseslast") %>% 
   select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
   group_by(labanimalid) %>% 
   mutate(session = as.character(dplyr::row_number())) %>%  
