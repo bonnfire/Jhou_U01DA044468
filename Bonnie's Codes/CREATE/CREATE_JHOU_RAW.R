@@ -375,8 +375,10 @@ runway_loc2_fix <- lapply(runway_loc1_2_df[which(runway_loc1_2_df$latency < 0),]
   runway_loc2$filename <- x
   return(runway_loc2)
 }) %>% rbindlist(fill = T) %>% rename("loc2_reachtime_fix" = "V1")
-runway_loc2_fix %>% subset(is.na(loc2_reachtime_fix)) ## BRINGS UP PROBLEM OF LOCATION 1 COMING AFTER LOCATION 2 
 
+runway_loc2_fix %>% subset(is.na(loc2_reachtime_fix)) ## BRINGS UP PROBLEM OF LOCATION 1 COMING AFTER LOCATION 2 
+################ Look at the fourth session of U111 
+# Jhou_Excel$Runway %>% select(`Animal ID`, U111) %>% View()
 # add the correct values 
 runway_loc1_2_df <- runway_loc1_2_df %>% 
   left_join(., runway_loc2_fix, by = "filename") %>% 
@@ -458,6 +460,39 @@ naniar::vis_miss(runway)
 # runway habituation 
 # from the runway protocols file, a disqualifying runway habituation file is one for which "the animals take more than a minute"..
 # we repeat the habituation sessions until the animal takes less than a minute 
+
+
+
+## COMPLETE REDO OF RUNWAY CALCULATIONS
+readrunway_opening <- function(x){
+  firsttwolocations <- fread(paste0("grep -ra5 \"OPENING\ ", "'", x, "'",
+               "| grep -im2 \"LOCATION\" | grep -oE \".*:[0-9]+(.[0-9]+)?\""))
+}
+
+runway_loc1_2_grep <- system("grep -ra5 \"OPENING\" | grep -irm2 \"LOCATION\" | grep -oE \".*:[0-9]+(.[0-9]+)?\"", intern = T)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
