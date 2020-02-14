@@ -479,7 +479,32 @@ readrunway_opening <- function(x){
   return(loc2)
 }
 
-runwaytest <- lapply(runwayfiles_clean[3000:3100], readrunway_opening) %>% rbindlist(fill = T)
+
+
+runwaytest <- lapply(runwayfiles_clean[3000:3100], readrunway_opening) %>% rbindlist(fill = T) %>%  rename("loc2_time" = "V1")
+runwaytestreach <- lapply(runwayfiles_clean[3000:3100], readrunwayhab_reach) %>% rbindlist(fill = T) %>%  rename("reachtime" = "V1")
+runway_testdf <- merge(runwaytest, runwaytestreach) %>% mutate(run_time = trunc(reachtime) - trunc(loc2_time)) %>% 
+  extractfromfilename() %>% arrange(labanimalid, date, time) %>% group_by(labanimalid) %>% 
+  mutate(session = paste("Cocaine", row_number())) %>% 
+  ungroup()
+
+test_df_cocaine <- WFU_Jhou_test_df %>% rename("labanimalid_wfu" = "labanimalid") %>% left_join(., Jhou_SummaryAll[, c("labanimalid", "rfid")], by = "rfid") %>% 
+   dplyr::filter(labanimalid %in% runway_testdf$labanimalid) %>% left_join(., runway_testdf, by = "labanimalid") %>% merge(., tJhou_Runway_data %>% rename("elapsedtime_xl" = "elapsedtime", 
+                                                                                                                                                           "numreversals_xl" = "numreversals"), 
+                                                                                                                           by.x = c("session","labanimalid"), 
+                                                                                                                           by.y = c("session", "animalid"), 
+                                                                                                                           all = T) %>% 
+  select(labanimalid, rfid, cohort, session, dob, comment, filename, date, run_time, elapsedtime_xl, numreversals_xl)
+  
+
+  
+#   it looks like 455 was not doing well on the first cocaine trial so Alexa took him back to habituation for a couple session then re-started the cocaine trial. I sorted all the files:
+#   
+#   In his habituation folder, there are now 2 subfolders: first habituation and second habituation; you can use the second one.
+# In his runway folder, I put all the failed cocaine trials in a folder called failed cocaine trials and the remaining 12 files will remain in the runway folder.
+
+# for the 900s: some animals dont move at all during the trial, so they don't reach any of the photobeams and as a consequence there are no LOCATION time stamps registered. Those animals time out by 900s, so we don't really calculate a run latency, we just manually write down "900". Some animals still move a lot in the runway (and there will be timestamps for locations 1 and 2) but they never enter the goal box so they also time out by 900s. For both cases, the time stamps are not important to calculate run latency, because it will be marked at 900s. 
+
 # runway_loc1_2_grep <- system("grep -ra5 \"OPENING\" | grep -irm2 \"LOCATION\" | grep -oE \".*:[0-9]+(.[0-9]+)?\"", intern = T)
 
 
