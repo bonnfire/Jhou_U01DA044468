@@ -485,7 +485,7 @@ runwaytest <- lapply(runwayfiles_clean[3000:3100], readrunway_opening) %>% rbind
 runwaytestreach <- lapply(runwayfiles_clean[3000:3100], readrunwayhab_reach) %>% rbindlist(fill = T) %>%  rename("reachtime" = "V1")
 runway_testdf <- merge(runwaytest, runwaytestreach) %>% mutate(run_time = trunc(reachtime) - trunc(loc2_time)) %>% 
   extractfromfilename() %>% arrange(labanimalid, date, time) %>% group_by(labanimalid) %>% 
-  mutate(session = paste("Cocaine", row_number())) %>% 
+  mutate(session = paste0("Cocaine", str_pad(row_number(), 2, side = "left", pad = "0"))) %>% 
   ungroup()
 
 test_df_cocaine <- WFU_Jhou_test_df %>% rename("labanimalid_wfu" = "labanimalid") %>% left_join(., Jhou_SummaryAll[, c("labanimalid", "rfid")], by = "rfid") %>% 
@@ -494,7 +494,7 @@ test_df_cocaine <- WFU_Jhou_test_df %>% rename("labanimalid_wfu" = "labanimalid"
                                                                                                                            by.x = c("session","labanimalid"), 
                                                                                                                            by.y = c("session", "animalid"), 
                                                                                                                            all = T) %>% 
-  select(labanimalid, rfid, cohort, session, dob, comment, filename, date, run_time, elapsedtime_xl, numreversals_xl)
+  select(labanimalid, rfid, cohort, session, dob, comment, filename, date, run_time, elapsedtime_xl, numreversals_xl) %>% arrange(labanimalid, session)
   
 
   
