@@ -474,10 +474,9 @@ naniar::vis_miss(runway)
 
 ## COMPLETE REDO OF RUNWAY CALCULATIONS
 readrunway_opening <- function(x){
-  firsttwolocations <- fread(paste0("grep -ra5 \"OPENING\" ", "'", x, "'",
-                                    " | grep -im2 \"LOCATION\" | awk '{print $1}'"))
-  firsttwolocations$filename <- x
-  return(firsttwolocations)
+  loc2 <- fread(paste0("awk '/LOCATION\\s\\t[2-5]/{print $1; exit}' ", "'", x, "'"), fill = T)
+  loc2$filename <- x
+  return(loc2)
 }
 
 runwaytest <- lapply(runwayfiles_clean[3000:3100], readrunway_opening) %>% rbindlist(fill = T)

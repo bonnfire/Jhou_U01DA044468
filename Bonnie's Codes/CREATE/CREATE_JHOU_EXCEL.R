@@ -128,10 +128,11 @@ Jhou_Runway_test <- Jhou_Runway[1:16, ]
 Jhou_Runway_test <- rbindlist(list(Jhou_Runway_test, as.list(names(Jhou_Runway))), fill=FALSE) # retain the column names before transposing
 Jhou_Runway[, names(Jhou_Runway) := lapply(.SD, as.character)] # preserve values by turning into characters before transposing 
 
-
 tJhou_Runway <- data.table::transpose(Jhou_Runway) # transpose data
 colnames(tJhou_Runway) <- as.character(tJhou_Runway[1,])
 tJhou_Runway <- tJhou_Runway[-1,] # data.table cannot delete rows by reference with tJhou_Runway[1 := NULL,]  
+# setDT(tJhou_Runway)[, "labanimalid" := names(Jhou_Runway)[-1]]
+
 
 # append reversals to column names
 reversalstartindex <- which(grepl("^Hab", colnames(tJhou_Runway)))[3] # find the third occurence of habituation 1,2,1,2
@@ -150,20 +151,21 @@ tJhou_Runway_nonreverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal
 
 
 tJhou_Runway_vars_reversals <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) %>% 
-  grep('\\d+(?=Reversals)', . , value = T, perl=T)
+  grep('\\d+(?=Reversals)', . , value = T, perl=T) 
 tJhou_Runway_reverswide <- tJhou_Runway[, tJhou_Runway_vars_reversals, with=FALSE]
-names(tJhou_Runway_reverswide) <- ifelse(str_count(tJhou_Runway_vars_reversals, "\\d")==1, gsub(" (\\d)", "0\\1", tJhou_Runway_vars_reversals), gsub(" ", "", tJhou_Runway_vars_reversals))
+setnames(tJhou_Runway_reverswide, gsub("Reversals", "", colnames(tJhou_Runway_reverswide)) )
+names(tJhou_Runway_reverswide) <- ifelse(str_count(tJhou_Runway_vars_reversals, "\\d")==1, gsub(" (\\d)", "0\\1", names(tJhou_Runway_reverswide)), gsub(" ", "", names(tJhou_Runway_reverswide)))
 tJhou_Runway_reverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id element but retain the animal ids for the data
 
 
 # convert wide to long formats for both reversals and elapsed time datasets 
 
 tJhou_Runway_nonreverslong <- gather(tJhou_Runway_nonreverswide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) 
-tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numreversals, `Habituation01Reversals`:`Cocaine12Reversals`, factor_key=F) 
+tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numreversals, `Habituation01`:`Cocaine12`, factor_key=F) 
 
 ############################## PICK UP FROM HERE: SHOULD ONLY BE 6608 VALUES BUT WE FIND 92512 CASES AFTER UNSUCCESSFUL MERGE
-tJhou_Runway_data <- cbind(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong %>% select(-animalid)) %>% 
-  mutate_all() %>% ## XX 
+tJhou_Runway_data <- left_join(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong, by = c("animalid", "session" = "reversalsession")) %>% 
+  # mutate_all() %>% ## XX 
   arrange(animalid, session) # all ids are represented 14 times
 
 # extract the notes (create specific comments table)
