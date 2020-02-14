@@ -473,17 +473,19 @@ naniar::vis_miss(runway)
 
 
 ## COMPLETE REDO OF RUNWAY CALCULATIONS
+runway_files_clean2 <- system("grep -vrl --include=\\*.txt \"CALCULATED SYRINGE DURATION USING 10ML SYRINGE IS 0 SECONDS\"", intern = T) ## 4695
+runway_files_clean2 <- runway_files_clean2[str_detect(runway_files_clean2, "U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY_?.txt", negate = F)] ## 4639
+
 readrunway_opening <- function(x){
   loc2 <- fread(paste0("awk '/LOCATION\\s\\t[2-5]/{print $1; exit}' ", "'", x, "'"), fill = T)
   loc2$filename <- x
   return(loc2)
 }
 
-
-
-runwaytest <- lapply(runwayfiles_clean[3000:3100], readrunway_opening) %>% rbindlist(fill = T) %>%  rename("loc2_time" = "V1")
-runwaytestreach <- lapply(runwayfiles_clean[3000:3100], readrunwayhab_reach) %>% rbindlist(fill = T) %>%  rename("reachtime" = "V1")
-runway_testdf <- merge(runwaytest, runwaytestreach) %>% mutate(run_time = trunc(reachtime) - trunc(loc2_time)) %>% 
+runwaytest <- lapply(grep("U(472|178|215|481|567)", runway_files_clean2, value = T), readrunway_opening) %>% rbindlist(fill = T) %>%  rename("loc2_time" = "V1")
+runwaytestreach <- lapply(grep("U(472|178|215|481|567)", runway_files_clean2, value = T), readrunwayhab_reach) %>% rbindlist(fill = T) %>%  rename("reachtime" = "V1")
+runway_testdf <- merge(runwaytest, runwaytestreach, by = "filename") %>% mutate(run_time = trunc(reachtime) - trunc(loc2_time)) %>% 
+  mutate(run_time = replace(run_time, reachtime >= 900, 900)) %>% 
   extractfromfilename() %>% arrange(labanimalid, date, time) %>% group_by(labanimalid) %>% 
   mutate(session = paste0("Cocaine", str_pad(row_number(), 2, side = "left", pad = "0"))) %>% 
   ungroup()
