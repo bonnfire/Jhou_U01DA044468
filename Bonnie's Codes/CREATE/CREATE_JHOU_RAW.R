@@ -122,6 +122,8 @@ setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway habituation")
 runwayhab_files_2 <- system("grep -rnwe 'CALCULATED SYRINGE DURATION USING 10ML SYRINGE IS 0 SECONDS'", intern = T) %>% 
   gsub(":.*", "", x = .) %>% 
   paste0("./", .)
+# for animal 455 (In his habituation folder, there are now 2 subfolders: first habituation and second habituation; you can use the second one.)
+
 
 # get reach data
 readrunwayhab_reach <-  function(x){
