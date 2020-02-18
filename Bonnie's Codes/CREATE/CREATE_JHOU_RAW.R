@@ -1146,36 +1146,31 @@ readlevertraining <- function(x){
   return(levertraining)
 }
 
-# test <- lapply(lever_trainingfiles_clean[1:100], readlevertraining) 
-# test_rm <- test[sapply(test, function(x) ncol(x)) > 1] # remove the null datatables
-# test_df <- test_rm %>% 
-#   rbindlist(fill = T) %>% 
-#   select(-c(V2, V3)) %>% 
-#   rename("completedtrials" = "V1",
-#          "totaltrials" = "V4")
+lt <- lapply(lever_trainingfiles_clean, readlevertraining) #5907 files processed? #226 are NULL
+lt[sapply(lt, function(x) ncol(x)) == 1] %>% unlist() %>% as.character() %>% toupper %>% 
+  stringr::str_extract(., "U[[:digit:]]+") %>% stringr::str_sort(numeric = T) %>% table() %>% as.data.frame() %>% 
+  rename("labanimalid" = ".") %>% left_join(., Jhou_SummaryAll[, c("rfid", "labanimalid", "shipmentcohort", "notesforhumans", "resolution")], by = "labanimalid") # There are 147 animals, about 1-2 files missing; most are from shipmentcohort %in% c("1", "4.3", "3.1", "5.3", "5.2); 
 
-lt <- lapply(lever_trainingfiles_clean, readlevertraining) 
-lt_rm <- lt[sapply(lt, function(x) ncol(x)) > 1] # remove the null datatables
-lt_df <- lt_rm %>% 
+lt <- lt[sapply(lt, function(x) ncol(x)) > 1] # remove the null datatables
+lt_df <- lt %>% 
   rbindlist(fill = T) %>% 
   select(-c(V2, V3)) %>% 
   rename("completedtrials" = "V1",
-         "totaltrials" = "V4")
+         "totaltrials" = "V4") %>% 
+  mutate(filename = sub("./", "", filename)) # 5681
 
-readbox <- function(x){
-  boxes <- fread(paste0("grep -oEm1 \"(box|station) [0-9]+\" ", "'", x, "'"))
-  return(boxes)
-}
-levertraining_raw <- sapply(lt_df$filename, readbox) %>% 
-  t() %>% 
+readbox <- system("grep -orEm1 \"(box|station) [0-9]+\" ", intern = T) %>% 
   as.data.frame() %>% 
-  tibble::rownames_to_column(var = "filename") %>% 
-  mutate(box = paste(V1, as.character(V2))) %>% 
-  select(-c(V1, V2)) %>% 
-  merge(lt_df,.) %>% 
-  extractfromfilename() %>% 
-  WFUjoin.raw() %>% 
-  select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, experimentage, filename)
+  rename("filename" = ".") %>% 
+  separate(filename, into = c("filename", "box"), sep = ":") #5935
+setdiff(readbox$filename, sub("./", "", lever_trainingfiles))
+setdiff(sub("./", "", list.files(path=".", pattern=".*(LEVER|lever).*.txt", full.names=TRUE, recursive=TRUE)), readbox$filename) ## one file that wasn't found in boxes 
+
+levertraining_raw <- WFU_Jhou_test_df %>% select(cohort, rfid, sex, dob) %>% 
+  left_join(., Jhou_SummaryAll[, c("rfid", "labanimalid", "shipmentcohort", "notesforhumans", "resolution")], by = "rfid") %>% 
+  left_join(., merge(lt_df, readbox) %>% 
+              mutate(labanimalid = stringr::str_extract(filename, "U[[:digit:]]+")), by = "labanimalid") 
+  # select(shipmentcohort, labanimalid, rfid, date, time, completedtrials, totaltrials, box, experimentage, filename)
 
 
 levertraining_raw %>% naniar::vis_miss()
@@ -1183,6 +1178,8 @@ levertraining_raw %>% summary()
 
 subset(levertraining_raw, experimentage < 0) 
 levertraining_raw_upload <- subset(levertraining_raw, experimentage > 0) 
+
+
 
 ##################################
 # Create list of all experiments
