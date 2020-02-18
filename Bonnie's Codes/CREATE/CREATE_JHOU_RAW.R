@@ -482,8 +482,11 @@ readrunway_opening <- function(x){
   return(loc2)
 }
 
-runwaytest <- lapply(grep("U(472|178|215|481|567)", runway_files_clean2, value = T), readrunway_opening) %>% rbindlist(fill = T) %>%  rename("loc2_time" = "V1")
-runwaytestreach <- lapply(grep("U(472|178|215|481|567)", runway_files_clean2, value = T), readrunwayhab_reach) %>% rbindlist(fill = T) %>%  rename("reachtime" = "V1")
+## testing cases of no location, no reach, etc
+# grep -Lr --include=\*.txt "REACH"
+
+runwaytest <- lapply(grep("U(503)", runway_files_clean2, value = T), readrunway_opening) %>% rbindlist(fill = T) %>%  rename("loc2_time" = "V1")
+runwaytestreach <- lapply(grep("U(503)", runway_files_clean2, value = T), readrunwayhab_reach) %>% rbindlist(fill = T) %>%  rename("reachtime" = "V1")
 runway_testdf <- merge(runwaytest, runwaytestreach, by = "filename") %>% mutate(run_time = trunc(reachtime) - trunc(loc2_time)) %>% 
   mutate(run_time = replace(run_time, reachtime >= 900, 900)) %>% 
   extractfromfilename() %>% arrange(labanimalid, date, time) %>% group_by(labanimalid) %>% 
@@ -498,8 +501,10 @@ test_df_cocaine <- WFU_Jhou_test_df %>% rename("labanimalid_wfu" = "labanimalid"
                                                                                                                            all = T) %>% 
   select(labanimalid, rfid, cohort, session, dob, comment, filename, date, run_time, elapsedtime_xl, numreversals_xl) %>% arrange(labanimalid, session)
   
+## how many of the spleens have data
+jhou_extraction %>% left_join(., test_df_cocaine, by = "")
 
-  
+
 #   it looks like 455 was not doing well on the first cocaine trial so Alexa took him back to habituation for a couple session then re-started the cocaine trial. I sorted all the files:
 #   
 #   In his habituation folder, there are now 2 subfolders: first habituation and second habituation; you can use the second one.

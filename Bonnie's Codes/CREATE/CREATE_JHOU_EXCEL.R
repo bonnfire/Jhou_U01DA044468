@@ -158,7 +158,7 @@ names(tJhou_Runway_reverswide) <- ifelse(str_count(tJhou_Runway_vars_reversals, 
 tJhou_Runway_reverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id element but retain the animal ids for the data
 
 
-# convert wide to long formats for both reversals and elapsed time datasets 
+# convert wide to long formats for both reversals and elapse  d time datasets 
 
 tJhou_Runway_nonreverslong <- gather(tJhou_Runway_nonreverswide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) 
 tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numreversals, `Habituation01`:`Cocaine12`, factor_key=F) 
@@ -171,6 +171,8 @@ tJhou_Runway_data <- left_join(tJhou_Runway_nonreverslong, tJhou_Runway_reverslo
 # extract the notes (create specific comments table)
 tJhou_Runway_notes <- tJhou_Runway[, "notes", with = FALSE]
 tJhou_Runway_notes[, animalid := names(Jhou_Runway)[-1]]
+
+
 
 ################################
 ########### LOCOMOTOR ##########
