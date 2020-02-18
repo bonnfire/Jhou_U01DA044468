@@ -1134,8 +1134,10 @@ delayedpunishment %>% naniar::vis_miss() #100% now
 ### RAW TEXT  Lever training ###
 ################################
 # extract all file names, split into the cohorts mentioned in the protocols sheet, and write separate functions for them
+# why? ^ 
+
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Lever training")
-lever_trainingfiles <- list.files(path=".", pattern=".*LEVER.*.txt", full.names=TRUE, recursive=TRUE) # 5736 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
+lever_trainingfiles <- list.files(path=".", pattern=".*LEVER.*.txt", full.names=TRUE, recursive=TRUE) # 5929 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
 lever_trainingfiles_clean <- lever_trainingfiles[str_detect(lever_trainingfiles, "/U\\d+(\\D+)?/\\d{4}-\\d{4}-\\d{4}_\\d+_LEVER TRAINING(_corrected)?.txt", negate = F)] # 5721 files # including the files that contain PP ??? XX 
 
 readlevertraining <- function(x){

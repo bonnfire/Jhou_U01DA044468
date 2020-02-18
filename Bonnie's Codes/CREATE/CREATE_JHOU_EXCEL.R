@@ -19,7 +19,8 @@ u01.importxlsx <- function(xlname){
 
 # Jhou_Excel <- u01.importxlsx("U01 Master sheet_readonly.xlsx") # 1/2 this file has disappeared
 # Jhou_Excel_updated <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx") # since 12/11 this file has disappeared 1/2 reappeared 
-Jhou_Excel <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx")
+# Jhou_Excel <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx")
+Jhou_Excel <- u01.importxlsx("U01 Master sheet (Jhou Lab's conflicted copy 2020-02-17).xlsm") # updated 2/18??? 
 
 ################################
 ########### Summary All ########
@@ -40,15 +41,10 @@ Jhou_SummaryAll$coatcolor <- gsub("([A-Z]+)(HOOD)", "\\1 \\2", Jhou_SummaryAll$c
 Jhou_SummaryAll$coatcolor <- toupper(Jhou_SummaryAll$coatcolor)
 
 datecols <- c("dob", "dow", "shipmentdate")
-datefunction <- function(x){
-  if(is.POSIXct(x) == F){
-    as.POSIXct(as.numeric(x) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")
-  } else x
-}
 Jhou_SummaryAll <- Jhou_SummaryAll %>% 
-  mutate_at(.vars = vars(datecols), .funs = datefunction)
-
-Jhou_SummaryAll[which(is.na(Jhou_SummaryAll$sex)|Jhou_SummaryAll$sex == "```"),] # NA values are from empty observations so you can omit those for now
+  mutate_at(.vars = vars(datecols), .funs = openxlsx::convertToDate)
+  
+# Jhou_SummaryAll[which(is.na(Jhou_SummaryAll$sex)|Jhou_SummaryAll$sex == "```"),] # NA values are from empty observations so you can omit those for now
 
 Jhou_SummaryAll %<>% 
   mutate(wakeforestid = gsub(".*-->", "", wakeforestid),
@@ -70,7 +66,8 @@ Jhou_SummaryAll[52, ] <- Jhou_SummaryAll %>%
          wakeforestid = "TJ052")
 Jhou_SummaryAll <- Jhou_SummaryAll[-53,]
 # extract their copy of the WFU shipment information and qc in QC_Jhou_WFU.R; left the ``` sex 
-
+Jhou_SummaryAll %<>% 
+  mutate(notesforhumans = gsub("(Yellow background .*)|(Behavior values .*)", NA, notesforhumans)) # remove the notes for humans that are relevant to the animal
 
 
 ################################
