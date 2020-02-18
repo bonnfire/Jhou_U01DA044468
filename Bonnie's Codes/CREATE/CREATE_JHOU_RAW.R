@@ -939,10 +939,10 @@ progratio_raw_upload <- progratio_raw %>% subset(!labanimalid %in% progratio_sub
 # EXP 5: Delayed punishment
 # setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/Tom_Jhou_U01DA044468_Dropbox_copy/Delayed punishment/")
 # find -type f -iname "*PUNISHMENT*.txt" ! -path "*error*" -exec awk '/ENDING/{print FILENAME}' {} \; 
-setwd("~/Dropbox (Palmer Lab)/U01 folder/Delayed punishment") # while dropbox is updating the clone
+setwd("~/Dropbox (Palmer Lab)/U01 folder/Delayed punishment") 
 
-delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # 5781 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
-delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_corrected)?.txt", negate = F)] # 5873 files
+delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # 6192 files exclude existing txt files and include any corrective "qualifiers" # 6192 counts
+delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_|_corrected)?.txt", negate = F)] # 6042 files
 # delayed_punishmentfiles_clean <-  delayed_punishmentfiles[ ! grepl("error", delayed_punishmentfiles, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team) 
 
 create_delayedpuntable <- function(x){
@@ -996,17 +996,6 @@ create_delayedpuntable_tocategorize <- function(x){
       merge(., lastshock, by = "filename") %>% 
       rename("secondtolastshock" = "V1.x", 
              "lastshock" = "V1.y") # for each file, merge the MA value (last two)
-    
-    # names(filelasttwoandlast) = c("filename", "numleftpressesbwlasttwo","numleftpresseslast", "secondtolastshock", "lastshock")
-    # numofsessions[[i]] <- filelasttwoandlast # add to list 
-    
-    # turning off this part of function because functions with blank spaces there are messing up the function
-    # if(grepl("delayed", filelasttwoandlast$filename, ignore.case = T)){
-    #   delay = fread(paste0("awk 'NR == " , x$rownum[i]," {print $18}' ",  "'", x$filename[i], "'"), header=F, fill=T, showProgress = F, verbose = F,blank.lines.skip=TRUE)
-    #   delay$filename <-x$filename[i]
-    #   filelasttwoandlast <- merge(filelasttwoandlast, delay, by = "filename") %>%
-    #     rename("delay" = "V1")
-    # }
     
     numofsessions[[i]] <- filelasttwoandlast
   }
@@ -1136,6 +1125,8 @@ delayedpunishment %>% naniar::vis_miss() #100% now
 # extract all file names, split into the cohorts mentioned in the protocols sheet, and write separate functions for them
 # why? ^ 
 
+# *From Data Extraction file on Dropbox* As animals become more proficient with training, the # of trials with <15 seconds latency will increase. Script terminates at 60 minutes (will often read 59:59) or until 35 trials are completed. 
+
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Lever training")
 lever_trainingfiles <- list.files(path=".", pattern=".*LEVER.*.txt", full.names=TRUE, recursive=TRUE) # 5929 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
 lever_trainingfiles_clean <- lever_trainingfiles[str_detect(lever_trainingfiles, "/U\\d+(\\D+)?/\\d{4}-\\d{4}-\\d{4}_\\d+_LEVER TRAINING(_corrected)?.txt", negate = F)] # 5721 files # including the files that contain PP ??? XX 
@@ -1175,7 +1166,7 @@ levertraining_raw <- WFU_Jhou_test_df %>% select(cohort, rfid, sex, dob) %>%
 
 levertraining_raw %>% naniar::vis_miss()
 levertraining_raw %>% summary()
-
+levertraining_raw %>% add_count(labanimalid) %>% select(n, labanimalid) %>% distinct(n, labanimalid) %>% ggplot() + geom_histogram(aes(x = n), stat = "count") 
 subset(levertraining_raw, experimentage < 0) 
 levertraining_raw_upload <- subset(levertraining_raw, experimentage > 0) 
 

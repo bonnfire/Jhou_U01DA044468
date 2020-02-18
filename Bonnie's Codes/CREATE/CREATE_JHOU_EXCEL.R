@@ -360,19 +360,20 @@ Jhou_Delayedpun <- Jhou_Excel[["Delayed punishment (DP)"]] %>% as.data.table
 Jhou_Delayedpun <- Jhou_Delayedpun[, 1:12, with=T]
 setnames(Jhou_Delayedpun, c("delay", as.character(Jhou_Delayedpun[2, 2:12])) )
 
+# (Commented out on 2/18 because I'm doing a new approach where I don't drop any ID's and keeping all records)
 # use row indices to remove the rows
 # remove non black rows by matching delay and shock intensity of last trial completed and # of active lever presses
 # get the character 
-setwd("~/Dropbox (Palmer Lab)/U01 folder")
-Jhou_Delayedpun_formats_cellbycell <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx") %>% 
-  dplyr::filter(sheet == "Delayed punishment (DP)")
-Jhou_Excel_Delayedpun_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
-wantedhexa_Delayedpun <- Jhou_Excel_Delayedpun_formats$local$font$color$rgb[Jhou_Delayedpun_formats_cellbycell[which(Jhou_Delayedpun_formats_cellbycell$row == 1 & Jhou_Delayedpun_formats_cellbycell$col == 15),]$local_format_id]
-wantedhexa_indices_Delayedpun <- which(Jhou_Excel_Delayedpun_formats$local$font$color$rgb != wantedhexa_Delayedpun) # not black
-nonblackrows_Delayedpun <- Jhou_Delayedpun_formats_cellbycell[Jhou_Delayedpun_formats_cellbycell$local_format_id %in% wantedhexa_indices_Delayedpun, ] %>% 
-  dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique() %>% mutate(row = row - 1)
-# Jhou_Excel_ProgRatio_red <- Jhou_ProgRatio_formats_cellbycell[Jhou_ProgRatio_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col) %>% mutate(row = row - 1)
-Jhou_Delayedpun <- Jhou_Delayedpun[-nonblackrows_Delayedpun$row,] # with nonblack rows removed 
+# setwd("~/Dropbox (Palmer Lab)/U01 folder")
+# Jhou_Delayedpun_formats_cellbycell <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx") %>% 
+#   dplyr::filter(sheet == "Delayed punishment (DP)")
+# Jhou_Excel_Delayedpun_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
+# wantedhexa_Delayedpun <- Jhou_Excel_Delayedpun_formats$local$font$color$rgb[Jhou_Delayedpun_formats_cellbycell[which(Jhou_Delayedpun_formats_cellbycell$row == 1 & Jhou_Delayedpun_formats_cellbycell$col == 15),]$local_format_id]
+# wantedhexa_indices_Delayedpun <- which(Jhou_Excel_Delayedpun_formats$local$font$color$rgb != wantedhexa_Delayedpun) # not black
+# nonblackrows_Delayedpun <- Jhou_Delayedpun_formats_cellbycell[Jhou_Delayedpun_formats_cellbycell$local_format_id %in% wantedhexa_indices_Delayedpun, ] %>% 
+#   dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique() %>% mutate(row = row - 1)
+# # Jhou_Excel_ProgRatio_red <- Jhou_ProgRatio_formats_cellbycell[Jhou_ProgRatio_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col) %>% mutate(row = row - 1)
+# Jhou_Delayedpun <- Jhou_Delayedpun[-nonblackrows_Delayedpun$row,] # with nonblack rows removed 
 
 # split the data
 Jhou_Delayedpun_split <- split(Jhou_Delayedpun, cumsum(1:nrow(Jhou_Delayedpun) %in%  grep("^U", Jhou_Delayedpun$delay, ignore.case = F))) 
@@ -387,5 +388,19 @@ Jhou_Delayedpun_Excel <- lapply(Jhou_Delayedpun_split, function(x){
 # Jhou_Delayedpun_Excel %>% 
 #   group_by(labanimalid) %>%
 #   dplyr::filter(session == max(session))
+
+
+
+################################
+###### GOOGLE SHEETS  ##########
+################################
+library(gsheet)
+
+Jhou_Ratweights <- list()
+Jhou_Ratweights[[1]] <- gsheet2tbl('https://docs.google.com/spreadsheets/d/1f17kzWnu2nwZ5VfWvKOZibH5Cw_Y1tt6p-zLJWbrsDw/edit#gid=691824374')
+Jhou_Ratweights[[2]] <-gsheet2tbl('https://docs.google.com/spreadsheets/d/1f17kzWnu2nwZ5VfWvKOZibH5Cw_Y1tt6p-zLJWbrsDw/edit#gid=847270128')
+
+Jhou_Ratweights_U1_392 <- 
+
 
 
