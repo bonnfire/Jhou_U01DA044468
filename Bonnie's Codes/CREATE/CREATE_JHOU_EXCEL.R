@@ -451,13 +451,13 @@ U51 <-  gather(Jhou_Ratweights_U1_392_df, "date", "weight","2018-07-07_1":"2019-
   subset(labanimalid == "U51") %>% 
   rename("init_weight" = "Initial Weight",
          "goal_weight" = "(g)") %>% 
-  mutate_at(vars(matches("weight")), as.numeric) %>% 
-  mutate(goal_weight = replace(goal_weight, is.na(goal_weight), 0.85 * init_weight),
-         weight_pct = (weight/init_weight) * 100) %>% 
+  mutate_at(vars(matches("weight")), as.numeric)  %>% 
   subset(!is.na(weight)) %>% 
   separate(date, into = c("date", "session"), sep = "_") %>% 
   group_by(labanimalid) %>% 
-  mutate(init_weight = replace(init_weight, is.na(init_weight) & row_number() == 1, first(weight)))
+  mutate(init_weight = replace(init_weight, is.na(init_weight) & row_number() == 1, first(weight)),
+         goal_weight = replace(goal_weight, is.na(goal_weight) | goal_weight == 0, 0.85 * init_weight),
+         weight_pct = (weight/init_weight) * 100)
 
 
 
