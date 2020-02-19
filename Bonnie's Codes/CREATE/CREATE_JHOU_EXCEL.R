@@ -425,23 +425,6 @@ Jhou_Ratweights_U1_392_date_session <- names(Jhou_Ratweights_U1_392_df[4:length(
          date = paste0(date, "_", session),
          date = make.unique(date)) %>% 
   select(-session) 
-
-  # mutate(session = ifelse(grepl("Session", date), date, NA),
-  #        session = str_extract(session, "Session \\d{1}"),
-  #        date = replace(date, grepl("Session", date), NA)) %>%
-  # fill(date)
-
-
-
-# Jhou_Ratweights_U1_392_date_session <- Jhou_Ratweights_U1_392[1, 4:length(Jhou_Ratweights_U1_392)] %>% as.data.frame() 
-  # rename("date" = ".") %>%
-  # mutate_all(as.character) %>%
-  # mutate(session = ifelse(grepl("Session|", date), date, NA),
-  #        session = str_extract(session, "Session \\d{1}"),
-  #        date = replace(date, grepl("Session", date), NA)) %>%
-  # fill(date)
-
-  
   
 names(Jhou_Ratweights_U1_392_df)[4:length(Jhou_Ratweights_U1_392_df)] <- Jhou_Ratweights_U1_392_date_session$date
 Jhou_Ratweights_U1_392_df <- gather(Jhou_Ratweights_U1_392_df, "date", "weight","2018-07-07_1":"2019-08-30_1") %>%
@@ -459,6 +442,53 @@ Jhou_Ratweights_U1_392_df <- gather(Jhou_Ratweights_U1_392_df, "date", "weight",
 
 ## seems to be working! but are the dates at which the init weight taken important? do we need to consider how far the baseline is measured vs the dates of exp? (in that case, am worried about U100?? )
 
+
+Jhou_Ratweights_U393_ <- Jhou_Ratweights[[2]] %>% 
+  as.data.frame() %>% 
+  t() %>%
+  as.data.frame() %>% 
+  mutate_all(as.character)
+names(Jhou_Ratweights_U393_) <- Jhou_Ratweights_U393_[1,]
+names(Jhou_Ratweights_U393_)[1] <- "labanimalid"
+Jhou_Ratweights_U393_df <- Jhou_Ratweights_U393_ %>% 
+  subset(grepl("U\\d+?", labanimalid))
+Jhou_Ratweights_U393_df <- Jhou_Ratweights_U393_df[,colSums(is.na(Jhou_Ratweights_U393_df))<nrow(Jhou_Ratweights_U393_df)] # drop out columns that are all na
+
+Jhou_Ratweights_U393_date_session <- names(Jhou_Ratweights_U393_df[4:length(Jhou_Ratweights_U393_df)]) %>% as.data.frame() %>%
+  rename("date" = ".") %>%
+  mutate_all(as.character) %>%
+  mutate(date = sub("[.]\\d+", "", date),
+         date = replace(date, grepl("Session", date), NA),
+         date = replace(date, date == "NA", NA)) %>% 
+  fill(date) %>% 
+  group_by(date) %>% 
+  mutate(session = row_number()) %>%
+  ungroup() %>% 
+  mutate(date = ifelse(grepl("\\d+?/\\d+", date), lubridate::mdy(date) %>% as.character(), as.character(date)),
+         date = paste0(date, "_", session),
+         date = make.unique(date)) %>% 
+  select(-session) 
+
+names(Jhou_Ratweights_U393_df)[4:length(Jhou_Ratweights_U393_df)] <- Jhou_Ratweights_U393_date_session$date
+Jhou_Ratweights_U393_df <- gather(Jhou_Ratweights_U393_df, "date", "weight","2019-08-23_1":"2020-01-16_1") %>%
+  rename("init_weight" = "Initial Weight",
+         "goal_weight" = "(g)") %>% 
+  mutate_at(vars(matches("weight")), as.numeric)  %>% 
+  subset(!is.na(weight)) %>% 
+  separate(date, into = c("date", "session"), sep = "_") %>% 
+  group_by(labanimalid) %>% 
+  mutate(init_weight = replace(init_weight, is.na(init_weight), first(weight)),
+         goal_weight = replace(goal_weight, is.na(goal_weight) | goal_weight == 0, 0.85 * init_weight),
+         weight_pct = (weight/init_weight) * 100) %>% 
+  ungroup() %>% 
+  subset(weight_pct != 100)
+
+Jhou_RatWeights_df <- rbind(Jhou_Ratweights_U1_392_df, Jhou_Ratweights_U393_df) %>% 
+  mutate(date = lubridate::ymd(date)) %>% 
+  arrange(labanimalid, date, session)
+Jhou_RatWeights_df %>% 
+  ggplot() + 
+  geom_line(aes(x = date, y = weight, group = labanimalid))
 
 
   # arrange df by mixed column
