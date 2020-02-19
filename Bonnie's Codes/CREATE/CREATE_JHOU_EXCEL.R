@@ -443,23 +443,31 @@ Jhou_Ratweights_U1_392_date_session <- names(Jhou_Ratweights_U1_392_df[4:length(
 
   
   
-  
 names(Jhou_Ratweights_U1_392_df)[4:length(Jhou_Ratweights_U1_392_df)] <- Jhou_Ratweights_U1_392_date_session$date
-Jhou_Ratweights_U1_392_df <- gather(Jhou_Ratweights_U1_392_df, "date", "weight","2018-07-07_1":"2019-08-30_1") %>% 
+# Jhou_Ratweights_U1_392_df <- 
+  
+  
+U51 <-  gather(Jhou_Ratweights_U1_392_df, "date", "weight","2018-07-07_1":"2019-08-30_1") %>%
+  subset(labanimalid == "U51") %>% 
   rename("init_weight" = "Initial Weight",
          "goal_weight" = "(g)") %>% 
   mutate_at(vars(matches("weight")), as.numeric) %>% 
-  mutate(goal_weight = replace(goal_weight, is.na(goal_weight), 0.85 * init_weight), 
+  mutate(goal_weight = replace(goal_weight, is.na(goal_weight), 0.85 * init_weight),
          weight_pct = (weight/init_weight) * 100) %>% 
-  subset(goal_weight > 0) %>% 
-  separate(date, into = c("date", "session"), sep = "_")
+  subset(!is.na(weight)) %>% 
+  separate(date, into = c("date", "session"), sep = "_") %>% 
+  group_by(labanimalid) %>% 
+  mutate(init_weight = replace(init_weight, is.na(init_weight) & row_number() == 1, first(weight)))
 
-# create dates to filter out na data 
-weights_cohorts <- data.frame(
-  cohorts = c("C01", "C01", ), 
-  date = c("7/7/2018", "8/1/18")
-)
-  
+
+
+Jhou_Ratweights_U1_392_df %>% 
+  group_by(labanimalid) %>% 
+  filter(1 %in% weight) %>% 
+  slice(1:(which.max(weight == 1) - 1))
+
+
+
   # arrange df by mixed column
 df[mixedorder(df$Day),]
 
