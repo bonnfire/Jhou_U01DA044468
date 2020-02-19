@@ -411,24 +411,48 @@ Jhou_Ratweights_U1_392_df <- Jhou_Ratweights_U1_392 %>%
   subset(grepl("U\\d+?", labanimalid))
 Jhou_Ratweights_U1_392_df <- Jhou_Ratweights_U1_392_df[,colSums(is.na(Jhou_Ratweights_U1_392_df))<nrow(Jhou_Ratweights_U1_392_df)] # drop out columns that are all na
 
-# Jhou_Ratweights_U1_392_date_session <- names(Jhou_Ratweights_U1_392_df[4:length(Jhou_Ratweights_U1_392_df)]) %>% as.data.frame() %>% 
-  
-Jhou_Ratweights_U1_392_date_session <- Jhou_Ratweights_U1_392[1, 4:length(Jhou_Ratweights_U1_392_df)] %>% as.data.frame() 
-  rename("date" = ".") %>% 
-  mutate_all(as.character) %>% 
-  mutate(session = ifelse(grepl("Session|", date), date, NA),
-         session = str_extract(session, "Session \\d{1}"),
-         date = replace(date, grepl("Session", date), NA)) %>% 
-  fill(date) 
+Jhou_Ratweights_U1_392_date_session <- names(Jhou_Ratweights_U1_392_df[4:length(Jhou_Ratweights_U1_392_df)]) %>% as.data.frame() %>%
+  rename("date" = ".") %>%
+  mutate_all(as.character) %>%
+  mutate(date = sub("[.]\\d+", "", date),
+         date = replace(date, grepl("Session", date), NA),
+         date = replace(date, date == "NA", NA)) %>% 
+  fill(date) %>% 
+  group_by(date) %>% 
+  mutate(session = row_number()) %>%
+  ungroup() %>% 
+  mutate(date = ifelse(grepl("\\d+?/\\d+", date), lubridate::mdy(date) %>% as.character(), as.character(date)),
+         date = paste0(date, "_", session),
+         date = make.unique(date)) %>% 
+  select(-session) 
 
-Jhou_Ratweights_U1_392_df <- gather(Jhou_Ratweights_U1_392_df, "date", "weight","7/7/2018":"8/30/19") %>% 
+  # mutate(session = ifelse(grepl("Session", date), date, NA),
+  #        session = str_extract(session, "Session \\d{1}"),
+  #        date = replace(date, grepl("Session", date), NA)) %>%
+  # fill(date)
+
+
+
+# Jhou_Ratweights_U1_392_date_session <- Jhou_Ratweights_U1_392[1, 4:length(Jhou_Ratweights_U1_392)] %>% as.data.frame() 
+  # rename("date" = ".") %>%
+  # mutate_all(as.character) %>%
+  # mutate(session = ifelse(grepl("Session|", date), date, NA),
+  #        session = str_extract(session, "Session \\d{1}"),
+  #        date = replace(date, grepl("Session", date), NA)) %>%
+  # fill(date)
+
+  
+  
+  
+names(Jhou_Ratweights_U1_392_df)[4:length(Jhou_Ratweights_U1_392_df)] <- Jhou_Ratweights_U1_392_date_session$date
+Jhou_Ratweights_U1_392_df <- gather(Jhou_Ratweights_U1_392_df, "date", "weight","2018-07-07_1":"2019-08-30_1") %>% 
   rename("init_weight" = "Initial Weight",
          "goal_weight" = "(g)") %>% 
   mutate_at(vars(matches("weight")), as.numeric) %>% 
-  mutate(weight_pct = (weight/init_weight) * 100) %>% 
+  mutate(goal_weight = replace(goal_weight, is.na(goal_weight), 0.85 * init_weight), 
+         weight_pct = (weight/init_weight) * 100) %>% 
   subset(goal_weight > 0) %>% 
-  mutate(session = ifelse(grepl("Session", date), date, NA),
-         session = str_extract("Session \\d", session))
+  separate(date, into = c("date", "session"), sep = "_")
 
 # create dates to filter out na data 
 weights_cohorts <- data.frame(
