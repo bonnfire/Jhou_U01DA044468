@@ -444,27 +444,20 @@ Jhou_Ratweights_U1_392_date_session <- names(Jhou_Ratweights_U1_392_df[4:length(
   
   
 names(Jhou_Ratweights_U1_392_df)[4:length(Jhou_Ratweights_U1_392_df)] <- Jhou_Ratweights_U1_392_date_session$date
-# Jhou_Ratweights_U1_392_df <- 
-  
-  
-U51 <-  gather(Jhou_Ratweights_U1_392_df, "date", "weight","2018-07-07_1":"2019-08-30_1") %>%
-  subset(labanimalid == "U51") %>% 
+Jhou_Ratweights_U1_392_df <- gather(Jhou_Ratweights_U1_392_df, "date", "weight","2018-07-07_1":"2019-08-30_1") %>%
   rename("init_weight" = "Initial Weight",
          "goal_weight" = "(g)") %>% 
   mutate_at(vars(matches("weight")), as.numeric)  %>% 
   subset(!is.na(weight)) %>% 
   separate(date, into = c("date", "session"), sep = "_") %>% 
   group_by(labanimalid) %>% 
-  mutate(init_weight = replace(init_weight, is.na(init_weight) & row_number() == 1, first(weight)),
+  mutate(init_weight = replace(init_weight, is.na(init_weight), first(weight)),
          goal_weight = replace(goal_weight, is.na(goal_weight) | goal_weight == 0, 0.85 * init_weight),
-         weight_pct = (weight/init_weight) * 100)
+         weight_pct = (weight/init_weight) * 100) %>% 
+  ungroup() %>% 
+  subset(weight_pct != 100)
 
-
-
-Jhou_Ratweights_U1_392_df %>% 
-  group_by(labanimalid) %>% 
-  filter(1 %in% weight) %>% 
-  slice(1:(which.max(weight == 1) - 1))
+## seems to be working! but are the dates at which the init weight taken important? do we need to consider how far the baseline is measured vs the dates of exp? (in that case, am worried about U100?? )
 
 
 
