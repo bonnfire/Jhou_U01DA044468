@@ -398,9 +398,46 @@ library(gsheet)
 
 Jhou_Ratweights <- list()
 Jhou_Ratweights[[1]] <- gsheet2tbl('https://docs.google.com/spreadsheets/d/1f17kzWnu2nwZ5VfWvKOZibH5Cw_Y1tt6p-zLJWbrsDw/edit#gid=691824374')
-Jhou_Ratweights[[2]] <-gsheet2tbl('https://docs.google.com/spreadsheets/d/1f17kzWnu2nwZ5VfWvKOZibH5Cw_Y1tt6p-zLJWbrsDw/edit#gid=847270128')
+Jhou_Ratweights[[2]] <- gsheet2tbl('https://docs.google.com/spreadsheets/d/1f17kzWnu2nwZ5VfWvKOZibH5Cw_Y1tt6p-zLJWbrsDw/edit#gid=847270128')
 
-Jhou_Ratweights_U1_392 <- 
+Jhou_Ratweights_U1_392 <- Jhou_Ratweights[[1]] %>% 
+  as.data.frame() %>% 
+  t() %>%
+  as.data.frame() %>% 
+  mutate_all(as.character)
+names(Jhou_Ratweights_U1_392) <- Jhou_Ratweights_U1_392[1,]
+names(Jhou_Ratweights_U1_392)[1] <- "labanimalid"
+Jhou_Ratweights_U1_392_df <- Jhou_Ratweights_U1_392 %>% 
+  subset(grepl("U\\d+?", labanimalid))
+Jhou_Ratweights_U1_392_df <- Jhou_Ratweights_U1_392_df[,colSums(is.na(Jhou_Ratweights_U1_392_df))<nrow(Jhou_Ratweights_U1_392_df)] # drop out columns that are all na
+
+# Jhou_Ratweights_U1_392_date_session <- names(Jhou_Ratweights_U1_392_df[4:length(Jhou_Ratweights_U1_392_df)]) %>% as.data.frame() %>% 
+  
+Jhou_Ratweights_U1_392_date_session <- Jhou_Ratweights_U1_392[1, 4:length(Jhou_Ratweights_U1_392_df)] %>% as.data.frame() 
+  rename("date" = ".") %>% 
+  mutate_all(as.character) %>% 
+  mutate(session = ifelse(grepl("Session|", date), date, NA),
+         session = str_extract(session, "Session \\d{1}"),
+         date = replace(date, grepl("Session", date), NA)) %>% 
+  fill(date) 
+
+Jhou_Ratweights_U1_392_df <- gather(Jhou_Ratweights_U1_392_df, "date", "weight","7/7/2018":"8/30/19") %>% 
+  rename("init_weight" = "Initial Weight",
+         "goal_weight" = "(g)") %>% 
+  mutate_at(vars(matches("weight")), as.numeric) %>% 
+  mutate(weight_pct = (weight/init_weight) * 100) %>% 
+  subset(goal_weight > 0) %>% 
+  mutate(session = ifelse(grepl("Session", date), date, NA),
+         session = str_extract("Session \\d", session))
+
+# create dates to filter out na data 
+weights_cohorts <- data.frame(
+  cohorts = c("C01", "C01", ), 
+  date = c("7/7/2018", "8/1/18")
+)
+  
+  # arrange df by mixed column
+df[mixedorder(df$Day),]
 
 
 
