@@ -963,6 +963,14 @@ delayedpunishment_df_complete <- delayedpunishment_df %>%
   do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to the last two per filename # 11127 THIS TRIAL LINES (TTL) from 5,575 unique files (should be 11150, or 5575*2, so we are missing cases )
 
 delayedpunishment_df_complete %>% count(filename) %>% subset(n!=2) ## added to notes for jhou team 
+Jhou_Delayedpun_Excel %>% dplyr::filter()
+
+## do these animals actually have the right amount of data in the Excel sheets
+onlyonecase <- delayedpunishment_df_complete %>% count(filename) %>% subset(n!=2) %>% mutate(labanimalid = str_extract(filename, "U\\d+")) %>% select(labanimalid) %>% unlist() %>% as.character()
+delayedpunishment_df_complete %>% mutate(labanimalid = str_extract(filename, "U\\d+")) %>%  dplyr::filter(labanimalid %in% onlyonecase)
+Jhou_Delayedpun_Edelayedpunishment_df_completexcel %>% dplyr::filter(labanimalid %in% onlyonecase)
+
+
 
 delayed_data_df_valid <- delayedpunishment_df_complete %>% 
   group_by(filename) %>%

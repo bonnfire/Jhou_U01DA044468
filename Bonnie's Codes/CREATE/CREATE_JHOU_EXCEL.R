@@ -421,7 +421,10 @@ Jhou_Ratweights_U1_392_date_session <- names(Jhou_Ratweights_U1_392_df[4:length(
   group_by(date) %>% 
   mutate(session = row_number()) %>%
   ungroup() %>% 
-  mutate(date = ifelse(grepl("\\d+?/\\d+", date), lubridate::mdy(date) %>% as.character(), as.character(date)),
+  mutate(date = ifelse(grepl("^\\d{7,8}$", date), str_pad(date, 8, "left", "0"), as.character(date)),
+         date = ifelse(grepl("\\d{8}", date), sub("(\\d{2})(\\d{2})", '\\1/\\2/', date) %>% lubridate::mdy() %>% as.character(), as.character(date)),
+         # date = ifelse(grepl("\\d{7}", date), lubridate::mdy(date) %>% as.character(), as.character(date)),
+         date = ifelse(grepl("\\d+?/\\d+?", date), lubridate::mdy(date) %>% as.character(), as.character(date)),
          date = paste0(date, "_", session),
          date = make.unique(date)) %>% 
   select(-session) 
@@ -464,7 +467,10 @@ Jhou_Ratweights_U393_date_session <- names(Jhou_Ratweights_U393_df[4:length(Jhou
   group_by(date) %>% 
   mutate(session = row_number()) %>%
   ungroup() %>% 
-  mutate(date = ifelse(grepl("\\d+?/\\d+", date), lubridate::mdy(date) %>% as.character(), as.character(date)),
+  mutate(date = ifelse(grepl("^\\d{7,8}$", date), str_pad(date, 8, "left", "0"), as.character(date)),
+         date = ifelse(grepl("\\d{8}", date), sub("(\\d{2})(\\d{2})", '\\1/\\2/', date) %>% lubridate::mdy() %>% as.character(), as.character(date)),
+         # date = ifelse(grepl("\\d{7}", date), lubridate::mdy(date) %>% as.character(), as.character(date)),
+         date = ifelse(grepl("\\d+?/\\d+?", date), lubridate::mdy(date) %>% as.character(), as.character(date)),
          date = paste0(date, "_", session),
          date = make.unique(date)) %>% 
   select(-session) 
@@ -485,11 +491,32 @@ Jhou_Ratweights_U393_df <- gather(Jhou_Ratweights_U393_df, "date", "weight","201
 
 Jhou_RatWeights_df <- rbind(Jhou_Ratweights_U1_392_df, Jhou_Ratweights_U393_df) %>% 
   mutate(date = lubridate::ymd(date)) %>% 
-  arrange(labanimalid, date, session)
+  arrange(labanimalid, date, session) %>% 
+  left_join(., Jhou_SummaryAll[, c("labanimalid", "shipmentcohort", "wfucohort", "sex", "dob")], by = c("labanimalid")) %>% # get sex and cohort information
+  mutate(experimentage = as.numeric(date - dob)) 
+  
+
 Jhou_RatWeights_df %>% 
   ggplot() + 
   geom_line(aes(x = date, y = weight, group = labanimalid))
+Jhou_RatWeights_df %>% 
+  arrange(as.numeric(wfucohort)) %>% 
+  subset(weight != 0 ) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x = factor(wfucohort, levels = unique(wfucohort)), y = weight_pct, color = sex)) + 
+  labs(x = "cohort", y = "weight percentage") +
+  theme(axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) 
 
+Jhou_RatWeights_df %>% 
+  subset(weight_pct < 70 & weight_pct > 50 | weight_pct > 100)
+
+Jhou_RatWeights_df %>%   
+  subset(weight != 0& experimentage > 0&experimentage < 400) %>%
+  ggplot() +
+  geom_point(aes(x = experimentage, y = weight_pct)) +
+  theme(axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) 
 
   # arrange df by mixed column
 df[mixedorder(df$Day),]
