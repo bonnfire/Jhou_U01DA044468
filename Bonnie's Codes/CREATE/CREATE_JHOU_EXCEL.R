@@ -20,7 +20,8 @@ u01.importxlsx <- function(xlname){
 # Jhou_Excel <- u01.importxlsx("U01 Master sheet_readonly.xlsx") # 1/2 this file has disappeared
 # Jhou_Excel_updated <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx") # since 12/11 this file has disappeared 1/2 reappeared 
 # Jhou_Excel <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx")
-Jhou_Excel <- u01.importxlsx("U01 Master sheet (Jhou Lab's conflicted copy 2020-02-17).xlsm") # updated 2/18??? 
+# Jhou_Excel <- u01.importxlsx("U01 Master sheet (Jhou Lab's conflicted copy 2020-02-17).xlsm") # updated 2/18??? 
+Jhou_Excel <- u01.importxlsx("U01 Master sheet.xlsm") # 5/19
 
 ################################
 ########### Summary All ########
@@ -384,6 +385,14 @@ Jhou_Delayedpun_Excel <- lapply(Jhou_Delayedpun_split, function(x){
   x %<>% dplyr::filter(grepl("^\\d", x$delay)) %<>% mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% group_by(labanimalid) %<>% mutate(session = dplyr::row_number())
   return(x)
 }) %>% rbindlist(fill = T)
+
+
+## XX PICK UP 5/19
+Jhou_Delayedpun_Excel %>% 
+  left_join(., Jhou_SummaryAll[, c("labanimalid", "shipmentcohort")], by = "labanimalid") %>% 
+  mutate(cohort = gsub("[.]\\d", "", shipmentcohort) %>% as.numeric) %>% 
+  select(cohort) %>%
+  table()
 
 # Jhou_Delayedpun_Excel %>% 
 #   group_by(labanimalid) %>%

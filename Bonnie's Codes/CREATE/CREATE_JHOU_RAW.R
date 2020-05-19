@@ -52,10 +52,9 @@ extractfromfilename <- function(df){
 ################################
 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/")
-allexpfiles_raw <- list.files(path=".", pattern="*.txt", full.names=TRUE, recursive=TRUE) 
-allexpfiles_raw <- allexpfiles_raw[ ! grepl("error", allexpfiles_raw, ignore.case = TRUE) ] 
-x <- c("unclassified", "error", "[()]")
-allexpfiles_raw_clean <- allexpfiles_raw[! grepl(paste(x, collapse = "|"), allexpfiles_raw)] 
+allexpfiles_raw <- list.files(path=".", pattern="*.txt", full.names=TRUE, recursive=TRUE) #28367
+allexpfiles_raw <- allexpfiles_raw[ ! grepl("error", allexpfiles_raw, ignore.case = TRUE) ] #27901
+allexpfiles_raw_clean <- allexpfiles_raw[! grepl(paste(c("unclassified", "error", "[()]"), collapse = "|"), allexpfiles_raw)] #27436
 readdate <- function(x){
   experimentdatetime <- fread(paste0("grep -m1 -o \"[0-9]\\\\{2\\\\}/[0-9]\\\\{2\\\\}/[0-9]\\\\{4\\\\}\" ", "'", x, "'"), header = F, fill = T)
   experimentdatetime$filename <- x
@@ -407,8 +406,7 @@ rawfiles_calc <- left_join(runway_reach_df, runway_loc2_3_df, by = "filename") %
   arrange(filename) %>% 
   extractfromfilename %>%  # sort by ascending filename and get animal id and exp date/time 
   left_join(., Jhou_SummaryAll[,c("labanimalid", "rfid", "shipmentcohort", "dob")], by = "labanimalid") %>% # add rfid column, extracted from the Jhou_SummaryAll **note the swap situation has not been fixed 
-  mutate(experimentage = as.numeric(date - dob)) %>%
-  select(rfid, labanimalid, shipmentcohort, date, time, experimentage, loc1_time, elapsedtime, filename) %>% 
+c  select(rfid, labanimalid, shipmentcohort, date, time, experimentage, loc1_time, elapsedtime, filename) %>% 
   dplyr::filter(!rfid %in% Jhou_SummaryAll[,c("rfid", "resolution")][which(Jhou_SummaryAll$resolution %in% c("EXCLUDE_ALL_BEHAVIORS","EXCLUDE_RUNWAY")),]$rfid)
 # the rfid's being removed are all complete cases though
 
@@ -941,9 +939,21 @@ progratio_raw_upload <- progratio_raw %>% subset(!labanimalid %in% progratio_sub
 # find -type f -iname "*PUNISHMENT*.txt" ! -path "*error*" -exec awk '/ENDING/{print FILENAME}' {} \; 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Delayed punishment") 
 
-delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # 6192 files exclude existing txt files and include any corrective "qualifiers" # 6192 counts
-delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_|_corrected)?.txt", negate = F)] # 6042 files
+delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # 6954 files exclude existing txt files and include any corrective "qualifiers" # 6192 counts
+delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_|_corrected)?.txt", negate = F)] # 6784 files
 # delayed_punishmentfiles_clean <-  delayed_punishmentfiles[ ! grepl("error", delayed_punishmentfiles, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team) 
+
+## XXX PICK UP FROM HERE 5/19
+data.frame(filename = delayed_punishmentfiles_clean) %>% 
+  mutate(subject = str_extract(filename, "/.*/") %>% gsub("/", "",. )) %>% 
+  distinct(subject) %>% dim
+
+data.frame(filename = delayed_punishmentfiles_clean) %>% 
+  mutate(labanimalid = str_extract(filename, "/.*/") %>% gsub("/", "",. )) %>% 
+  left_join(., Jhou_SummaryAll[, c("labanimalid", "shipmentcohort")], by = "labanimalid") %>% 
+  mutate(cohort = gsub("[.]\\d", "", shipmentcohort) %>% as.numeric) %>% 
+  select(cohort) %>%
+  table()
 
 create_delayedpuntable <- function(x){
   thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
@@ -1136,8 +1146,8 @@ delayedpunishment %>% naniar::vis_miss() #100% now
 # *From Data Extraction file on Dropbox* As animals become more proficient with training, the # of trials with <15 seconds latency will increase. Script terminates at 60 minutes (will often read 59:59) or until 35 trials are completed. 
 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Lever training")
-lever_trainingfiles <- list.files(path=".", pattern=".*LEVER.*.txt", full.names=TRUE, recursive=TRUE) # 5929 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
-lever_trainingfiles_clean <- lever_trainingfiles[str_detect(lever_trainingfiles, "/U\\d+(\\D+)?/\\d{4}-\\d{4}-\\d{4}_\\d+_LEVER TRAINING(_corrected)?.txt", negate = F)] # 5721 files # including the files that contain PP ??? XX 
+lever_trainingfiles <- list.files(path=".", pattern=".*LEVER.*.txt", full.names=TRUE, recursive=TRUE) # 6544 files exclude existing txt files and include any corrective "qualifiers" # 5670 counts
+lever_trainingfiles_clean <- lever_trainingfiles[str_detect(lever_trainingfiles, "/U\\d+(\\D+)?/\\d{4}-\\d{4}-\\d{4}_\\d+_LEVER TRAINING(_corrected)?.txt", negate = F)] # 6514 files # including the files that contain PP ??? XX 
 
 readlevertraining <- function(x){
   levertraining <- fread(paste0("grep -o '[0-9]* OUT OF [0-9]*' ", "'", x, "'"), fill = T)
