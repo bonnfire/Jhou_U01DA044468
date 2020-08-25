@@ -1,5 +1,11 @@
 ### CREATE_JHOU_PLOT.R
 
+
+# PLOTS FOR COMPARISON BETWEEN RAW VS EXCEL FIRST 
+# FIND PLOTS FOR ONLY EXCEL IN SECOND SECTION 
+
+
+# ==================================================================================================================
 # Runway
 
 #####################################################
@@ -257,3 +263,70 @@ naniar::vis_miss(delayed_pun_joined_graph)
 ggplot(delayed_pun_joined_graph %>% dplyr::filter(date_excel != date_raw), aes(x = date_excel, y = date_raw, label = labanimalid)) + 
   geom_point() + 
   ggrepel::geom_label_repel(aes(label=labanimalid))
+
+
+# ==================================================================================================================
+
+# PLOT OF THE PHENOTYPES FROM THE EXCEL DATA
+    
+# Jhou_SummaryAll object created in CREATE_JHOU_EXCEL.R
+# runway, prog pun, prog ratio, locomotor, delayed pun
+phenotypes_xl_vars <- c("runwaylatency_avgsessions4_7_seconds", 
+                        "p_pbreakpoint_m_a", "corrected_p_pbreakpoint", 
+                        "p_rbreakpoint_leverpresses", 
+                        "locomotor1_beforefooddep_photobeamcounts", "locomotor2_afterfooddep_photobeamcounts",
+                        "x0sec", "x20s", "x0s", "x45_40s")
+Jhou_SummaryAll <- Jhou_SummaryAll %>% 
+  mutate_at(vars(one_of(phenotypes_xl_vars)), as.numeric)
+
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE")
+pdf("jhou_xl_phenotypes.pdf", onefile = T)
+plot_list_main = list()
+plot_list = list()
+plot_list2 = list()
+plot_list3 = list()
+plot_list4 = list()
+for (i in seq_along(phenotypes_xl_vars)){
+  
+  plot_list_main[[i]] <- Jhou_SummaryAll %>% 
+    subset(!grepl("EXCLUDE", resolution)) %>% 
+    ggplot() + 
+    geom_density(aes_string(phenotypes_xl_vars[i])) +
+    theme(axis.text=element_text(size=12))
+  plot_list[[i]] <- Jhou_SummaryAll %>% 
+    subset(!grepl("EXCLUDE", resolution)) %>% 
+    ggplot(aes(x = wfucohort)) + 
+    geom_boxplot(aes_string(y = phenotypes_xl_vars[i])) + 
+    theme(axis.text=element_text(size=12), axis.text.x = element_text(angle = 45))
+  plot_list2[[i]] <- Jhou_SummaryAll %>% 
+    subset(!grepl("EXCLUDE", resolution)) %>% 
+    ggplot() + 
+    geom_density(aes_string(phenotypes_xl_vars[i])) + 
+    facet_grid(~ wfucohort) + 
+    theme(axis.text=element_text(size=12), axis.text.x = element_text(angle = 45))
+  plot_list3[[i]] <- Jhou_SummaryAll %>% 
+    subset(!grepl("EXCLUDE", resolution)) %>% 
+    ggplot(aes(x = box)) + 
+    geom_boxplot(aes_string(y = phenotypes_xl_vars[i])) + 
+    theme(axis.text=element_text(size=12), axis.text.x = element_text(angle = 45))
+  plot_list4[[i]] <- Jhou_SummaryAll %>% 
+    subset(!grepl("EXCLUDE", resolution)) %>% 
+    ggplot() + 
+    geom_density(aes_string(phenotypes_xl_vars[i])) + 
+    facet_grid(rows = vars(box)) +
+    theme(axis.text=element_text(size=12), axis.text.x = element_text(angle = 45))
+
+  print(plot_list_main[[i]])
+  print(plot_list[[i]])
+  print(plot_list2[[i]])
+  print(plot_list3[[i]])
+  print(plot_list4[[i]])
+  
+}
+
+dev.off()
+  
+  
+# table of the names
+Jhou_Excel[["Summary all"]] %>% head(10)%>% names() %>% t()
+

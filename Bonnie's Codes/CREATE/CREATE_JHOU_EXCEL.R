@@ -21,19 +21,21 @@ u01.importxlsx <- function(xlname){
 # Jhou_Excel_updated <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx") # since 12/11 this file has disappeared 1/2 reappeared 
 # Jhou_Excel <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx")
 # Jhou_Excel <- u01.importxlsx("U01 Master sheet (Jhou Lab's conflicted copy 2020-02-17).xlsm") # updated 2/18??? 
-Jhou_Excel <- u01.importxlsx("U01 Master sheet.xlsm") # 5/19
+Jhou_Excel <- u01.importxlsx("U01 Master sheet.xlsm") # 8/19
 
 ################################
 ########### Summary All ########
 ################################
 Jhou_SummaryAll <- Jhou_Excel[["Summary all"]] 
-Jhou_SummaryAll <- Jhou_SummaryAll[, c(1:13, 52,53)]
+Jhou_SummaryAll <- Jhou_SummaryAll %>% select_if(~sum(!is.na(.)) > 0) # select columns that aren't all na
+# Jhou_SummaryAll <- Jhou_SummaryAll[, c(1:13, 52,53)]
 names(Jhou_SummaryAll) <-  Jhou_SummaryAll[1,] %>% as.character()
 Jhou_SummaryAll <- Jhou_SummaryAll[-1, ] 
 names(Jhou_SummaryAll) <- mgsub::mgsub(names(Jhou_SummaryAll),
                                  c(" |\\.|:", "#", "16 digit ID", "Date of Wean|Wean Date","Jhou lab", "Date of Ship", "Dams"),
                                  c("", "Number", "RFID", "DOW","LabAnimal", "ShipmentDate", "Dames")) 
-names(Jhou_SummaryAll) %<>% tolower
+Jhou_SummaryAll <- Jhou_SummaryAll %>% 
+  janitor::clean_names()
 # # clean up variables
 Jhou_SummaryAll$coatcolor <- mgsub::mgsub(Jhou_SummaryAll$coatcolor, 
                                   c("BRN|[B|b]rown", "BLK|[B|b]lack", "HHOD|[H|h]ood", "[A|a]lbino"), 
@@ -41,35 +43,44 @@ Jhou_SummaryAll$coatcolor <- mgsub::mgsub(Jhou_SummaryAll$coatcolor,
 Jhou_SummaryAll$coatcolor <- gsub("([A-Z]+)(HOOD)", "\\1 \\2", Jhou_SummaryAll$coatcolor)
 Jhou_SummaryAll$coatcolor <- toupper(Jhou_SummaryAll$coatcolor)
 
-datecols <- c("dob", "dow", "shipmentdate")
+datecols <- c("dob", "dow", "shipment_date")
 Jhou_SummaryAll <- Jhou_SummaryAll %>% 
   mutate_at(.vars = vars(datecols), .funs = openxlsx::convertToDate)
   
 # Jhou_SummaryAll[which(is.na(Jhou_SummaryAll$sex)|Jhou_SummaryAll$sex == "```"),] # NA values are from empty observations so you can omit those for now
 
 Jhou_SummaryAll %<>% 
-  mutate(wakeforestid = gsub(".*-->", "", wakeforestid),
-         shipmentcohort = as.character(round(as.numeric(shipmentcohort), 2)),
-         wfucohort = as.character(round(as.numeric(shipmentcohort)),3)) %<>%
-  select(labanimalid, shipmentcohort, wfucohort, everything()) %>% 
-  dplyr::filter(!is.na(wakeforestid)) 
+  mutate(
+    # wakeforest_id = gsub(".*-->", "", wakeforest_id),
+         shipment_cohort = as.character(round(as.numeric(shipment_cohort), 2)),
+         wfucohort = as.character(round(as.numeric(shipment_cohort)),3)) %<>%
+  rename("labanimalid" = "lab_animal_id") %<>% 
+  select(labanimalid, shipment_cohort, wfucohort, everything()) %<>% 
+  dplyr::filter(!is.na(rfid)) 
 
 # account for the switch that Alen documented over email
-newrow <- Jhou_SummaryAll[53,]
-Jhou_SummaryAll <- rbind(Jhou_SummaryAll[1:52,],newrow,Jhou_SummaryAll[-(1:52),])
-Jhou_SummaryAll[54, ] <- Jhou_SummaryAll %>% 
-  slice(54) %>% 
-  mutate(labanimalid = "U52", 
-         wakeforestid = "TJ053")
-Jhou_SummaryAll[52, ] <- Jhou_SummaryAll %>% 
-  slice(52) %>% 
-  mutate(labanimalid = "U53", 
-         wakeforestid = "TJ052")
-Jhou_SummaryAll <- Jhou_SummaryAll[-53,]
+# newrow <- Jhou_SummaryAll[53,]
+# Jhou_SummaryAll <- rbind(Jhou_SummaryAll[1:52,],newrow,Jhou_SummaryAll[-(1:52),])
+# Jhou_SummaryAll[54, ] <- Jhou_SummaryAll %>% 
+#   slice(54) %>% 
+#   mutate(labanimalid = "U52", 
+#          wakeforestid = "TJ053")
+# Jhou_SummaryAll[52, ] <- Jhou_SummaryAll %>% 
+#   slice(52) %>% 
+#   mutate(labanimalid = "U53", 
+#          wakeforestid = "TJ052")
+# Jhou_SummaryAll <- Jhou_SummaryAll[-53,]
 # extract their copy of the WFU shipment information and qc in QC_Jhou_WFU.R; left the ``` sex 
 Jhou_SummaryAll %<>% 
   mutate(notesforhumans = gsub("(Yellow background .*)|(Behavior values .*)", NA, notesforhumans)) # remove the notes for humans that are relevant to the animal
+# clean up extra spaces 
+Jhou_SummaryAll <- Jhou_SummaryAll %>% 
+  mutate(box = gsub(" ", "", box))
+# organize cohort so that the graphs are in order 
+Jhou_SummaryAll <- Jhou_SummaryAll %>% 
+  mutate(wfucohort = factor(wfucohort, levels = sort(unique(as.numeric(Jhou_SummaryAll$wfucohort)))))
 
+mutate(cyl = factor(cyl, levels = c(4, 6, 8)))
 
 ################################
 ###(update) Summary All ######## # since 12/11 the file is no longer there
@@ -121,6 +132,8 @@ Jhou_SummaryAll_updated %<>%
 ########### Runway #############
 ################################
 
+
+## Runway
 Jhou_Runway <- Jhou_Excel[["Runway"]] %>% as.data.table
 Jhou_Runway_test <- Jhou_Runway[1:16, ]
 Jhou_Runway_test <- rbindlist(list(Jhou_Runway_test, as.list(names(Jhou_Runway))), fill=FALSE) # retain the column names before transposing
@@ -202,7 +215,7 @@ Jhou_Locomotor <- Jhou_Locomotor[grepl("^binned", labanimalid, ignore.case = T),
   rename("session" = "labanimalid",
          "labanimalid" = "labanimalidsession")
 
-
+Jhou_Locomotor %>% select(labanimalid, )
 
 # get the total counts 
 # get the average counts 

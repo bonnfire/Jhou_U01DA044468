@@ -52,9 +52,9 @@ extractfromfilename <- function(df){
 ################################
 
 setwd("~/Dropbox (Palmer Lab)/U01 folder/")
-allexpfiles_raw <- list.files(path=".", pattern="*.txt", full.names=TRUE, recursive=TRUE) #28367
-allexpfiles_raw <- allexpfiles_raw[ ! grepl("error", allexpfiles_raw, ignore.case = TRUE) ] #27901
-allexpfiles_raw_clean <- allexpfiles_raw[! grepl(paste(c("unclassified", "error", "[()]"), collapse = "|"), allexpfiles_raw)] #27436
+allexpfiles_raw <- list.files(path=".", pattern="*.txt", full.names=TRUE, recursive=TRUE) #29176
+allexpfiles_raw <- allexpfiles_raw[ ! grepl("error", allexpfiles_raw, ignore.case = TRUE) ] #28074
+allexpfiles_raw_clean <- allexpfiles_raw[! grepl(paste(c("unclassified", "error", "[()]"), collapse = "|"), allexpfiles_raw)] #28386
 readdate <- function(x){
   experimentdatetime <- fread(paste0("grep -m1 -o \"[0-9]\\\\{2\\\\}/[0-9]\\\\{2\\\\}/[0-9]\\\\{4\\\\}\" ", "'", x, "'"), header = F, fill = T)
   experimentdatetime$filename <- x
@@ -68,7 +68,7 @@ readtime <- function(x){
 }
 
 
-allexpfiles_date <- lapply(allexpfiles_raw_clean, readdate) %>% rbindlist(fill = T) %>% rename("dateinfile" = "V1") # 21131 files in raw clean files vector; 2 NA ./Delayed punishment/U417/2019-0920-1109_417_DELAYED PUNISHMENT.txt ./Delayed punishment/U418/2019-0920-1109_418_DELAYED PUNISHMENT.txt
+allexpfiles_date <- lapply(allexpfiles_raw_clean, readdate) %>% rbindlist(fill = T) %>% rename("dateinfile" = "V1") # 27436 files in raw clean files vector; 2 NA ./Delayed punishment/U417/2019-0920-1109_417_DELAYED PUNISHMENT.txt ./Delayed punishment/U418/2019-0920-1109_418_DELAYED PUNISHMENT.txt
 allexpfiles_date[which(allexpfiles_date$filename == "./Delayed punishment/U417/2019-0920-1109_417_DELAYED PUNISHMENT.txt"),]$dateinfile <- "09/20/2019"
 allexpfiles_date[which(allexpfiles_date$filename == "./Delayed punishment/U418/2019-0920-1109_418_DELAYED PUNISHMENT.txt"),]$dateinfile <- "09/20/2019"
 
@@ -826,6 +826,7 @@ readbox <- function(x){
   boxes <- fread(paste0("grep -oEm1 \"(box|station) [0-9]+\" ", "'", x, "'"))
   return(boxes)
 }
+# 
 progpun_raw <- sapply(progpun_presses_df$filename, readbox) %>% 
   t() %>% 
   as.data.frame() %>% 
@@ -840,9 +841,14 @@ progpun_raw <- sapply(progpun_presses_df$filename, readbox) %>%
   rename("numtrialsatlastshock" = "numleftpresseslast") %>% 
   select(-c(numleftpressesbwlasttwo, lastshock_cat, secondtolastshock_cat, secondtolastshock, lastshock)) %>% 
   group_by(labanimalid) %>% 
+  arrange(date_time) %>% 
   mutate(session = as.character(dplyr::row_number() - 1)) %>%
   select(shipmentcohort, labanimalid, rfid, date, time, session, box, everything()) %>% 
   select(-filename, filename)
+
+mutate(shock = ifelse(grepl("A[158]$", box), shock*1.3582089,
+                      ifelse(grepl("A[23467]$", box), shock*1.685185,
+                             ifelse(grepl("B[1-8]$", box), shock*1, shock))))
 
 # XXX concern (some animals have more than one box designation): 
 # boxesandstations_df$labanimalid <- stringr::str_extract(boxesandstations_df$filename, "U[[:digit:]]+[[:alpha:]]*")
@@ -1126,6 +1132,11 @@ delayedpunishment <- delayedpun_delays_df %>%
   select(-filename, filename)
 # dplyr::filter(resolution != "EXCLUDE_ALL_BEHAVIORS"|is.na(resolution)) # remove two animals (U84 and U85 bc exclude all behaviors)
 
+# apply the shock correction factor XX have not applied 
+mutate(shock = ifelse(grepl("A[158]$", box), shock*1.3582089,
+                      ifelse(grepl("A[23467]$", box), shock*1.685185,
+                             ifelse(grepl("B[1-8]$", box), shock*1, shock)))) # if not any of these boxes, don't apply the shock correction value
+
 # consistent within session
 # delayedpun_boxes_df %>% mutate(number1 = str_sub(find_1, -1), number2 = str_sub(find_2, -1) ) %>% dplyr::filter(number1 != number2) # so that's why we can use find_1 as proxy since the only difference is in station vs box 
 
@@ -1263,3 +1274,14 @@ dbExistsTable(con, c("u01_tom_jhou", "jhou_locomotor")) #895
 dbWriteTable(con, c("u01_tom_jhou", "jhou_progressiveratio"), value = progratio_raw_upload, row.names = F)
 dbExistsTable(con, c("u01_tom_jhou", "jhou_progressiveratio")) #1848
 
+
+
+### RUN BY COHORTS
+
+## cohort 1
+
+delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) %>% 
+  grep() # 6954 files exclude existing txt files and include any corrective "qualifiers" # 6192 counts
+
+
+write.csv("")
