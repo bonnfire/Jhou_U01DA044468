@@ -21,7 +21,7 @@ u01.importxlsx <- function(xlname){
 # Jhou_Excel_updated <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx") # since 12/11 this file has disappeared 1/2 reappeared 
 # Jhou_Excel <- u01.importxlsx("Copy of U01 Master sheet_NEW11_18.xlsx")
 # Jhou_Excel <- u01.importxlsx("U01 Master sheet (Jhou Lab's conflicted copy 2020-02-17).xlsm") # updated 2/18??? 
-Jhou_Excel <- u01.importxlsx("U01 Master sheet.xlsm") # 8/19
+Jhou_Excel <- u01.importxlsx("U01 Master sheet.xlsm") # 08/27/2020
 
 ################################
 ########### Summary All ########
@@ -80,7 +80,6 @@ Jhou_SummaryAll <- Jhou_SummaryAll %>%
 Jhou_SummaryAll <- Jhou_SummaryAll %>% 
   mutate(wfucohort = factor(wfucohort, levels = sort(unique(as.numeric(Jhou_SummaryAll$wfucohort)))))
 
-mutate(cyl = factor(cyl, levels = c(4, 6, 8)))
 
 ################################
 ###(update) Summary All ######## # since 12/11 the file is no longer there

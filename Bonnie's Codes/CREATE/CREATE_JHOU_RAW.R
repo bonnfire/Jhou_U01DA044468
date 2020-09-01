@@ -1278,10 +1278,22 @@ dbExistsTable(con, c("u01_tom_jhou", "jhou_progressiveratio")) #1848
 
 ### RUN BY COHORTS
 
+
+
 ## cohort 1
+cohort1_ids <- Jhou_SummaryAll %>% subset(wfucohort == "1") %>% select(labanimalid) %>% unlist() %>% paste0(sep = "/", collapse = "|")
+cohort1_delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) %>% 
+  grep(paste0(cohort1_ids), ., value = T) # 135 files
+# extract the date, time, box, folder (folder helps to assign A or B box), shock intensity, subject is: ., delay trials
 
-delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) %>% 
-  grep() # 6954 files exclude existing txt files and include any corrective "qualifiers" # 6192 counts
+create_delayedpuntable <- function(x){
+  thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
+  thistrialrownumandshock$filename<-x
+  return(thistrialrownumandshock)
+}
 
+delayedpunishment_df = lapply(cohort1_delayed_punishmentfiles, create_delayedpuntable) %>%
+  rbindlist(fill = T) # 52389 THIS TRIAL LINES from 5873 unique files
+colnames(delayedpunishment_df) = c("trialnum", "shockma", "rownum", "filename") 
 
 write.csv("")
