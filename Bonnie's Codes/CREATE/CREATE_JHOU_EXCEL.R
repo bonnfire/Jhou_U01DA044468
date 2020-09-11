@@ -369,46 +369,64 @@ Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
 ################################
 ###### DELAYED PUNISHMENT ######
 ################################
-Jhou_Delayedpun <- Jhou_Excel[["Delayed punishment (DP)"]] %>% as.data.table
-Jhou_Delayedpun <- Jhou_Delayedpun[, 1:12, with=T]
-setnames(Jhou_Delayedpun, c("delay", as.character(Jhou_Delayedpun[2, 2:12])) )
+Jhou_DelayedPunishment_xl <- Jhou_Excel[["Summary all"]][, c(1, 6, 48:51, 153:173)]
+names(Jhou_DelayedPunishment_xl) <- Jhou_DelayedPunishment_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
+Jhou_DelayedPunishment_xl <- Jhou_DelayedPunishment_xl %>% 
+  select(-matches("^na(_\\d)?$")) # remove the all na space columns
+names(Jhou_DelayedPunishment_xl) <- mgsub::mgsub(names(Jhou_DelayedPunishment_xl), 
+                                                 c("x(\\d)$", "x(\\d)_2$", "x(\\d)_3$"),
+                                                 c("dp0_trial\\1", "dp20_trial_\\1", "dp40_trial_\\1"))
+Jhou_DelayedPunishment_xl <- Jhou_DelayedPunishment_xl %>% 
+  rename("rfid" = "x16_digit_id",
+         "labanimalid" = "jhou_lab_id",
+         "mean_dp0_1_lastshock" = "x0_sec",
+         "mean_dp20_1_lastshock" = "x20s", 
+         "mean_dp0_2_lastshock" = "x0s",
+         "mean_dp4540_2_lastshock" = "x45_40s") 
+Jhou_DelayedPunishment_xl_df <- Jhou_DelayedPunishment_xl %>% mutate(labanimalid = toupper(labanimalid)) %>% 
+  subset(grepl("U\\d+", labanimalid)&!is.na(rfid))
 
-# (Commented out on 2/18 because I'm doing a new approach where I don't drop any ID's and keeping all records)
-# use row indices to remove the rows
-# remove non black rows by matching delay and shock intensity of last trial completed and # of active lever presses
-# get the character 
-# setwd("~/Dropbox (Palmer Lab)/U01 folder")
-# Jhou_Delayedpun_formats_cellbycell <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx") %>% 
-#   dplyr::filter(sheet == "Delayed punishment (DP)")
-# Jhou_Excel_Delayedpun_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
-# wantedhexa_Delayedpun <- Jhou_Excel_Delayedpun_formats$local$font$color$rgb[Jhou_Delayedpun_formats_cellbycell[which(Jhou_Delayedpun_formats_cellbycell$row == 1 & Jhou_Delayedpun_formats_cellbycell$col == 15),]$local_format_id]
-# wantedhexa_indices_Delayedpun <- which(Jhou_Excel_Delayedpun_formats$local$font$color$rgb != wantedhexa_Delayedpun) # not black
-# nonblackrows_Delayedpun <- Jhou_Delayedpun_formats_cellbycell[Jhou_Delayedpun_formats_cellbycell$local_format_id %in% wantedhexa_indices_Delayedpun, ] %>% 
-#   dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique() %>% mutate(row = row - 1)
-# # Jhou_Excel_ProgRatio_red <- Jhou_ProgRatio_formats_cellbycell[Jhou_ProgRatio_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col) %>% mutate(row = row - 1)
-# Jhou_Delayedpun <- Jhou_Delayedpun[-nonblackrows_Delayedpun$row,] # with nonblack rows removed 
-
-# split the data
-Jhou_Delayedpun_split <- split(Jhou_Delayedpun, cumsum(1:nrow(Jhou_Delayedpun) %in%  grep("^U", Jhou_Delayedpun$delay, ignore.case = F))) 
-Jhou_Delayedpun_Excel <- lapply(Jhou_Delayedpun_split, function(x){
-  x %<>% select(-c(Time, FR, `Weight (%)`)) %<>% dplyr::filter(!is.na(delay)) # remove na or unwanted columns
-  names(x) <- c("delay", "date", "shockoflastcompletedblock", "shockoflastattemptedblock", "numtrialsatlastshock", "activepresses", "inactivepresses", "boxorstationumber", "notes") #rename to equate raw names
-  x$labanimalid = grep("^U", x$delay, ignore.case = F, value = T) 
-  x %<>% dplyr::filter(grepl("^\\d", x$delay)) %<>% mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% group_by(labanimalid) %<>% mutate(session = dplyr::row_number())
-  return(x)
-}) %>% rbindlist(fill = T)
-
-
-## XX PICK UP 5/19
-Jhou_Delayedpun_Excel %>% 
-  left_join(., Jhou_SummaryAll[, c("labanimalid", "shipmentcohort")], by = "labanimalid") %>% 
-  mutate(cohort = gsub("[.]\\d", "", shipmentcohort) %>% as.numeric) %>% 
-  select(cohort) %>%
-  table()
-
+# commented out on 09/11/2020
+# Jhou_Delayedpun <- Jhou_Excel[["Delayed punishment (DP)"]] %>% as.data.table
+# Jhou_Delayedpun <- Jhou_Delayedpun[, 1:12, with=T]
+# setnames(Jhou_Delayedpun, c("delay", as.character(Jhou_Delayedpun[2, 2:12])) )
+# 
+# # (Commented out on 2/18 because I'm doing a new approach where I don't drop any ID's and keeping all records)
+# # use row indices to remove the rows
+# # remove non black rows by matching delay and shock intensity of last trial completed and # of active lever presses
+# # get the character 
+# # setwd("~/Dropbox (Palmer Lab)/U01 folder")
+# # Jhou_Delayedpun_formats_cellbycell <- tidyxl::xlsx_cells("U01 Master sheet_readonly.xlsx") %>% 
+# #   dplyr::filter(sheet == "Delayed punishment (DP)")
+# # Jhou_Excel_Delayedpun_formats <- tidyxl::xlsx_formats("U01 Master sheet_readonly.xlsx")
+# # wantedhexa_Delayedpun <- Jhou_Excel_Delayedpun_formats$local$font$color$rgb[Jhou_Delayedpun_formats_cellbycell[which(Jhou_Delayedpun_formats_cellbycell$row == 1 & Jhou_Delayedpun_formats_cellbycell$col == 15),]$local_format_id]
+# # wantedhexa_indices_Delayedpun <- which(Jhou_Excel_Delayedpun_formats$local$font$color$rgb != wantedhexa_Delayedpun) # not black
+# # nonblackrows_Delayedpun <- Jhou_Delayedpun_formats_cellbycell[Jhou_Delayedpun_formats_cellbycell$local_format_id %in% wantedhexa_indices_Delayedpun, ] %>% 
+# #   dplyr::filter(!is.na(numeric)) %>% select(row) %>% unique() %>% mutate(row = row - 1)
+# # # Jhou_Excel_ProgRatio_red <- Jhou_ProgRatio_formats_cellbycell[Jhou_ProgRatio_formats_cellbycell$local_format_id %in% wantedhexa_indices, ] %>% select(row, col) %>% mutate(row = row - 1)
+# # Jhou_Delayedpun <- Jhou_Delayedpun[-nonblackrows_Delayedpun$row,] # with nonblack rows removed 
+# 
+# # split the data
+# Jhou_Delayedpun_split <- split(Jhou_Delayedpun, cumsum(1:nrow(Jhou_Delayedpun) %in%  grep("^U", Jhou_Delayedpun$delay, ignore.case = F))) 
+# Jhou_Delayedpun_Excel <- lapply(Jhou_Delayedpun_split, function(x){
+#   x %<>% select(-c(Time, FR, `Weight (%)`)) %<>% dplyr::filter(!is.na(delay)) # remove na or unwanted columns
+#   names(x) <- c("delay", "date", "shockoflastcompletedblock", "shockoflastattemptedblock", "numtrialsatlastshock", "activepresses", "inactivepresses", "boxorstationumber", "notes") #rename to equate raw names
+#   x$labanimalid = grep("^U", x$delay, ignore.case = F, value = T) 
+#   x %<>% dplyr::filter(grepl("^\\d", x$delay)) %<>% mutate(date = as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")) %>% group_by(labanimalid) %<>% mutate(session = dplyr::row_number())
+#   return(x)
+# }) %>% rbindlist(fill = T)
+# 
+# 
+# ## XX PICK UP 5/19
 # Jhou_Delayedpun_Excel %>% 
-#   group_by(labanimalid) %>%
-#   dplyr::filter(session == max(session))
+#   left_join(., Jhou_SummaryAll[, c("labanimalid", "shipmentcohort")], by = "labanimalid") %>% 
+#   mutate(cohort = gsub("[.]\\d", "", shipmentcohort) %>% as.numeric) %>% 
+#   select(cohort) %>%
+#   table()
+# 
+# # Jhou_Delayedpun_Excel %>% 
+# #   group_by(labanimalid) %>%
+# #   dplyr::filter(session == max(session))
 
 
 
