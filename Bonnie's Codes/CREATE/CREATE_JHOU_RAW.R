@@ -1283,7 +1283,8 @@ dbExistsTable(con, c("u01_tom_jhou", "jhou_progressiveratio")) #1848
 ## cohort 1
 cohort1_ids <- Jhou_SummaryAll %>% subset(wfucohort == "1") %>% select(labanimalid) %>% unlist() %>% paste0(sep = "/", collapse = "|")
 cohort1_delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) %>% 
-  grep(paste0(cohort1_ids), ., value = T) # 135 files
+  grep(paste0(cohort1_ids), ., value = T) %>% 
+  grep("error", ., invert = T, value = T)# 132 files
 # extract the date, time, box, folder (folder helps to assign A or B box), shock intensity, subject is: ., delay trials
 
 create_delayedpuntable <- function(x){
@@ -1297,10 +1298,15 @@ colnames(cohort1_delayedpunishment_df) = c("trialnum", "shockma", "rownum", "fil
 
 # categorize the last two shock-changing trials (filter) as complete or incomplete
 cohort1_delayedpunishment_df %>% add_count(filename) %>% select(n) %>% table() # gives distribution of the 
-delayedpunishment_df_complete <- delayedpunishment_df %>% 
+cohort1_delayedpunishment_df_complete <- cohort1_delayedpunishment_df %>% 
   # dplyr::filter(complete.cases(.)) %>%  
   group_by(filename) %>% 
   do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to the last two per filename # 11127 THIS TRIAL LINES (TTL) from 5,575 unique files (should be 11150, or 5575*2, so we are missing cases )
+# check if cohort1_delayedpunishment_df_complete has any files with only one trial
+cohort1_delayedpunishment_df_complete %>% add_count(filename) %>% subset(n!=2)
+# check excel and remove
+cohort1_delayedpunishment_df_complete <- cohort1_delayedpunishment_df_complete %>% 
+  subset(!grepl("2018-0729-1029_16_DELAYED PUNISHMENT\\.txt|2018-0725-1445_8_DELAYED PUNISHMENT\\.txt", filename))
 
 # create categorization table 
 create_delayedpuntable_tocategorize <- function(x){
@@ -1337,27 +1343,44 @@ create_delayedpuntable_tocategorize <- function(x){
 
 # data2_valid_subset <- data2_valid[1:100,]
 # data_categories_test = create_progpuntable_tocategorize(data2_valid_subset) # test subset 
-
-delayedpundata_categories = create_delayedpuntable_tocategorize(delayed_data_df_valid) # test on valid datapoints until Jhou team returns comment 
+setwd("~/Dropbox (Palmer Lab)/U01 folder/")
+## come back to this
+cohort01_delayedpundata_categories = create_delayedpuntable_tocategorize(cohort1_delayedpunishment_df_complete) # test on valid datapoints until Jhou team returns comment 
 # naniar::vis_miss(delayedpundata_categories) # 100% present
-delayedpundata_categories_wcat <- delayedpundata_categories %>% 
+cohort01_delayedpundata_categories_wcat <- cohort01_delayedpundata_categories %>% 
   mutate(secondtolastshock_cat = ifelse(numleftpressesbwlasttwo > 3, "Complete", "Attempt"),
          lastshock_cat = ifelse(numleftpresseslast >= 3, "Complete", "Attempt"))
 
 # prepare the delay and presses data
-delayedpun_presses <- function(x){
+delayedpun_press_delay <- function(x){
   presses <- fread(paste0("grep \'LEFTPRESSES\' ", "'", x, "'", " | tail -1", " | awk '{print $4 \",\" $6}'"), header=F, fill=T, showProgress = F, verbose = F)
   presses$V1[nrow(presses) == 0] <- NA
   presses$V2[nrow(presses) == 0] <- NA
   presses$filename <- x
-  return(presses)
+  colnames(presses) <- c("left", "right", "filename")
+  
+  delays <- fread(paste0("grep -m1 -o -E '[0-9]+[[:space:]]?SEC' ", "'", x, "'"), header=F, fill=T, showProgress = F, verbose = F)
+
+  
+  press_delay <- cbind(presses, delays)
+  return(press_delay)
+  
 }
-cohort1_delayedpunishment_presses_df = lapply(cohort1_delayed_punishmentfiles, delayedpun_presses) %>%
+cohort1_delayedpunishment_presses_df = lapply(cohort1_delayed_punishmentfiles, delayedpun_press_delay) %>%
   rbindlist(fill = T) 
-colnames(cohort1_delayedpunishment_presses_df) = c("left", "right", "filename")
+cohort1_dp_presses_df <- cohort1_delayedpunishment_presses_df %>%
+  rename("delay" = "V1") %>% 
+  mutate(delay = parse_number(delay))
+cohort1_dp_presses_df <- cohort1_dp_presses_df %>% 
+  mutate(delay = replace(delay, grepl("2018-0725-1850_15_DELAYED PUNISHMENT.txt", filename), 30),
+         labanimalid = str_match(filename, "U\\d+")) %>% 
+  mutate(comment = "NA") %>% 
+  mutate(labanimalid = replace(labanimalid, grepl("2018-0725-1121_6_DELAYED PUNISHMENT.txt", filename),"U8"),
+         labanimalid = replace(labanimalid, grepl("2018-0723-1055_8_DELAYED PUNISHMENT.txt", filename), "U6"))
 
 # merge for cohort1 
-
+cohort1_dp <- left_join(cohort1_dp_presses_df, cohort01_delayedpundata_categories_wcat, by = "filename") %>% 
+  select(labanimalid, delay, left, right, numleftpressesbwlasttwo, numleftpresseslast,secondtolastshock,lastshock,secondtolastshock_cat,lastshock_cat,comment, filename)
 
 write.csv("")
 
@@ -1367,7 +1390,7 @@ write.csv("")
 # EXP 5: Delayed punishment
 
 
-delayedpunishment_df_complete <- delayedpunishment_df %>% 
+delayedpunishment_df_complete < - delayedpunishment_df %>% 
   dplyr::filter(complete.cases(.)) %>%  # since the 73 na cases seem to be from the same file, same trial, all blocked off 
   group_by(filename) %>% 
   do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to the last two per filename # 11127 THIS TRIAL LINES (TTL) from 5,575 unique files (should be 11150, or 5575*2, so we are missing cases )

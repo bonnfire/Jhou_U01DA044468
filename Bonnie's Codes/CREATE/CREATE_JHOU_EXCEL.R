@@ -369,7 +369,7 @@ Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
 ################################
 ###### DELAYED PUNISHMENT ######
 ################################
-Jhou_DelayedPunishment_xl <- Jhou_Excel[["Summary all"]][, c(1, 6, 48:51, 153:173)]
+Jhou_DelayedPunishment_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 48:51, 55:56, 153:173)]
 names(Jhou_DelayedPunishment_xl) <- Jhou_DelayedPunishment_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
 Jhou_DelayedPunishment_xl <- Jhou_DelayedPunishment_xl %>% 
   select(-matches("^na(_\\d)?$")) # remove the all na space columns
@@ -378,13 +378,16 @@ names(Jhou_DelayedPunishment_xl) <- mgsub::mgsub(names(Jhou_DelayedPunishment_xl
                                                  c("dp0_trial\\1", "dp20_trial_\\1", "dp40_trial_\\1"))
 Jhou_DelayedPunishment_xl <- Jhou_DelayedPunishment_xl %>% 
   rename("rfid" = "x16_digit_id",
+         "jhou_cohort" = "shipment_cohort",
          "labanimalid" = "jhou_lab_id",
          "mean_dp0_1_lastshock" = "x0_sec",
          "mean_dp20_1_lastshock" = "x20s", 
          "mean_dp0_2_lastshock" = "x0s",
-         "mean_dp4540_2_lastshock" = "x45_40s") 
+         "mean_dp4540_2_lastshock" = "x45_40s") %>% 
+  mutate(cohort = paste0("C", str_pad(gsub("[.].*", "", jhou_cohort), 2, "left", "0")))
 Jhou_DelayedPunishment_xl_df <- Jhou_DelayedPunishment_xl %>% mutate(labanimalid = toupper(labanimalid)) %>% 
-  subset(grepl("U\\d+", labanimalid)&!is.na(rfid))
+  subset(grepl("U\\d+", labanimalid)&!is.na(rfid)) %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, notes_for_humans, resolution, everything())
 
 # commented out on 09/11/2020
 # Jhou_Delayedpun <- Jhou_Excel[["Delayed punishment (DP)"]] %>% as.data.table
