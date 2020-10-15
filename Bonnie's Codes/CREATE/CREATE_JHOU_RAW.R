@@ -1394,7 +1394,7 @@ delayedpunishment_df_complete < - delayedpunishment_df %>%
   dplyr::filter(complete.cases(.)) %>%  # since the 73 na cases seem to be from the same file, same trial, all blocked off 
   group_by(filename) %>% 
   do(tail(., 2)) #limit the calculations of the number of LEFTPRESSES to the last two per filename # 11127 THIS TRIAL LINES (TTL) from 5,575 unique files (should be 11150, or 5575*2, so we are missing cases )
-
+  
 delayedpunishment_df_complete %>% count(filename) %>% subset(n!=2) ## added to notes for jhou team 
 Jhou_Delayedpun_Excel %>% dplyr::filter()
 
