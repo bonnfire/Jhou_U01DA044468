@@ -197,6 +197,10 @@ Jhou_Raw_Locomotor
 #### Progressive Punishment ####
 ################################
 
+
+
+### XX RETURN TO CLEANING DATA AFTER THE CONFERENCE
+
 # using plots to clean data
 # outlier on the numtrials (mistyped 32 on the Excel sheet)
 joinrawtoexcel_progpunishment[which(joinrawtoexcel_progpunishment$numtrialsatlastshock_excel == 32),]$numtrialsatlastshock_excel = joinrawtoexcel_progpunishment[which(joinrawtoexcel_progpunishment$numtrialsatlastshock_excel == 32),]$numtrialsatlastshock_raw
@@ -213,3 +217,11 @@ joinrawtoexcel_progpunishment %>% dplyr::filter(shockoflastcompletedblock_raw !=
 
 # inactivepresses
 joinrawtoexcel_progpunishment %>% dplyr::filter(inactivepresses_raw != inactivepresses_excel) %>% select(labanimalid, filename, session, inactivepresses_excel, inactivepresses_raw)
+
+
+################################
+###### Delayed Punishment ######
+################################
+
+delayedpun_gwas <- Jhou_DelayedPunishment_xl_df %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, notes_for_humans, resolution, starts_with("mean"))
