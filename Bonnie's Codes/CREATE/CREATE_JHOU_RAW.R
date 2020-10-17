@@ -713,7 +713,8 @@ Jhou_Raw_Locomotor %>% subset(minute30 %>% is.na()) %>% dplyr::filter(!labanimal
 # group by and tail
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive punishment") # using their copy to prevent any copy issues
 progpunfiles <- list.files(path=".", pattern=".*CONFLICT.*.txt", full.names=TRUE, recursive=TRUE) # some don't have the U designation bc they are not placed into the folders yet
-progpunfiles_clean <- progpunfiles[str_detect(progpunfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_FOOD[[:space:]]?CONFLICT(_corrected)?.txt", negate = F)] 
+# progpunfiles_clean <- progpunfiles[str_detect(progpunfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_FOOD[[:space:]]?CONFLICT(_corrected)?.txt", negate = F)] 
+progpunfiles_clean <- progpunfiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T)
 
 create_progpuntable <- function(x){
   thistrialrownumandshock = fread(paste0("awk '/THIS TRIAL/{print $1 \" \" $2 \",\" $13 \",\" NR}' ","'",x,"'"), header=F, fill=T, showProgress = F, verbose = F)  
@@ -880,8 +881,8 @@ mutate(shock = ifelse(grepl("A[158]$", box), shock*1.3582089,
 # max ratio
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive ratio")
 progratiofiles <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) 
-progratiofiles_clean <- progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_|_corrected)?.txt", negate = F)]
-
+# progratiofiles_clean <- progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_|_corrected)?.txt", negate = F)]
+progratiofiles_clean <- progratiofiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T)
 # progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_corrected)?.txt", negate = T)] gives the subset of filenames that don't follow the format
 
 readmaxratio <- function(x){
@@ -946,8 +947,9 @@ progratio_raw_upload <- progratio_raw %>% subset(!labanimalid %in% progratio_sub
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Delayed punishment") 
 
 delayed_punishmentfiles <- list.files(path=".", pattern=".*DELAYED.*.txt", full.names=TRUE, recursive=TRUE) # 6954 files exclude existing txt files and include any corrective "qualifiers" # 6192 counts
-delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_|_corrected)?.txt", negate = F)] # 6784 files
+# delayed_punishmentfiles_clean <- delayed_punishmentfiles[str_detect(delayed_punishmentfiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_DELAYED PUNISHMENT(_|_corrected)?.txt", negate = F)] # 6784 files
 # delayed_punishmentfiles_clean <-  delayed_punishmentfiles[ ! grepl("error", delayed_punishmentfiles, ignore.case = TRUE) ]  # exclude files that have errors (labelled by Jhou's team) 
+delayed_punishmentfiles_clean <- delayed_punishmentfiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T)
 
 ## XXX PICK UP FROM HERE 5/19
 data.frame(filename = delayed_punishmentfiles_clean) %>% 

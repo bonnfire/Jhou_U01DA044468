@@ -196,6 +196,42 @@ Jhou_Raw_Locomotor
 ################################
 #### Progressive Punishment ####
 ################################
+progpun_gwas <- Jhou_ProgPunishment_xl_df %>%
+  subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
+  left_join(progpun_date, by = "labanimalid") %>% 
+  mutate(date = replace(date, 
+                        labanimalid %in% c("U505", "U506", "U507", "U508", "U510", "U512", "U513", "U514", "U515", "U516", "U518", "U519"), 
+                        as.Date("2019-12-13")),
+         date = replace(date, 
+                        labanimalid %in% c("U511", "U517", "U520"), 
+                        as.Date("2019-12-12")),
+         date = replace(date, 
+                        labanimalid %in% c("U588"), 
+                        as.Date("2020-03-27")),
+         date = replace(date, 
+                        labanimalid %in% c("U607"), 
+                        as.Date("2020-05-07")),
+         date = replace(date, 
+                        labanimalid %in% c("U633", "U635", "U636", "U637", "U639"), 
+                        as.Date("2020-08-28")),
+         date = replace(date, 
+                        labanimalid %in% c("U634", "U638"), 
+                        as.Date("2020-08-31"))) %>%  # XX manually edit and note to jhou lab that there are missing raw files  
+  mutate(mean_shock_breakpoint_ma_age = difftime(date, dob, units = "days") %>% as.numeric) %>% 
+  select(-dob, -date)
+
+progpun_gwas %>% subset(!is.na(mean_shock_breakpoint_ma)&is.na(mean_shock_breakpoint_ma_age)) # rows where there are data but no exp age
+
+# add date for age 
+progpun_date <- progpunfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
+  mutate(labanimalid = str_extract(filename, "U\\d+"),
+         date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
+  select(-filename) %>% distinct() %>% 
+  group_by(labanimalid) %>% 
+  slice(1) %>% # just get the first day of progpun from the filename 
+  ungroup()  
+  # left_join(Jhou_SummaryAll[, c("labanimalid", "rfid", "wfucohort")], by = "labanimalid")
+
 
 
 
@@ -224,4 +260,108 @@ joinrawtoexcel_progpunishment %>% dplyr::filter(inactivepresses_raw != inactivep
 ################################
 
 delayedpun_gwas <- Jhou_DelayedPunishment_xl_df %>% 
-  select(cohort, jhou_cohort, labanimalid, rfid, notes_for_humans, resolution, starts_with("mean"))
+  subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
+  left_join(delayedpun_date, by = "labanimalid") %>%  # XX manually edit and note to jhou lab that there are missing raw files
+  mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric)
+
+
+# add date for age 
+delayedpun_date <- Jhou_Excel[["Delayed punishment (DP)"]][, 1:2] %>%
+  rename("delay" = "...1", 
+         "date" = "...2") %>% 
+  # mutate(labanimalid = "NA") %>%
+  mutate(labanimalid = str_extract(delay, "U\\d+")) %>% 
+  fill(labanimalid) %>% 
+  mutate(delay = as.numeric(delay),
+         date = openxlsx::convertToDate(date)) %>% 
+  subset(!is.na(delay)) %>% 
+  subset(delay %in% c(20, 40, 45)) %>% 
+  mutate(delay = replace(delay, delay %in% c("40", "45"), "4540")) %>% 
+  group_by(labanimalid, delay) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  subset(!(labanimalid == "U87"&delay=="4540")) %>% # manually checked, noted in excel that the 45 delay session was supposed to be 40s, used the 40 sec date
+  mutate(delay = paste0("delay_", delay, "_date")) %>% 
+  rbind(Jhou_Excel[["Delayed punishment (DP)"]][, 1:2] %>% #### FOR 0'S
+          rename("delay" = "...1", 
+                 "date" = "...2") %>% 
+          mutate(labanimalid = str_extract(delay, "U\\d+")) %>% 
+          fill(labanimalid) %>% 
+          mutate(delay = as.numeric(delay),
+                 date = openxlsx::convertToDate(date)) %>% 
+          subset(!is.na(delay)) %>% 
+          subset(delay == 0) %>% distinct() %>% group_by(labanimalid) %>% top_n(-1, date) %>% ungroup() %>% 
+          rbind(Jhou_Excel[["Delayed punishment (DP)"]][, 1:2] %>% ### FOR SAMPLES THAT WENT THROUGH AS MANY AS 8 SESSIONS OF 0 DELAYS
+                  rename("delay" = "...1", 
+                         "date" = "...2") %>% 
+                  mutate(labanimalid = str_extract(delay, "U\\d+")) %>% 
+                  fill(labanimalid) %>% 
+                  mutate(delay = as.numeric(delay),
+                         date = openxlsx::convertToDate(date)) %>% 
+                  subset(!is.na(delay)) %>% 
+                  subset(delay == 0) %>% distinct() %>% group_by(labanimalid) %>% top_frac(.5, date) %>% top_n(1, date) %>% ungroup()) %>% 
+          distinct() %>% 
+          group_by(labanimalid) %>%
+          mutate(session = row_number(labanimalid)) %>% 
+          ungroup() %>% 
+          mutate(delay = paste0("delay_0_", session, "_date")) %>% 
+          select(-session)) %>% 
+  # mutate(delay = paste0("delay", as.character(delay)))
+  pivot_wider(names_from = "delay", 
+              values_from = "date")
+  
+# delayedpun_date <- delayed_punishmentfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
+#   mutate(labanimalid = str_extract(filename, "U\\d+"),
+#          date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
+#   select(-filename) %>% distinct() %>% 
+#   group_by(labanimalid) %>% 
+#   top_n(2, date) %>% # just get the first day of prograt from the filename 
+#   ungroup() %>% 
+#   rbind(delayed_punishmentfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
+#           mutate(labanimalid = str_extract(filename, "U\\d+"),
+#                  date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
+#           select(-filename) %>% distinct() %>% 
+#           group_by(labanimalid) %>% 
+#           top_n(-2, date) %>% # just get the first day of prograt from the filename 
+#           ungroup()) %>% 
+#   subset(!is.na(labanimalid)) %>% 
+#   distinct()
+
+
+
+
+################################
+#### Progressive Ratio ####
+################################
+prograt_gwas <- Jhou_ProgRatio_xl_df %>%
+  subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
+  left_join(prograt_date, by = "labanimalid") %>% 
+  mutate(date = replace(date,
+                        labanimalid %in% c("U505", "U506", "U507", "U508", "U510", "U512", "U513", "U514", "U515", "U516", "U518", "U519"),
+                        as.Date("2019-12-17")),
+         date = replace(date,
+                        labanimalid %in% c("U511", "U517", "U520"),
+                        as.Date("2019-12-16")),
+         date = replace(date,
+                        labanimalid %in% c("U542"),
+                        as.Date("2019-12-16")),
+         date = replace(date,
+                        labanimalid %in% c("U633", "U635", "U636", "U637", "U639", "U640", "U642", "U643", "U644", "U645", "U646", "U647", "U648"),
+                        as.Date("2020-09-01")),
+         date = replace(date,
+                        labanimalid %in% c("U634", "U638", "U641"),
+                        as.Date("2020-09-02"))) %>%  # XX manually edit and note to jhou lab that there are missing raw files
+  mutate(mean_leverpresses_maxratio_age = difftime(date, dob, units = "days") %>% as.numeric) %>% 
+  select(-dob, -date)
+
+prograt_gwas %>% subset(!is.na(mean_leverpresses_maxratio)&is.na(mean_leverpresses_maxratio_age)) # rows where there are data but no exp age
+
+# add date for age 
+prograt_date <- progratiofiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
+  mutate(labanimalid = str_extract(filename, "U\\d+"),
+         date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
+  select(-filename) %>% distinct() %>% 
+  group_by(labanimalid) %>% 
+  slice(1) %>% # just get the first day of prograt from the filename 
+  ungroup()  
+

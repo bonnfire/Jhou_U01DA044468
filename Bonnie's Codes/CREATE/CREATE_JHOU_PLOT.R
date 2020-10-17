@@ -145,6 +145,67 @@ ggplot(rawandexcel_locomotor, aes(x = shipmentcohort, y = minute1, group = shipm
 #########################################################
 # Progressive punishment
 #########################################################
+## plot for gwas 
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC")
+
+pdf("jhou_gwas_progpun_phenotypes.pdf",onefile = T)
+
+plot_list_main = list()
+plot_list = list()
+plot_list2 = list()
+plot_list3 = list()
+
+gwas_vars <- grep("cohort|rfid|sex|labanimalid|_age|_box", names(cocaine_phenotypes_merge_stripped), value = T, invert = T)
+gwas_box <- grep("_box", names(cocaine_phenotypes_merge_stripped), value = T)[c(1, 5, 2:4, 6)]
+for (i in seq_along(gwas_vars)){
+  
+  plot_list_main[[i]] <- cocaine_phenotypes_merge_stripped %>% 
+    ggplot() + 
+    geom_density(aes_string(gwas_vars[i])) +
+    theme(axis.text=element_text(size=12))
+  plot_list[[i]] <- cocaine_phenotypes_merge_stripped %>% 
+    ggplot(aes(x = cohort)) + 
+    geom_boxplot(aes_string(y = gwas_vars[i])) + 
+    theme(axis.text=element_text(size=12), axis.text.x = element_text(angle = 45))
+  plot_list2[[i]] <- cocaine_phenotypes_merge_stripped %>% 
+    ggplot() + 
+    geom_density(aes_string(gwas_vars[i])) + 
+    facet_grid(rows = vars(cohort)) + 
+    theme(axis.text=element_text(size=12), axis.text.x = element_text(angle = 45))
+  
+  plot_list3[[i]] <- cocaine_phenotypes_merge_stripped %>%
+    ggplot(aes(fill = sex)) + 
+    geom_boxplot(aes_string(x = gwas_box[i], y = gwas_vars[i])) + 
+    theme(axis.text=element_text(size=9), axis.text.x = element_text(angle = 45))
+  
+  # 
+  # ggplot(aes(x = lga_11_box, y = esc11_14_mean, fill = sex)) +
+  # geom_boxplot() +
+  # theme(axis.text=element_text(size=12), axis.text.x = element_text(angle = 45))
+  # plot_list2[[i]] <- cocaine_phenotypes_merge_stripped %>% 
+  #   ggplot() + 
+  #   geom_density(aes_string(gwas_vars[i])) + 
+  #   facet_grid(rows = vars(cohort)) + 
+  #   theme(axis.text=element_text(size=12), axis.text.x = element_text(angle = 45))
+  
+  print(plot_list_main[[i]])
+  print(plot_list[[i]])
+  print(plot_list2[[i]])
+  print(plot_list3[[i]])
+  
+}
+dev.off()
+
+progpun_gwas %>% 
+
+
+
+
+
+
+
+
+
 
 progressivepunishment_graph <- progressivepunishment %>%
   dplyr::mutate(shipmentcohort = trunc(as.numeric(progressivepunishment$shipmentcohort)) %>% as.character()) %>%
@@ -221,6 +282,10 @@ inexcelnotraw_progpun <- anti_join(subset(Jhou_Locomotor, select = c("labanimali
 ###################################################################
 # Progressive ratio
 ##################################################################
+
+
+
+
 # create dataframe without the conflicted id's
 
 progressive_ratio_joined_graph <- Jhou_ProgRatio_Excel %>%

@@ -224,6 +224,38 @@ Jhou_Locomotor %>% select(labanimalid, )
 #### PROGRESSIVE PUNISHMENT ####
 ################################
 setwd("~/Dropbox (Palmer Lab)/U01 folder")
+
+Jhou_ProgPunishment_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 39:40, 55:56)]
+names(Jhou_ProgPunishment_xl) <- Jhou_ProgPunishment_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
+
+Jhou_ProgPunishment_xl <- Jhou_ProgPunishment_xl %>% 
+  rename("rfid" = "x16_digit_id",
+         "jhou_cohort" = "shipment_cohort",
+         "mean_shock_breakpoint_ma" = "corrected_pp_breakpoint", 
+         "labanimalid" = "jhou_lab_id",
+         "comments" = "notes_for_humans") %>% 
+  mutate(cohort = paste0("C", str_pad(gsub("[.].*", "", jhou_cohort), 2, "left", "0")),
+         jhou_cohort = as.character(as.numeric(jhou_cohort)),
+         comments = replace(comments, grepl("Yellow", comments), NA),
+         mean_shock_breakpoint_ma = as.numeric(mean_shock_breakpoint_ma))
+
+Jhou_ProgPunishment_xl_df <- Jhou_ProgPunishment_xl %>% mutate(labanimalid = toupper(labanimalid)) %>% 
+  subset(grepl("U\\d+", labanimalid)&!is.na(rfid)) %>% 
+  mutate(cohort = replace(cohort, grepl("NA", cohort), NA)) %>% 
+  left_join(WFU_Jhou_test_df[, c("cohort", "rfid", "sex", "dob")], by = "rfid") %>% 
+  mutate(cohort = coalesce(cohort.x, cohort.y)) %>% 
+  select(-cohort.x, -cohort.y) %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, everything(), comments, resolution)
+  
+
+
+
+
+
+
+
+
+## XX QC AFTER CONFERENCE 
 # repeat sessions are in red to remove, use format to remove 
 
 Jhou_ProgPun <- Jhou_Excel[["Progressive Punishment"]] %>% as.data.table
@@ -311,6 +343,40 @@ Jhou_ProgPun_Excel <- lapply(Jhou_ProgPun_nored_split, function(x){
 ################################
 #### PROGRESSIVE RATIO ####
 ################################
+setwd("~/Dropbox (Palmer Lab)/U01 folder")
+
+Jhou_ProgRatio_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 40:41, 55:56)]
+names(Jhou_ProgRatio_xl) <- Jhou_ProgRatio_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
+
+Jhou_ProgRatio_xl <- Jhou_ProgRatio_xl %>% 
+  rename("rfid" = "x16_digit_id",
+         "jhou_cohort" = "shipment_cohort",
+         "mean_leverpresses_maxratio" = "pr_breakpoint_lever_presses", 
+         "labanimalid" = "jhou_lab_id",
+         "comments" = "notes_for_humans") %>% 
+  mutate(cohort = paste0("C", str_pad(gsub("[.].*", "", jhou_cohort), 2, "left", "0")),
+         jhou_cohort = as.character(as.numeric(jhou_cohort)),
+         comments = replace(comments, grepl("Yellow", comments), NA),
+         mean_leverpresses_maxratio = as.numeric(mean_leverpresses_maxratio))
+
+Jhou_ProgRatio_xl_df <- Jhou_ProgRatio_xl %>% mutate(labanimalid = toupper(labanimalid)) %>% 
+  subset(grepl("U\\d+", labanimalid)&!is.na(rfid)) %>% 
+  mutate(cohort = replace(cohort, grepl("NA", cohort), NA)) %>% 
+  left_join(WFU_Jhou_test_df[, c("cohort", "rfid", "sex", "dob")], by = "rfid") %>% 
+  mutate(cohort = coalesce(cohort.x, cohort.y)) %>% 
+  select(-cohort.x, -cohort.y) %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, everything(), comments, resolution)
+
+
+
+
+
+
+
+
+
+## XX QC AFTER CONFERENCE 
+
 
 Jhou_ProgRatio <- Jhou_Excel[["Progressive ratio"]] %>% as.data.table
 setnames(Jhou_ProgRatio, c("date", as.character(Jhou_ProgRatio[3, 2:17])) )
@@ -369,7 +435,10 @@ Jhou_ProgPun_nored <- Jhou_ProgPun[-redrows$row, ]
 ################################
 ###### DELAYED PUNISHMENT ######
 ################################
-Jhou_DelayedPunishment_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 48:51, 55:56, 153:173)]
+# Jhou_DelayedPunishment_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 48:51, 55:56, 153:173)]
+
+Jhou_DelayedPunishment_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 48:51, 55:56)]
+
 names(Jhou_DelayedPunishment_xl) <- Jhou_DelayedPunishment_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
 Jhou_DelayedPunishment_xl <- Jhou_DelayedPunishment_xl %>% 
   select(-matches("^na(_\\d)?$")) # remove the all na space columns
@@ -383,11 +452,19 @@ Jhou_DelayedPunishment_xl <- Jhou_DelayedPunishment_xl %>%
          "mean_dp0_1_lastshock" = "x0_sec",
          "mean_dp20_1_lastshock" = "x20s", 
          "mean_dp0_2_lastshock" = "x0s",
-         "mean_dp4540_2_lastshock" = "x45_40s") %>% 
-  mutate(cohort = paste0("C", str_pad(gsub("[.].*", "", jhou_cohort), 2, "left", "0")))
+         "mean_dp4540_2_lastshock" = "x45_40s", 
+         "comments" = "notes_for_humans") %>% 
+  mutate(cohort = paste0("C", str_pad(gsub("[.].*", "", jhou_cohort), 2, "left", "0")),
+         jhou_cohort = as.character(as.numeric(jhou_cohort)),
+         comments = replace(comments, grepl("Yellow", comments), NA)) %>% 
+  mutate_at(vars(starts_with("mean")), as.numeric)
 Jhou_DelayedPunishment_xl_df <- Jhou_DelayedPunishment_xl %>% mutate(labanimalid = toupper(labanimalid)) %>% 
   subset(grepl("U\\d+", labanimalid)&!is.na(rfid)) %>% 
-  select(cohort, jhou_cohort, labanimalid, rfid, notes_for_humans, resolution, everything())
+  mutate(cohort = replace(cohort, grepl("NA", cohort), NA)) %>% 
+  left_join(WFU_Jhou_test_df[, c("cohort", "rfid", "sex", "dob")], by = "rfid") %>% 
+  mutate(cohort = coalesce(cohort.x, cohort.y)) %>% 
+  select(-cohort.x, -cohort.y) %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, comments, resolution, everything())
 
 # commented out on 09/11/2020
 # Jhou_Delayedpun <- Jhou_Excel[["Delayed punishment (DP)"]] %>% as.data.table
