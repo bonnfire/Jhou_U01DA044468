@@ -567,8 +567,8 @@ read_locomotor <- function(x){
 
 locomotorfiles <- list.files(path=".", pattern=".*LOCOMOTOR.*.txt", full.names=TRUE, recursive=TRUE) # note the 4221 id in one file, but seems to be no error files so below code is unneeded
 # locomotorfiles_clean <- locomotorfiles[str_detect(locomotorfiles, "/{U}\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_LOCOMOTOR_BASIC.txt", negate = F)] # turning off and allowing for code below until XX resolved u subdirectories
-locomotorfiles_clean <- locomotorfiles[str_detect(locomotorfiles, "/[Uu]\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_LOCOMOTOR_BASIC(_| corrected)?.txt", negate = F)] # 
-
+# locomotorfiles_clean <- locomotorfiles[str_detect(locomotorfiles, "/[Uu]\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_LOCOMOTOR_BASIC(_| corrected)?.txt", negate = F)] # 
+locomotorfiles_clean <- locomotorfiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T)
 
 rawfiles_locomotor <- lapply(locomotorfiles_clean, read_locomotor) %>% 
   rbindlist(fill = T) %>%

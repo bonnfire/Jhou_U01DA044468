@@ -130,6 +130,39 @@ Jhou_SummaryAll_updated %<>%
 ################################
 ########### Runway #############
 ################################
+setwd("~/Dropbox (Palmer Lab)/U01 folder")
+
+Jhou_Runway_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 26, 33:34, 55:56)]
+names(Jhou_Runway_xl) <- Jhou_Runway_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
+
+Jhou_Runway_xl <- Jhou_Runway_xl %>% 
+  rename("rfid" = "x16_digit_id",
+         "jhou_cohort" = "shipment_cohort",
+         "date" = "date_of_first_runway_test",
+         "labanimalid" = "jhou_lab_id",
+         "comments" = "notes_for_humans") %>% 
+  mutate(cohort = paste0("C", str_pad(gsub("[.].*", "", jhou_cohort), 2, "left", "0")),
+         jhou_cohort = as.character(as.numeric(jhou_cohort)),
+         comments = replace(comments, grepl("Yellow", comments), NA)) %>% 
+  mutate_at(vars(matches("runway")), as.numeric)
+
+Jhou_Runway_xl_df <- Jhou_Runway_xl %>% mutate(labanimalid = toupper(labanimalid)) %>% 
+  subset(grepl("U\\d+", labanimalid)&!is.na(rfid)) %>% 
+  mutate(cohort = replace(cohort, grepl("NA", cohort), NA)) %>% 
+  left_join(WFU_Jhou_test_df[, c("cohort", "rfid", "sex", "dob")], by = "rfid") %>% 
+  mutate(cohort = coalesce(cohort.x, cohort.y)) %>% 
+  select(-cohort.x, -cohort.y) %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, everything(), comments, resolution)
+
+
+
+
+
+
+
+
+
+## XX QC AFTER CONFERENCE 
 
 
 ## Runway
@@ -187,6 +220,39 @@ tJhou_Runway_notes[, animalid := names(Jhou_Runway)[-1]]
 ################################
 ########### LOCOMOTOR ##########
 ################################
+setwd("~/Dropbox (Palmer Lab)/U01 folder")
+
+Jhou_Locomotor_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 43:44, 55:56)]
+names(Jhou_Locomotor_xl) <- Jhou_Locomotor_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
+
+Jhou_Locomotor_xl <- Jhou_Locomotor_xl %>% 
+  rename("rfid" = "x16_digit_id",
+         "jhou_cohort" = "shipment_cohort",
+         "labanimalid" = "jhou_lab_id",
+         "comments" = "notes_for_humans") %>% 
+  mutate(cohort = paste0("C", str_pad(gsub("[.].*", "", jhou_cohort), 2, "left", "0")),
+         jhou_cohort = as.character(as.numeric(jhou_cohort)),
+         comments = replace(comments, grepl("Yellow", comments), NA)) %>% 
+  mutate_at(vars(matches("locomotor")), as.numeric)
+
+Jhou_Locomotor_xl_df <- Jhou_Locomotor_xl %>% mutate(labanimalid = toupper(labanimalid)) %>% 
+  subset(grepl("U\\d+", labanimalid)&!is.na(rfid)) %>% 
+  mutate(cohort = replace(cohort, grepl("NA", cohort), NA)) %>% 
+  left_join(WFU_Jhou_test_df[, c("cohort", "rfid", "sex", "dob")], by = "rfid") %>% 
+  mutate(cohort = coalesce(cohort.x, cohort.y)) %>% 
+  select(-cohort.x, -cohort.y) %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, everything(), comments, resolution)
+
+
+
+
+
+
+
+
+
+## XX QC AFTER CONFERENCE 
+
 
 Jhou_Locomotor <- Jhou_Excel[["Locomotor"]] %>% as.data.table
 Jhou_Locomotor <- Jhou_Locomotor[,1:39] 

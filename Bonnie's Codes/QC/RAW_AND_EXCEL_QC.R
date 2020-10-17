@@ -18,6 +18,61 @@ jhou_allexps_df <- list() %>%
 ########### Runway #############
 ################################
 
+## wait to confirm from Jhou lab about Runway 
+# locomotor_gwas <- Jhou_Locomotor_xl_df %>%
+#   subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
+#   left_join(locomotor_date, by = "labanimalid") %>% 
+#   mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric) %>% # probably will need manually editing the values that are missing dates/missing files
+#   select(-dob) 
+# 
+# locomotor_gwas %>% subset(!is.na(mean_shock_breakpoint_ma)&is.na(mean_shock_breakpoint_ma_age)) # rows where there are data but no exp age
+
+# add date for age 
+# locomotor_date <- locomotorfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
+#   mutate(labanimalid = str_extract(filename, "U\\d+"),
+#          date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
+#   select(-filename) %>% distinct() %>% 
+#   group_by(labanimalid) %>% 
+#   slice(1) %>% # just get the first day of locomotor from the filename 
+#   ungroup()  %>% 
+#   rbind(locomotorfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
+#           mutate(labanimalid = str_extract(filename, "U\\d+"),
+#                  date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
+#           select(-filename) %>% distinct() %>% 
+#           group_by(labanimalid) %>% top_frac(.5, date) %>% top_n(1, date) %>% ungroup()) %>% 
+#   distinct() %>% 
+#   group_by(labanimalid) %>% 
+#   mutate(session = paste0("locomotor_", row_number(labanimalid))) %>% 
+#   ungroup() %>% 
+#   subset(!is.na(labanimalid)) %>%
+#   spread("session", "date")
+
+# left_join(Jhou_SummaryAll[, c("labanimalid", "rfid", "wfucohort")], by = "labanimalid")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### XX RETURN TO CLEANING DATA AFTER THE CONFERENCE
+
+
+
+
 # gives counts of sessions counts 
 # runway %>% group_by(labanimalid) %>% count() %>% group_by(n) %>% count()
 
@@ -123,6 +178,56 @@ ggplot(boxqc_bycohort, aes(x = boxstation, y = n, color = sex)) + geom_point() +
 ################################
 ### ###### Locomotor #### ######
 ################################
+
+locomotor_gwas <- Jhou_Locomotor_xl_df %>%
+  subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
+  left_join(locomotor_date, by = "labanimalid") %>% 
+  mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric) %>% # probably will need manually editing the values that are missing dates/missing files
+  select(-dob) 
+
+locomotor_gwas %>% subset(!is.na(mean_shock_breakpoint_ma)&is.na(mean_shock_breakpoint_ma_age)) # rows where there are data but no exp age
+
+# add date for age 
+locomotor_date <- locomotorfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
+  mutate(labanimalid = str_extract(filename, "U\\d+"),
+         date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
+  select(-filename) %>% distinct() %>% 
+  group_by(labanimalid) %>% 
+  slice(1) %>% # just get the first day of locomotor from the filename 
+  ungroup()  %>% 
+  rbind(locomotorfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
+          mutate(labanimalid = str_extract(filename, "U\\d+"),
+                 date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
+          select(-filename) %>% distinct() %>% 
+          group_by(labanimalid) %>% top_frac(.5, date) %>% top_n(1, date) %>% ungroup()) %>% 
+  distinct() %>% 
+  group_by(labanimalid) %>% 
+  mutate(session = paste0("locomotor_", row_number(labanimalid))) %>% 
+  ungroup() %>% 
+  subset(!is.na(labanimalid)) %>%
+  spread("session", "date")
+
+# left_join(Jhou_SummaryAll[, c("labanimalid", "rfid", "wfucohort")], by = "labanimalid")
+
+
+
+
+### XX RETURN TO CLEANING DATA AFTER THE CONFERENCE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 rawhasbutnotexcel <- anti_join(rawfiles_locomotor_wide %>% dplyr::filter(!grepl("LOCOMOTOR", resolution)), Jhou_Locomotor %>% mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)), by = onlymins) # 34 cases
 
@@ -261,7 +366,7 @@ joinrawtoexcel_progpunishment %>% dplyr::filter(inactivepresses_raw != inactivep
 
 delayedpun_gwas <- Jhou_DelayedPunishment_xl_df %>% 
   subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
-  left_join(delayedpun_date, by = "labanimalid") %>%  # XX manually edit and note to jhou lab that there are missing raw files
+  left_join(delayedpun_date, by = "labanimalid") %>%  # XX not doing this until asked manually edit and note to jhou lab that there are missing raw files
   mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric)
 
 
