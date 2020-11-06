@@ -342,7 +342,54 @@ readrunwayloc1_3 <- function(x){
   runwaylocs_reached <- merge(runwaylocs, runwayreached, by = "filename")
   return(runwaylocs_reached)
 }
-runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16, readrunwayloc1_3) # test with runwayfiles_clean[1:10]
+runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16[1:1000], readrunwayloc1_3) # test with runwayfiles_clean[1:10]
+runway_loc1_3_c01_16_2 <- list(list1 = list(runway_loc1_3_c01_16), 
+                                list2 = list(lapply(runwayfiles_clean_c01_16[c(1001:1672,1674:2000)], readrunwayloc1_3))) %>% 
+  unlist(recursive = F) %>% 
+  unlist(recursive = F)
+runway_loc1_3_c01_16_2 <- list(list1 = list(runway_loc1_3_c01_16_2), 
+                               list2 = list(lapply("./U32/2018-0730-0912_32_RUNWAY (Jhou Lab'\\\''s conflicted copy 2019-11-04).txt", readrunwayloc1_3))) %>% 
+  unlist(recursive = F) %>% 
+  unlist(recursive = F)
+runway_loc1_3_c01_16_3 <- list(list1 = list(runway_loc1_3_c01_16_2), 
+                               list2 = list(lapply(runwayfiles_clean_c01_16[2001:3000], readrunwayloc1_3))) %>% 
+  unlist(recursive = F) %>% 
+  unlist(recursive = F)
+runway_loc1_3_c01_16_4 <- list(list1 = list(runway_loc1_3_c01_16_3), 
+                               list2 = list(lapply(runwayfiles_clean_c01_16[3001:4000], readrunwayloc1_3))) %>% 
+  unlist(recursive = F) %>% 
+  unlist(recursive = F)
+runway_loc1_3_c01_16_5 <- list(list1 = list(runway_loc1_3_c01_16_4), 
+                               list2 = list(lapply(runwayfiles_clean_c01_16[4001:5000], readrunwayloc1_3))) %>% 
+  unlist(recursive = F) %>% 
+  unlist(recursive = F)
+runway_loc1_3_c01_16_6 <- list(list1 = list(runway_loc1_3_c01_16_5), 
+                               list2 = list(lapply(runwayfiles_clean_c01_16[5001:5857], readrunwayloc1_3))) %>% 
+  unlist(recursive = F) %>% 
+  unlist(recursive = F)
+
+
+# grep(" ", runwayfiles_clean_c01_16) 
+runway_loc1_3_c01_16_6_df <- runway_loc1_3_c01_16_6 %>% lapply(function(x){
+  x <- x %>% t() %>% as.data.frame() %>% mutate_all(as.character) %>%
+    mutate(V1 = ifelse(V1 == "LOCATION", paste(V1, lead(V1)), V1)) %>%
+    mutate(V2 = ifelse(grepl("LOCATION|REACHED|txt", V1), V1, NA)) %>% 
+    fill(V2, .direction = "up") %>% mutate(V1 = as.numeric(V1)) %>% 
+    mutate(V1 = ifelse(grepl("txt", V2), V2, V1),
+           V2 = ifelse(grepl("txt", V2), "filename", V2)) %>% 
+    subset(!is.na(V1)) %>% 
+    subset(!is.na(V2)) %>% group_by(V2) %>% 
+    dplyr::slice(tail(row_number(), 1)) %>% ungroup() %>% 
+    spread(V2, V1) %>% janitor::clean_names() %>% 
+    mutate(subject = str_extract(filename, "U\\d+"))
+  return(x)
+}) %>% rbindlist(fill = T) 
+# %>% 
+# rbindlist(runway_loc1_c01_16_6) %>% 
+#   mutate()
+
+
+
 
 
 readrunwayhab_locs <- function(x){
