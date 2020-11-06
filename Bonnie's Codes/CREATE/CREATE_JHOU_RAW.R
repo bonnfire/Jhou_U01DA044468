@@ -310,39 +310,40 @@ readrunway <- function(x){
 }
 
 
-runwayfiles_clean <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #4513 files 
-# runwayfiles_clean[grepl("^m.*\\.log",runwayfiles_clean)] # remove error and duplicate files
+runwayfiles <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #6125 files 
+runwayfiles_clean_c01_16 <- runwayfiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T) %>% grep("U([1-6]\\d+|[7]0[1-9]|[7]1[0-2])", ., ignore.case = T, value = T) # 5857
 
-str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY.txt", negate = T) %>% any() # find strings that don't match the expected template
-runwayfiles_clean <- runwayfiles_clean[str_detect(runwayfiles_clean, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_RUNWAY_?.txt", negate = F)] # 4462 files turn negate into T to see the different cases; turned into comment temporarily until _RUNWAY_ case is solved (U273) ## and the id's that have the a appended are duplicated, as is "./U427/2019-0917-1632_427_RUNWAY-2.txt" 
-
-# note the 4221 id in one file, but seems to be no error files so below code is unneeded
-# files_clean <-  files[ ! grepl("error", files, ignore.case = TRUE) ] 
-# runwayfiles_clean <- gsub(" ", "\\\\ ", runwayfiles_clean) # not the issue for not being able to access the files
-
-runway_reach <- lapply(runwayfiles_clean, function(x){
-  runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
-  runway$filename <- x
-  return(runway)}) 
-runway_reach_df <- runway_reach %>% rbindlist(fill = T) %>% # run on runwayfiles_clean[3000:3100] for test # 12/3 - 36 warnings of returning NULL data table # 2/13 - 42 warnings
-  rename("reachtime" = "V1")
+# runway_reach_c01_16 <- lapply(runwayfiles_clean_c01_16, function(x){
+#   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
+#   runway$filename <- x
+#   return(runway)}) 
+# runway_reach_c01_16_df <- runway_reach_c01_16 %>% rbindlist(fill = T) %>% # run on runwayfiles_clean[3000:3100] for test # 12/3 - 36 warnings of returning NULL data table # 2/13 - 42 warnings
+#   rename("reachtime" = "V1")
 
 # location2 and location3 (use to sub loc2 when na) time + add loc1 (1/2/20)
-# readrunwayloc2_3 <- function(x){
-#   runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
-#   runwayloc1$filename <- x
-#   
-#   runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
-#   runwayloc2$filename <- x
-#   
-#   runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
-#   runwayloc3$filename <- x
-#   
-#   runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
-#   
-#   return(runwaylocs)
-# }
-# runway_loc2_3 <- lapply(runwayfiles_clean, readrunwayloc2_3) # test with runwayfiles_clean[1:10]
+readrunwayloc1_3 <- function(x){
+  runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
+  runwayloc1$filename <- x
+
+  runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
+  runwayloc2$filename <- x
+
+  runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
+  runwayloc3$filename <- x
+
+  runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
+
+  runwayreached <- fread(paste0("grep -P -m 1 \"REACHED GOAL BOX\" ", "'", x, "'"))
+  runwayreached$filename <- x
+  if(!(ncol(runwayreached) == 1&nrow(runwayreached)==1)){
+    runwayreached <- runwayreached[ , c("V1", "V2", "filename")] # keep the value and tag
+  }
+
+  runwaylocs_reached <- merge(runwaylocs, runwayreached, by = "filename")
+  return(runwaylocs_reached)
+}
+runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16, readrunwayloc1_3) # test with runwayfiles_clean[1:10]
+
 
 readrunwayhab_locs <- function(x){
   

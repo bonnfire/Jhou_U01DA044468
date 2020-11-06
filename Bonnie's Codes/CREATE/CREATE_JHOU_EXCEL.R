@@ -132,7 +132,7 @@ Jhou_SummaryAll_updated %<>%
 ################################
 setwd("~/Dropbox (Palmer Lab)/U01 folder")
 
-Jhou_Runway_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 26, 33:34, 55:56)]
+Jhou_Runway_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 26, 35, 56:57)]
 names(Jhou_Runway_xl) <- Jhou_Runway_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
 
 Jhou_Runway_xl <- Jhou_Runway_xl %>% 
@@ -152,7 +152,11 @@ Jhou_Runway_xl_df <- Jhou_Runway_xl %>% mutate(labanimalid = toupper(labanimalid
   left_join(WFU_Jhou_test_df[, c("cohort", "rfid", "sex", "dob")], by = "rfid") %>% 
   mutate(cohort = coalesce(cohort.x, cohort.y)) %>% 
   select(-cohort.x, -cohort.y) %>% 
-  select(cohort, jhou_cohort, labanimalid, rfid, everything(), comments, resolution)
+  select(cohort, jhou_cohort, labanimalid, rfid, everything(), comments, resolution) %>% 
+  select(-date)
+
+
+
 
 
 
@@ -166,54 +170,65 @@ Jhou_Runway_xl_df <- Jhou_Runway_xl %>% mutate(labanimalid = toupper(labanimalid
 
 
 ## Runway
-Jhou_Runway <- Jhou_Excel[["Runway"]] %>% as.data.table
-Jhou_Runway_test <- Jhou_Runway[1:16, ]
-Jhou_Runway_test <- rbindlist(list(Jhou_Runway_test, as.list(names(Jhou_Runway))), fill=FALSE) # retain the column names before transposing
-Jhou_Runway[, names(Jhou_Runway) := lapply(.SD, as.character)] # preserve values by turning into characters before transposing 
+Jhou_Runway_trials_xl <- Jhou_Excel[["Runway"]] %>% as.data.table()
+Jhou_Runway_C01_16_names <- data.frame(labanimalid = Jhou_Excel[["Runway"]][,1:713] %>% names %>% as.character) %>% subset(!grepl("Animal ID", labanimalid)) %>% mutate(labanimalid = toupper(labanimalid))
+Jhou_Runway_trials_C01_16 <- Jhou_Runway_trials_xl[1:22, ] %>% t() %>% as.data.frame() %>% mutate_all(as.character)
 
-tJhou_Runway <- data.table::transpose(Jhou_Runway) # transpose data
-colnames(tJhou_Runway) <- as.character(tJhou_Runway[1,])
-tJhou_Runway <- tJhou_Runway[-1,] # data.table cannot delete rows by reference with tJhou_Runway[1 := NULL,]  
-# setDT(tJhou_Runway)[, "labanimalid" := names(Jhou_Runway)[-1]]
+colnames(Jhou_Runway_trials_C01_16) <- as.character(Jhou_Runway_trials_C01_16[1,]) %>% janitor::make_clean_names()
+Jhou_Runway_trials_C01_16 <- Jhou_Runway_trials_C01_16[-1,] %>%  # data.table cannot delete rows by reference with tJhou_Runway[1 := NULL,] 
+  mutate_at(vars(-one_of("gender", "notes")), as.numeric) %>% 
+  head(712) # ends at U712, end of Cohort 16
 
+Jhou_Runway_trials_C01_16_df <- cbind(Jhou_Runway_trials_C01_16, Jhou_Runway_C01_16_names)  # reorder and drop "na" column
 
-# append reversals to column names
-reversalstartindex <- which(grepl("^Hab", colnames(tJhou_Runway)))[3] # find the third occurence of habituation 1,2,1,2
-reversalendindex <- which(grepl("^Coc.*12$", colnames(tJhou_Runway)))[2] # find the second occurence of cocaine12 (1, 2)
-
-colnames(tJhou_Runway)[reversalstartindex:reversalendindex] <- paste0(colnames(tJhou_Runway)[reversalstartindex:reversalendindex], "Reversals") # append reversals
-
-
-# separate reversals from elapsed time information
-
-tJhou_Runway_vars_nonrevers <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) %>% 
-  grep('\\d+(?!Reversals)$', . , value = T, perl=T) 
-tJhou_Runway_nonreverswide <- tJhou_Runway[, tJhou_Runway_vars_nonrevers, with=FALSE]
-names(tJhou_Runway_nonreverswide) <- ifelse(str_count(tJhou_Runway_vars_nonrevers, "\\d")==1, gsub(" (\\d)", "0\\1", tJhou_Runway_vars_nonrevers), gsub(" ", "", tJhou_Runway_vars_nonrevers))
-tJhou_Runway_nonreverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id element but retain the animal ids for the data
+## qc xl data with xl data (add rfid and verify/fill sex by joining by labanimalid) 
+Jhou_Runway_trials_C01_16_df <- Jhou_Runway_trials_C01_16_df %>% 
+  left_join(Jhou_SummaryAll[c("rfid", "sex", "labanimalid")], by = "labanimalid") %>% 
+  left_join(WFU_Jhou_test_df[, c("rfid", "cohort")], by = "rfid") %>% # wfucohort had na's from a batch that died in the heat, using this instead
+  select(-na, -gender) %>% 
+  select(cohort, rfid, sex, labanimalid, notes, everything()) 
 
 
-tJhou_Runway_vars_reversals <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) %>% 
-  grep('\\d+(?=Reversals)', . , value = T, perl=T) 
-tJhou_Runway_reverswide <- tJhou_Runway[, tJhou_Runway_vars_reversals, with=FALSE]
-setnames(tJhou_Runway_reverswide, gsub("Reversals", "", colnames(tJhou_Runway_reverswide)) )
-names(tJhou_Runway_reverswide) <- ifelse(str_count(tJhou_Runway_vars_reversals, "\\d")==1, gsub(" (\\d)", "0\\1", names(tJhou_Runway_reverswide)), gsub(" ", "", names(tJhou_Runway_reverswide)))
-tJhou_Runway_reverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id element but retain the animal ids for the data
 
 
-# convert wide to long formats for both reversals and elapse  d time datasets 
-
-tJhou_Runway_nonreverslong <- gather(tJhou_Runway_nonreverswide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) 
-tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numreversals, `Habituation01`:`Cocaine12`, factor_key=F) 
-
-############################## PICK UP FROM HERE: SHOULD ONLY BE 6608 VALUES BUT WE FIND 92512 CASES AFTER UNSUCCESSFUL MERGE
-tJhou_Runway_data <- left_join(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong, by = c("animalid", "session" = "reversalsession")) %>% 
-  # mutate_all() %>% ## XX 
-  arrange(animalid, session) # all ids are represented 14 times
-
-# extract the notes (create specific comments table)
-tJhou_Runway_notes <- tJhou_Runway[, "notes", with = FALSE]
-tJhou_Runway_notes[, animalid := names(Jhou_Runway)[-1]]
+## commented out old code for reversals -- no longer extracting 11/04/2020
+# # append reversals to column names
+# reversalstartindex <- which(grepl("^Hab", colnames(tJhou_Runway)))[3] # find the third occurence of habituation 1,2,1,2
+# reversalendindex <- which(grepl("^Coc.*12$", colnames(tJhou_Runway)))[2] # find the second occurence of cocaine12 (1, 2)
+# 
+# colnames(tJhou_Runway)[reversalstartindex:reversalendindex] <- paste0(colnames(tJhou_Runway)[reversalstartindex:reversalendindex], "Reversals") # append reversals
+# 
+# 
+# # separate reversals from elapsed time information
+# 
+# tJhou_Runway_vars_nonrevers <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) %>% 
+#   grep('\\d+(?!Reversals)$', . , value = T, perl=T) 
+# tJhou_Runway_nonreverswide <- tJhou_Runway[, tJhou_Runway_vars_nonrevers, with=FALSE]
+# names(tJhou_Runway_nonreverswide) <- ifelse(str_count(tJhou_Runway_vars_nonrevers, "\\d")==1, gsub(" (\\d)", "0\\1", tJhou_Runway_vars_nonrevers), gsub(" ", "", tJhou_Runway_vars_nonrevers))
+# tJhou_Runway_nonreverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id element but retain the animal ids for the data
+# 
+# 
+# tJhou_Runway_vars_reversals <- grep("^(Gender|Habituation \\d|Coc|Animal)", colnames(tJhou_Runway), value = T) %>% 
+#   grep('\\d+(?=Reversals)', . , value = T, perl=T) 
+# tJhou_Runway_reverswide <- tJhou_Runway[, tJhou_Runway_vars_reversals, with=FALSE]
+# setnames(tJhou_Runway_reverswide, gsub("Reversals", "", colnames(tJhou_Runway_reverswide)) )
+# names(tJhou_Runway_reverswide) <- ifelse(str_count(tJhou_Runway_vars_reversals, "\\d")==1, gsub(" (\\d)", "0\\1", names(tJhou_Runway_reverswide)), gsub(" ", "", names(tJhou_Runway_reverswide)))
+# tJhou_Runway_reverswide[, animalid := names(Jhou_Runway)[-1]] # remove animal id element but retain the animal ids for the data
+# 
+# 
+# # convert wide to long formats for both reversals and elapse  d time datasets 
+# 
+# tJhou_Runway_nonreverslong <- gather(tJhou_Runway_nonreverswide, session, elapsedtime, `Habituation01`:`Cocaine12`, factor_key=F) 
+# tJhou_Runway_reverslong <- gather(tJhou_Runway_reverswide, reversalsession, numreversals, `Habituation01`:`Cocaine12`, factor_key=F) 
+# 
+# ############################## PICK UP FROM HERE: SHOULD ONLY BE 6608 VALUES BUT WE FIND 92512 CASES AFTER UNSUCCESSFUL MERGE
+# tJhou_Runway_data <- left_join(tJhou_Runway_nonreverslong, tJhou_Runway_reverslong, by = c("animalid", "session" = "reversalsession")) %>% 
+#   # mutate_all() %>% ## XX 
+#   arrange(animalid, session) # all ids are represented 14 times
+# 
+# # extract the notes (create specific comments table)
+# tJhou_Runway_notes <- tJhou_Runway[, "notes", with = FALSE]
+# tJhou_Runway_notes[, animalid := names(Jhou_Runway)[-1]]
 
 
 

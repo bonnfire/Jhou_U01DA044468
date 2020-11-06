@@ -18,36 +18,42 @@ jhou_allexps_df <- list() %>%
 ########### Runway #############
 ################################
 
-## wait to confirm from Jhou lab about Runway 
-# locomotor_gwas <- Jhou_Locomotor_xl_df %>%
-#   subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
-#   left_join(locomotor_date, by = "labanimalid") %>% 
-#   mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric) %>% # probably will need manually editing the values that are missing dates/missing files
-#   select(-dob) 
-# 
-# locomotor_gwas %>% subset(!is.na(mean_shock_breakpoint_ma)&is.na(mean_shock_breakpoint_ma_age)) # rows where there are data but no exp age
+runway_gwas <- Jhou_Runway_xl_df %>%
+  subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
+  left_join(runway_date, by = "labanimalid") %>%
+  mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric) %>% # probably will need manually editing the values that are missing dates/missing files
+  select(-dob) %>% 
+  rename_at(vars(ends_with("date")), ~ gsub("date", "age", .))
+
+# runway_gwas %>% subset(!is.na(mean_shock_breakpoint_ma)&is.na(mean_shock_breakpoint_ma_age)) # rows where there are data but no exp age
 
 # add date for age 
-# locomotor_date <- locomotorfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
-#   mutate(labanimalid = str_extract(filename, "U\\d+"),
-#          date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
-#   select(-filename) %>% distinct() %>% 
-#   group_by(labanimalid) %>% 
-#   slice(1) %>% # just get the first day of locomotor from the filename 
-#   ungroup()  %>% 
-#   rbind(locomotorfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
-#           mutate(labanimalid = str_extract(filename, "U\\d+"),
-#                  date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>% 
-#           select(-filename) %>% distinct() %>% 
-#           group_by(labanimalid) %>% top_frac(.5, date) %>% top_n(1, date) %>% ungroup()) %>% 
-#   distinct() %>% 
-#   group_by(labanimalid) %>% 
-#   mutate(session = paste0("locomotor_", row_number(labanimalid))) %>% 
-#   ungroup() %>% 
-#   subset(!is.na(labanimalid)) %>%
-#   spread("session", "date")
+runway_date <- runwayfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>%
+  mutate(labanimalid = str_extract(filename, "U\\d+"),
+         date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>%
+  distinct() %>%
+  group_by(labanimalid) %>%
+  slice(4) %>% # just get the first day of locomotor from the filename
+  ungroup() %>% 
+  select(-filename) %>% 
+  rename("runway_4_date" = "date") 
+# %>%   # remove the join because the runway phenotype is only down to one
+#   left_join(runwayfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>%
+#               mutate(labanimalid = str_extract(filename, "U\\d+"),
+#                      date = str_extract(filename, "\\d+-\\d+") %>% gsub("(-\\d{2})(\\d{2})", "\\1-\\2", .) %>% as.Date) %>%
+#               distinct() %>%
+#               group_by(labanimalid) %>%
+#               slice(8) %>% # just get the first day of locomotor from the filename
+#               ungroup() %>% 
+#               select(-filename) %>% 
+#               rename("runway_8_date" = "date"),
+#             by = "labanimalid")
 
-# left_join(Jhou_SummaryAll[, c("labanimalid", "rfid", "wfucohort")], by = "labanimalid")
+# deal with the exclude cases 
+runway_gwas <- runway_gwas %>% 
+  mutate_if(is.numeric, ~ replace(., grepl("EXCLUDE_(RUNWAY|ALL)", resolution), NA)) %>% # if flagged, make na
+  select(cohort, jhou_cohort, labanimalid, rfid, sex, comments, resolution, runway_latency_avg_sessions_4_7_seconds, runway_latency_avg_sessions_8_12_seconds, runway_4_age, runway_8_age) # ensure order for db
+
 
 
 
@@ -183,9 +189,9 @@ locomotor_gwas <- Jhou_Locomotor_xl_df %>%
   subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
   left_join(locomotor_date, by = "labanimalid") %>% 
   mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric) %>% # probably will need manually editing the values that are missing dates/missing files
-  select(-dob) 
+  select(-dob) %>% 
+  rename_at(vars(ends_with("date")), ~ gsub("date", "age", .))
 
-locomotor_gwas %>% subset(!is.na(mean_shock_breakpoint_ma)&is.na(mean_shock_breakpoint_ma_age)) # rows where there are data but no exp age
 
 # add date for age 
 locomotor_date <- locomotorfiles_clean %>% as.data.frame() %>% rename("filename" = ".") %>% 
@@ -202,12 +208,29 @@ locomotor_date <- locomotorfiles_clean %>% as.data.frame() %>% rename("filename"
           group_by(labanimalid) %>% top_frac(.5, date) %>% top_n(1, date) %>% ungroup()) %>% 
   distinct() %>% 
   group_by(labanimalid) %>% 
-  mutate(session = paste0("locomotor_", row_number(labanimalid))) %>% 
+  mutate(session = paste0("locomotor_", row_number(labanimalid), "_date")) %>% 
   ungroup() %>% 
   subset(!is.na(labanimalid)) %>%
-  spread("session", "date")
+  spread("session", "date") %>% 
+  rowwise() %>% 
+  mutate(locomotor_2_date = replace(locomotor_2_date, parse_number(labanimalid) < 331,locomotor_1_date), 
+         locomotor_1_date = replace(locomotor_1_date, parse_number(labanimalid) < 331, NA)) %>%  # animals before U331 only had one locomotor session, after food dep
+  ungroup()
 
-# left_join(Jhou_SummaryAll[, c("labanimalid", "rfid", "wfucohort")], by = "labanimalid")
+
+## XX ask about these cases 
+locomotor_gwas %>% subset(!is.na(locomotor_2_after_food_dep_photobeam_counts)&is.na(locomotor_2_age)) %>% View() 
+
+  # left_join(Jhou_SummaryAll[, c("labanimalid", "rfid", "wfucohort")], by = "labanimalid")
+
+# manage the resolutions/comments
+locomotor_gwas <- locomotor_gwas %>% 
+  mutate_if(is.numeric, ~ replace(., grepl("EXCLUDE_(LOCOMOTOR|ALL)", resolution), NA)) %>% # if flagged, make na
+  select(cohort, jhou_cohort, labanimalid, rfid, sex, comments, resolution, locomotor_1_before_food_dep_photobeam_counts, locomotor_2_after_food_dep_photobeam_counts, locomotor_1_age, locomotor_2_age) # ensure order for db
+
+
+
+
 
 
 
@@ -338,6 +361,14 @@ progpun_date <- progpunfiles_clean %>% as.data.frame() %>% rename("filename" = "
   # left_join(Jhou_SummaryAll[, c("labanimalid", "rfid", "wfucohort")], by = "labanimalid")
 
 
+# change df based on resolution
+progpun_gwas <- progpun_gwas %>% 
+  mutate(resolution = replace(resolution, resolution == "601", NA)) %>% # manual change
+  mutate_if(is.numeric, ~ replace(., grepl("EXCLUDE_(PROGRESSIVE_PUNISHMENT|ALL_BEHAVIORS)", resolution), NA)) %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, sex, box, comments, resolution, mean_shock_breakpoint_ma, mean_shock_breakpoint_ma_age)
+  
+
+
 
 
 ### XX RETURN TO CLEANING DATA AFTER THE CONFERENCE
@@ -367,7 +398,10 @@ joinrawtoexcel_progpunishment %>% dplyr::filter(inactivepresses_raw != inactivep
 delayedpun_gwas <- Jhou_DelayedPunishment_xl_df %>% 
   subset(!cohort == "C17") %>%  #exclude bc not phenotyped yet (as of 10/16/2020)
   left_join(delayedpun_date, by = "labanimalid") %>%  # XX not doing this until asked manually edit and note to jhou lab that there are missing raw files
-  mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric)
+  mutate_at(vars(ends_with("date")), ~ difftime(., dob, units = "days") %>% as.numeric) %>% 
+  rename_at(vars(ends_with("date")), ~ gsub("date", "age", .)) %>% 
+  mutate_if(is.numeric, ~ replace(., grepl("EXCLUDE_DELAYED_PUNISHMENT", resolution), NA)) %>% # if flagged, make na
+  select(cohort, jhou_cohort, labanimalid, rfid, sex, comments, resolution, mean_dp0_1_lastshock, mean_dp20_1_lastshock, mean_dp0_2_lastshock, mean_dp4540_2_lastshock, delay_0_1_age, delay_20_age, delay_0_2_age, delay_4540_age) # ensure order for db
 
 
 # add date for age 
@@ -469,4 +503,10 @@ prograt_date <- progratiofiles_clean %>% as.data.frame() %>% rename("filename" =
   group_by(labanimalid) %>% 
   slice(1) %>% # just get the first day of prograt from the filename 
   ungroup()  
+
+# change df based on resolution
+prograt_gwas <- prograt_gwas %>% 
+  mutate(resolution = replace(resolution, resolution == "601", NA)) %>% # manual change
+  mutate_if(is.numeric, ~ replace(., grepl("EXCLUDE_(PROGRESSIVE_RATIO|ALL_BEHAVIORS)", resolution), NA)) %>% 
+  select(cohort, jhou_cohort, labanimalid, rfid, sex, box, comments, resolution, mean_leverpresses_maxratio, mean_leverpresses_maxratio_age)
 
