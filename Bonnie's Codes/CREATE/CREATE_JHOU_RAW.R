@@ -310,8 +310,8 @@ readrunway <- function(x){
 }
 
 
-runwayfiles <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #6125 files 
-runwayfiles_clean_c01_16 <- runwayfiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T) %>% grep("U([1-6]\\d+|[7]0[1-9]|[7]1[0-2])", ., ignore.case = T, value = T) # 5857
+runwayfiles <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #6249 files 
+runwayfiles_clean_c01_16 <- runwayfiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T) %>% grep("U([1-9]|[1-9][0-9]|[1-6][0-9][0-9]|70[0-9]|71[0-2])", ., ignore.case = T, value = T) # 6241
 
 # runway_reach_c01_16 <- lapply(runwayfiles_clean_c01_16, function(x){
 #   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
@@ -343,30 +343,22 @@ readrunwayloc1_3 <- function(x){
   return(runwaylocs_reached)
 }
 runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16[1:1000], readrunwayloc1_3) # test with runwayfiles_clean[1:10]
-runway_loc1_3_c01_16_2 <- list(list1 = list(runway_loc1_3_c01_16), 
-                                list2 = list(lapply(runwayfiles_clean_c01_16[c(1001:1672,1674:2000)], readrunwayloc1_3))) %>% 
-  unlist(recursive = F) %>% 
-  unlist(recursive = F)
-runway_loc1_3_c01_16_2 <- list(list1 = list(runway_loc1_3_c01_16_2), 
-                               list2 = list(lapply("./U32/2018-0730-0912_32_RUNWAY (Jhou Lab'\\\''s conflicted copy 2019-11-04).txt", readrunwayloc1_3))) %>% 
-  unlist(recursive = F) %>% 
-  unlist(recursive = F)
-runway_loc1_3_c01_16_3 <- list(list1 = list(runway_loc1_3_c01_16_2), 
-                               list2 = list(lapply(runwayfiles_clean_c01_16[2001:3000], readrunwayloc1_3))) %>% 
-  unlist(recursive = F) %>% 
-  unlist(recursive = F)
-runway_loc1_3_c01_16_4 <- list(list1 = list(runway_loc1_3_c01_16_3), 
-                               list2 = list(lapply(runwayfiles_clean_c01_16[3001:4000], readrunwayloc1_3))) %>% 
-  unlist(recursive = F) %>% 
-  unlist(recursive = F)
-runway_loc1_3_c01_16_5 <- list(list1 = list(runway_loc1_3_c01_16_4), 
-                               list2 = list(lapply(runwayfiles_clean_c01_16[4001:5000], readrunwayloc1_3))) %>% 
-  unlist(recursive = F) %>% 
-  unlist(recursive = F)
-runway_loc1_3_c01_16_6 <- list(list1 = list(runway_loc1_3_c01_16_5), 
-                               list2 = list(lapply(runwayfiles_clean_c01_16[5001:5857], readrunwayloc1_3))) %>% 
-  unlist(recursive = F) %>% 
-  unlist(recursive = F)
+runway_loc1_3_c01_16_2 <- c(runway_loc1_3_c01_16, 
+                            lapply(runwayfiles_clean_c01_16[c(1001:1686,1688:2000)], readrunwayloc1_3)) # formatted this way because of the conflicted copy
+
+runway_loc1_3_c01_16_2 <- c(runway_loc1_3_c01_16_2, 
+                            lapply("./U32/2018-0730-0912_32_RUNWAY (Jhou Lab'\\\''s conflicted copy 2019-11-04).txt", readrunwayloc1_3))
+
+runway_loc1_3_c01_16_3 <- c(runway_loc1_3_c01_16_2,
+                            lapply(runwayfiles_clean_c01_16[2001:3000], readrunwayloc1_3))
+runway_loc1_3_c01_16_4 <- c(runway_loc1_3_c01_16_3, 
+                            lapply(runwayfiles_clean_c01_16[3001:4000], readrunwayloc1_3))
+
+runway_loc1_3_c01_16_5 <- c(runway_loc1_3_c01_16_4,
+                            lapply(runwayfiles_clean_c01_16[4001:5000], readrunwayloc1_3))
+
+runway_loc1_3_c01_16_6 <- c(runway_loc1_3_c01_16_5, 
+                            lapply(runwayfiles_clean_c01_16[5001:5857], readrunwayloc1_3))
 
 
 # grep(" ", runwayfiles_clean_c01_16) 
@@ -381,14 +373,56 @@ runway_loc1_3_c01_16_6_df <- runway_loc1_3_c01_16_6 %>% lapply(function(x){
     subset(!is.na(V2)) %>% group_by(V2) %>% 
     dplyr::slice(tail(row_number(), 1)) %>% ungroup() %>% 
     spread(V2, V1) %>% janitor::clean_names() %>% 
-    mutate(subject = str_extract(filename, "U\\d+"))
+    mutate(labanimalid = str_extract(filename, "U\\d+"))
   return(x)
 }) %>% rbindlist(fill = T) 
-# %>% 
-# rbindlist(runway_loc1_c01_16_6) %>% 
-#   mutate()
+
+runway_latency_c01_16_6_df <- runway_loc1_3_c01_16_6_df %>% 
+  mutate(date_time = str_extract(filename, "\\d{4}-\\d{4}-\\d{4}"),  
+         date = gsub("^(\\d{4}-\\d{4})-.*", "\\1", date_time) %>% as.Date("%Y-%m%d")) %>% 
+  group_by(labanimalid) %>% 
+  arrange(date_time) %>%
+  ungroup() %>% 
+  mutate_at(vars(matches("reached|location_[123]")), as.numeric) %>% 
+  mutate(latency = ifelse(!is.na(location_2), reached - location_2, reached - location_3)) %>% 
+  mutate(latency = as.numeric(latency) %>% round()) ## XX round latency 
+
+## check date of file by checking age
+runway_latency_c01_16_6_df <- runway_latency_c01_16_6_df %>% 
+  left_join(Jhou_Runway_xl_df[, c("cohort", "jhou_cohort", "labanimalid", "rfid", "dob", "sex")], by = "labanimalid") %>% 
+  mutate(age = difftime(as.POSIXct(date), as.POSIXct(dob), units = "days") %>% as.numeric)
+
+## runway_latency_c01_16_6_df %>% subset(age < 10) %>% dim
+
+## add time out latency
+runway_latency_c01_16_6_df <- runway_latency_c01_16_6_df %>% 
+  mutate(latency = replace(latency, (as.numeric(jhou_cohort)<=3.4&reached>=600)|(as.numeric(jhou_cohort)>=3.5&reached>=900), 900))
 
 
+
+## find the total number of files vs total number of excel data 
+# find animals that don't have raw files and are not explained in the excel
+runwayfiles_clean_c01_16 %>% as.data.frame() %>% 
+  mutate_all(as.character) %>% rename("filename" = ".") %>% 
+  mutate(labanimalid = str_extract(filename, "U\\d+")) %>% 
+  left_join(Jhou_Runway_xl_df[, c("labanimalid", "cohort")] %>% subset(parse_number(cohort) < 17), by = "labanimalid") %>% 
+  distinct(labanimalid, cohort) %>% 
+  anti_join(Jhou_Runway_xl_df %>%
+              distinct(labanimalid, cohort, comments, resolution), ., 
+            by = c("labanimalid", "cohort")) %>% 
+  subset(!resolution %in% c("EXCLUDE_ALL_BEHAVIORS", "EXCLUDE_RUNWAY") ) %>% 
+  write.xlsx("runway_c01_16_missingraw.xlsx")
+
+
+numtrialqc <- Jhou_Runway_trials_C01_16_df %>% 
+  mutate(numtrials = rowSums(!is.na(select(., matches("cocaine_\\d"))))) %>% 
+  distinct(cohort, labanimalid, numtrials) %>% 
+  full_join(., runway_latency_c01_16_6_df %>% 
+              add_count(labanimalid) %>% 
+              distinct(cohort, labanimalid, n), by = c("labanimalid", "cohort")) 
+
+numtrialqc %>% subset(is.na(numtrials)|is.na(n)|numtrials!=n) %>% 
+  write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE/runway_c01_16_mismatchfilenums.xlsx")
 
 
 
