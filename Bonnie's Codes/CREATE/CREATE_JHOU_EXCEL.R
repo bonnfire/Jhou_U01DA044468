@@ -184,11 +184,19 @@ Jhou_Runway_trials_C01_16_df <- cbind(Jhou_Runway_trials_C01_16, Jhou_Runway_C01
 ## qc xl data with xl data (add rfid and verify/fill sex by joining by labanimalid) 
 Jhou_Runway_trials_C01_16_df <- Jhou_Runway_trials_C01_16_df %>% 
   left_join(Jhou_SummaryAll[c("rfid", "sex", "labanimalid")], by = "labanimalid") %>% 
-  left_join(WFU_Jhou_test_df[, c("rfid", "cohort")], by = "rfid") %>% # wfucohort had na's from a batch that died in the heat, using this instead
-  select(-na, -gender) %>% 
-  select(cohort, rfid, sex, labanimalid, notes, everything()) 
+  left_join(WFU_Jhou_test_df[, c("rfid", "cohort")], by = "rfid") # wfucohort had na's from a batch that died in the heat, using this instead
+
+# create xl of misgendered animals 
+Jhou_Runway_trials_C01_16_df %>% 
+  subset(sex != gender) %>% select(cohort, labanimalid, rfid, sex, gender) %>%
+  write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_c01_16_misgendered.xlsx")
+Jhou_Runway_trials_C01_16_df %>% 
+  subset(is.na(gender)) %>% select(cohort, labanimalid, rfid, sex, gender) %>%
+  write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_c01_16_misssinggender.xlsx")
 
 
+# select(-na, -gender) %>% 
+  # select(cohort, rfid, sex, labanimalid, notes, everything()) 
 
 
 ## commented out old code for reversals -- no longer extracting 11/04/2020

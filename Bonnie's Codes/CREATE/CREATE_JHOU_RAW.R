@@ -358,11 +358,14 @@ runway_loc1_3_c01_16_5 <- c(runway_loc1_3_c01_16_4,
                             lapply(runwayfiles_clean_c01_16[4001:5000], readrunwayloc1_3))
 
 runway_loc1_3_c01_16_6 <- c(runway_loc1_3_c01_16_5, 
-                            lapply(runwayfiles_clean_c01_16[5001:5857], readrunwayloc1_3))
+                            lapply(runwayfiles_clean_c01_16[5001:6000], readrunwayloc1_3))
+
+runway_loc1_3_c01_16_7 <- c(runway_loc1_3_c01_16_6, 
+                            lapply(runwayfiles_clean_c01_16[6001:6241], readrunwayloc1_3))
 
 
 # grep(" ", runwayfiles_clean_c01_16) 
-runway_loc1_3_c01_16_6_df <- runway_loc1_3_c01_16_6 %>% lapply(function(x){
+runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16_7 %>% lapply(function(x){
   x <- x %>% t() %>% as.data.frame() %>% mutate_all(as.character) %>%
     mutate(V1 = ifelse(V1 == "LOCATION", paste(V1, lead(V1)), V1)) %>%
     mutate(V2 = ifelse(grepl("LOCATION|REACHED|txt", V1), V1, NA)) %>% 
@@ -377,7 +380,7 @@ runway_loc1_3_c01_16_6_df <- runway_loc1_3_c01_16_6 %>% lapply(function(x){
   return(x)
 }) %>% rbindlist(fill = T) 
 
-runway_latency_c01_16_6_df <- runway_loc1_3_c01_16_6_df %>% 
+runway_latency_c01_16_7_df <- runway_loc1_3_c01_16_7_df %>% 
   mutate(date_time = str_extract(filename, "\\d{4}-\\d{4}-\\d{4}"),  
          date = gsub("^(\\d{4}-\\d{4})-.*", "\\1", date_time) %>% as.Date("%Y-%m%d")) %>% 
   group_by(labanimalid) %>% 
@@ -388,17 +391,21 @@ runway_latency_c01_16_6_df <- runway_loc1_3_c01_16_6_df %>%
   mutate(latency = as.numeric(latency) %>% round()) ## XX round latency 
 
 ## check date of file by checking age
-runway_latency_c01_16_6_df <- runway_latency_c01_16_6_df %>% 
+runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
   left_join(Jhou_Runway_xl_df[, c("cohort", "jhou_cohort", "labanimalid", "rfid", "dob", "sex")], by = "labanimalid") %>% 
   mutate(age = difftime(as.POSIXct(date), as.POSIXct(dob), units = "days") %>% as.numeric)
 
 ## runway_latency_c01_16_6_df %>% subset(age < 10) %>% dim
 
 ## add time out latency
-runway_latency_c01_16_6_df <- runway_latency_c01_16_6_df %>% 
+runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
   mutate(latency = replace(latency, (as.numeric(jhou_cohort)<=3.4&reached>=600)|(as.numeric(jhou_cohort)>=3.5&reached>=900), 900))
 
 
+
+## generate xl with negative age
+runway_latency_c01_16_7_df %>% subset(age < 0) %>% select(labanimalid, rfid, sex, filename, date, dob, age) %>% 
+  write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_c01_16_negativeage.xlsx")
 
 ## find the total number of files vs total number of excel data 
 # find animals that don't have raw files and are not explained in the excel
@@ -408,21 +415,54 @@ runwayfiles_clean_c01_16 %>% as.data.frame() %>%
   left_join(Jhou_Runway_xl_df[, c("labanimalid", "cohort")] %>% subset(parse_number(cohort) < 17), by = "labanimalid") %>% 
   distinct(labanimalid, cohort) %>% 
   anti_join(Jhou_Runway_xl_df %>%
-              distinct(labanimalid, cohort, comments, resolution), ., 
+              distinct(labanimalid, cohort, comments, resolution) %>% 
+              subset(parse_number(cohort) < 17), ., 
             by = c("labanimalid", "cohort")) %>% 
   subset(!resolution %in% c("EXCLUDE_ALL_BEHAVIORS", "EXCLUDE_RUNWAY") ) %>% 
-  write.xlsx("runway_c01_16_missingraw.xlsx")
+  write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE/runway_c01_16_missingraw.xlsx")
 
 
 numtrialqc <- Jhou_Runway_trials_C01_16_df %>% 
   mutate(numtrials = rowSums(!is.na(select(., matches("cocaine_\\d"))))) %>% 
   distinct(cohort, labanimalid, numtrials) %>% 
-  full_join(., runway_latency_c01_16_6_df %>% 
+  full_join(., runway_latency_c01_16_7_df %>% 
               add_count(labanimalid) %>% 
               distinct(cohort, labanimalid, n), by = c("labanimalid", "cohort")) 
 
 numtrialqc %>% subset(is.na(numtrials)|is.na(n)|numtrials!=n) %>% 
+  subset(parse_number(cohort) < 17) %>% 
+  subset(!labanimalid %in% c(Jhou_Runway_xl_df %>% subset(resolution %in% c("EXCLUDE_ALL_BEHAVIORS", "EXCLUDE_RUNWAY")) %>% unlist() %>% as.character)) %>% 
   write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE/runway_c01_16_mismatchfilenums.xlsx")
+
+# while we are fixing the above animals... animals whose file numbers do match
+runway_c01_16_qc <- runway_latency_c01_16_7_df %>% 
+  subset(labanimalid %in% c(numtrialqc %>% subset(!(is.na(numtrials)|is.na(n)|numtrials!=n)) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  group_by(labanimalid) %>% 
+  mutate(cocainetrial = paste0("cocaine_", row_number() %>% as.character)) %>% 
+  ungroup() %>% 
+  select(cohort, labanimalid, sex, age, cocainetrial, filename, latency) %>% 
+  rename("latency_raw" = "latency") %>% 
+  full_join(Jhou_Runway_trials_C01_16_df %>% 
+              subset(labanimalid %in% c(numtrialqc %>% subset(!(is.na(numtrials)|is.na(n)|numtrials!=n)) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+              select(cohort, labanimalid, matches("cocaine_\\d")) %>% 
+              gather("cocainetrial", "latency_xl", -cohort, -labanimalid), by = c("cohort", "labanimalid", "cocainetrial")) %>% 
+  mutate(latency_QC_diff = latency_xl - latency_raw,
+         latency_QC = ifelse(latency_QC_diff %in% c(0, -1, 1), "pass", "fail"))
+
+# drop if both raw and xl are na and create xl
+runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_QC))) %>% 
+  subset(latency_QC == "fail") %>% 
+  mutate(cocainetrial = paste0("cocaine_", str_pad(parse_number(cocainetrial), 2, "left", "0"))) %>% # so that the columns are in order
+  spread(cocainetrial, latency_xl) %>% # give them the reference file 
+  mutate(labanimalid_num = parse_number(labanimalid)) %>% 
+  arrange(cohort, labanimalid_num) %>% select(-labanimalid_num) %>% 
+  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n438.xlsx") # 462 animals to fix, 1306 points
+
+
+
+
+
+
 
 
 
