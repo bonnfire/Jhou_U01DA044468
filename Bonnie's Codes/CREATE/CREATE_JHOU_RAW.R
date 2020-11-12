@@ -450,14 +450,16 @@ runway_c01_16_qc <- runway_latency_c01_16_7_df %>%
          latency_QC = ifelse(latency_QC_diff %in% c(0, -1, 1), "pass", "fail"))
 
 # drop if both raw and xl are na and create xl
-runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_QC))) %>% 
+runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename)))  %>% 
   subset(latency_QC == "fail") %>% 
   mutate(cocainetrial = paste0("cocaine_", str_pad(parse_number(cocainetrial), 2, "left", "0"))) %>% # so that the columns are in order
   spread(cocainetrial, latency_xl) %>% # give them the reference file 
   mutate(labanimalid_num = parse_number(labanimalid)) %>% 
   arrange(cohort, labanimalid_num) %>% select(-labanimalid_num) %>% 
-  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n438.xlsx") # 462 animals to fix, 1306 points
+  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n247.xlsx") # 462 animals to fix, 1306 points
 
+
+## work with animals for which QC is "pass" for all values
 
 
 
