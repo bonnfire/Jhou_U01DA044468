@@ -458,11 +458,41 @@ runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filenam
   arrange(cohort, labanimalid_num) %>% select(-labanimalid_num) %>% 
   openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n247.xlsx") # 462 animals to fix, 1306 points
 
+## for jhou email graphics
+# runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename)))  %>% 
+#   subset(latency_QC == "fail") %>% 
+#   mutate(cocainetrial = paste0("cocaine_", str_pad(parse_number(cocainetrial), 2, "left", "0"))) %>% # so that the columns are in order
+#   spread(cocainetrial, latency_xl) %>% # give them the reference file 
+#   mutate(labanimalid_num = parse_number(labanimalid)) %>% 
+#   arrange(cohort, labanimalid_num) %>% select(-labanimalid_num) %>% ggplot(aes(x = latency_QC_diff)) + geom_density() + facet_wrap(~ cohort, ncol = 4) + xlab("Excel Latency - Raw Latency") + theme(axis.text = element_text(size = 15), axis.title = element_text(size = 15))
 
 ## work with animals for which QC is "pass" for all values
+runway_pass_c01_16 <- runway_c01_16_qc %>% 
+  subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+           subset(labanimalid %in% c(runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+                                                 group_by(labanimalid) %>% 
+                                                 mutate(QC = n_distinct(latency_QC)) %>% 
+                                                 ungroup() %>% 
+                                                 distinct(labanimalid, latency_QC, QC) %>% subset(latency_QC == "pass"&QC == 1) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  select(cohort, labanimalid, sex, cocainetrial, latency_raw) %>% 
+  spread(cocainetrial, latency_raw) %>% 
+  mutate(avg_4_last = rowMeans(select(., -cohort, -labanimalid, -sex, -matches("cocaine_[123]")), na.rm = T)) %>% 
+  mutate(avg_4_last_na = ifelse(cocaine_1 <= 120, avg_4_last, NA)) %>% 
+  select(cohort, labanimalid, sex, cocaine_1, avg_4_last, avg_4_last_na) 
 
-
-
+## corr for jhou email 
+## corr for jhou email 
+runway_c01_16_qc %>% 
+  subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+  subset(labanimalid %in% c(runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+                              group_by(labanimalid) %>% 
+                              mutate(QC = n_distinct(latency_QC)) %>% 
+                              ungroup() %>% 
+                              distinct(labanimalid, latency_QC, QC) %>% subset(latency_QC == "pass"&QC == 1) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  select(cohort, labanimalid, sex, cocainetrial, latency_raw) %>% 
+  mutate(cocainetrial = paste0("cocaine_", str_pad(parse_number(cocainetrial), 2, "left", "0"))) %>% # so that the columns are in order
+  spread(cocainetrial, latency_raw) %>% 
+  select(-labanimalid, -sex) %>% dplyr::filter(complete.cases(.)) %>% select(cohort) %>% table()
 
 
 
