@@ -1034,39 +1034,41 @@ mutate(shock = ifelse(grepl("A[158]$", box), shock*1.3582089,
 ### EXP 4: Progressive ratio
 # max ratio
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive ratio")
-progratiofiles <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) 
+progratiofiles <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) #2380
 # progratiofiles_clean <- progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_|_corrected)?.txt", negate = F)]
-progratiofiles_clean <- progratiofiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T)
+progratiofiles_clean_c01_16 <- progratiofiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T) %>% grep("U([1-9]|[1-9][0-9]|[1-6][0-9][0-9]|70[0-9]|71[0-2])", ., ignore.case = T, value = T) #2327
 # progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_corrected)?.txt", negate = T)] gives the subset of filenames that don't follow the format
 
+# get the lever presses at breakout 
 readmaxratio <- function(x){
   maxratio <- fread(paste0("grep -B1 \"TIMEOUT\\\\s\\\\s\" " , "'", x, "'", " | awk '{print $4; exit}'"))
   maxratio$filename <- x
   return(maxratio)
 } # get the max ratio from the line before TIMEOUT
-progratio_maxratio <- lapply(progratiofiles_clean, readmaxratio) 
+progratio_maxratio <- lapply(progratiofiles_clean_c01_16, readmaxratio)
 progratio_maxratio_rm <- progratio_maxratio[sapply(progratio_maxratio, function(x) ncol(x)) > 1] # remove the null datatables
-progratio_maxratio_df <- rbindlist(progratio_maxratio_rm, fill = T) %>%
-  rename("maxratio" = "V1") %>% 
-  select(-NUMBER) %>% # 100% empty column 
-  mutate(maxratio = as.numeric(maxratio)) 
+progratio_maxratio_df_c01_16 <- rbindlist(progratio_maxratio_rm, fill = T) %>%
+  rename("maxratio_leverpresses" = "V1") %>%
+  select(-NUMBER) %>% # 100% empty column
+  mutate(maxratio_leverpresses = as.numeric(maxratio_leverpresses))
 
 # rawfiles_maxratio <- extractfromfilename(rawfiles_maxratio)
 # rawfiles_maxratio %>% summary() seems like the machine generated two trials of data, so we will remove the initial one with the next line
 # rawfiles_maxratio <- rawfiles_maxratio[!(rawfiles_maxratio$labanimalid=="U187" & rawfiles_maxratio$maxratio==2),]
 
+# commented this out, since we might not need this 11/12/2020
 # presses get the left and right values at the last trial
-readpresses <- function(x){
-  presses <- fread(paste0("grep \"TIMEOUT\\\\s\\\\s\" " , "'", x, "'", " | awk '{print $7 \",\" $9; exit}'"))
-  presses$filename <- x
-  return(presses)
-}
-# get the max ratio from the line before TIMEOUT
-progratio_presses <- lapply(progratio_maxratio_df$filename, readpresses) 
-progratio_presses_rm <- progratio_presses[sapply(progratio_presses, function(x) ncol(x)) > 1] # remove the null datatables
-progratio_presses_df <- rbindlist(progratio_presses_rm, fill = T) %>%
-  rename("activepresses" = "V1",
-         "inactivepresses" = "V2") # again there are 30 NA's  
+# readpresses <- function(x){
+#   presses <- fread(paste0("grep \"TIMEOUT\\\\s\\\\s\" " , "'", x, "'", " | awk '{print $7 \",\" $9; exit}'"))
+#   presses$filename <- x
+#   return(presses)
+# }
+# # get the max ratio from the line before TIMEOUT
+# progratio_presses <- lapply(progratiofiles_clean_c01_16, readpresses) 
+# progratio_presses_rm <- progratio_presses[sapply(progratio_presses, function(x) ncol(x)) > 1] # remove the null datatables
+# progratio_presses_df <- rbindlist(progratio_presses_rm, fill = T) %>%
+#   rename("activepresses" = "V1",
+#          "inactivepresses" = "V2") # again there are 30 NA's  
 
 # join to create final raw df
 progratio <- left_join(progratio_maxratio_df, progratio_presses_df, by = "filename") # 10/28 bring to Alen's attention -- these cases for which there are only timeout lines and no pre-timeout value so no maxratio value 
