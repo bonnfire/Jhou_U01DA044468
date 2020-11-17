@@ -1034,7 +1034,7 @@ mutate(shock = ifelse(grepl("A[158]$", box), shock*1.3582089,
 ### EXP 4: Progressive ratio
 # max ratio
 setwd("~/Dropbox (Palmer Lab)/U01 folder/Progressive ratio")
-progratiofiles <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) #2380
+progratiofiles <- list.files(path=".", pattern=".*RATIO.*.txt", full.names=TRUE, recursive=TRUE) #2555
 # progratiofiles_clean <- progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_|_corrected)?.txt", negate = F)]
 progratiofiles_clean_c01_16 <- progratiofiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T) %>% grep("U([1-9]|[1-9][0-9]|[1-6][0-9][0-9]|70[0-9]|71[0-2])", ., ignore.case = T, value = T) #2327
 # progratiofiles[str_detect(progratiofiles, "/U\\d+/\\d{4}-\\d{4}-\\d{4}_\\d+_PROGRESSIVE RATIO(_corrected)?.txt", negate = T)] gives the subset of filenames that don't follow the format
@@ -1051,6 +1051,76 @@ progratio_maxratio_df_c01_16 <- rbindlist(progratio_maxratio_rm, fill = T) %>%
   rename("maxratio_leverpresses" = "V1") %>%
   select(-NUMBER) %>% # 100% empty column
   mutate(maxratio_leverpresses = as.numeric(maxratio_leverpresses))
+
+
+progratio_maxratio_df_c01_16 <- progratio_maxratio_df_c01_16 %>% 
+  mutate(date_time = str_extract(filename, "\\d{4}-\\d{4}-\\d{4}"),  
+         date = gsub("^(\\d{4}-\\d{4})-.*", "\\1", date_time) %>% as.Date("%Y-%m%d")) %>%
+  mutate(labanimalid = str_extract(filename, "U\\d+")) %>% 
+  group_by(labanimalid) %>% 
+  arrange(date_time) %>%
+  ungroup() 
+
+## check date of file by checking age
+progratio_maxratio_df_c01_16 <- progratio_maxratio_df_c01_16 %>% 
+  left_join(Jhou_ProgRatio_xl_df[, c("cohort", "jhou_cohort", "labanimalid", "rfid", "dob", "sex")], by = "labanimalid") %>% 
+  mutate(age = difftime(as.POSIXct(date), as.POSIXct(dob), units = "days") %>% as.numeric)
+  
+# cohorts 01-16 don't have any negative ages
+# progratio_maxratio_df_c01_16 %>% subset(age < 10) %>% dim
+
+# add mean_leverpresses_maxratio
+progratio_mean_maxratio_df_c01_16 <- progratio_maxratio_df_c01_16 %>%
+  group_by(labanimalid) %>% 
+  mutate(mean_leverpresses_maxratio = mean(maxratio_leverpresses, na.rm = T)) %>% 
+  ungroup() %>%
+  distinct(cohort, jhou_cohort, labanimalid, rfid, sex, mean_leverpresses_maxratio) # check with progratio_mean_maxratio_df_c01_16 %>% janitor::get_dupes(rfid)
+
+# qc against xl mean
+progratio_mean_maxratio_df_c01_16_qc <- progratio_mean_maxratio_df_c01_16 %>% 
+  rename("mean_leverpresses_maxratio_raw" = "mean_leverpresses_maxratio") %>% 
+  full_join(., Jhou_ProgRatio_xl_df %>% subset(parse_number(cohort) < 17) %>% 
+              select(labanimalid, mean_leverpresses_maxratio) %>% 
+              rename("mean_leverpresses_maxratio_xl" = "mean_leverpresses_maxratio"), 
+            by = "labanimalid") %>% 
+  mutate(mean_leverpresses_maxratio_QC_diff = mean_leverpresses_maxratio_xl - mean_leverpresses_maxratio_raw,
+         mean_leverpresses_maxratio_QC = ifelse(mean_leverpresses_maxratio_QC_diff %in% c(0, -1, 1), "pass", "fail"))
+
+# if the mean is wrong, compare/qc the raw vs excel trial by trial
+progratio_mean_maxratio_df_c01_16_qc %>% subset(is.na(mean_leverpresses_maxratio_QC)|mean_leverpresses_maxratio_QC == "fail") %>% dim
+
+
+progratio_maxratio_df_c01_16_qc <- progratio_maxratio_df_c01_16 %>% subset(labanimalid %in% c(progratio_mean_maxratio_df_c01_16_qc %>% subset(is.na(mean_leverpresses_maxratio_QC)|mean_leverpresses_maxratio_QC == "fail") %>% distinct(labanimalid) %>% unlist() %>% as.character)) %>% 
+  group_by(labanimalid) %>% 
+  arrange(date_time, .by_group = T) %>%
+  mutate(session = row_number()) %>% 
+  ungroup() %>% 
+  rename("maxratio_leverpresses_raw" = "maxratio_leverpresses") %>% 
+  full_join(Jhou_ProgRatio_trials_xl_df %>% 
+              subset(labanimalid %in% c(progratio_mean_maxratio_df_c01_16_qc %>% subset(is.na(mean_leverpresses_maxratio_QC)|mean_leverpresses_maxratio_QC == "fail") %>% distinct(labanimalid) %>% unlist() %>% as.character)) %>% 
+              rename("maxratio_leverpresses_xl" = "maxratio_leverpresses"), 
+            by = c("labanimalid", "session")) %>% 
+  mutate(maxratio_leverpresses_QC_diff = maxratio_leverpresses_xl - maxratio_leverpresses_raw,
+         maxratio_leverpresses_QC = ifelse(maxratio_leverpresses_QC_diff %in% c(0, -1, 1), "pass", "fail")) %>%
+  subset(is.na(maxratio_leverpresses_QC)|maxratio_leverpresses_QC == "fail") %>% 
+  select(cohort, labanimalid, sex, filename, maxratio_leverpresses_raw, maxratio_leverpresses_QC_diff, maxratio_leverpresses_QC, session, maxratio_leverpresses_xl) %>% 
+  mutate(session = paste0("session_", str_pad(session, 2, "left", "0"))) %>% 
+  mutate(maxratio_leverpresses_xl = replace(maxratio_leverpresses_xl, is.na(maxratio_leverpresses_xl), "missing")) %>% 
+  spread(session, maxratio_leverpresses_xl) %>% 
+  mutate(labanimalid_num = parse_number(labanimalid)) %>% 
+  arrange(cohort, labanimalid_num) %>% select(-labanimalid_num)
+
+# subset animals that don't have raw data but have excel data
+progratio_maxratio_df_c01_16_qc %>% subset(is.na(cohort)) %>% 
+  select(-cohort, -sex) %>% 
+  left_join(., Jhou_ProgRatio_xl_df %>% select(cohort, labanimalid, sex), by = "labanimalid") %>% 
+  select(cohort, labanimalid, sex, matches("session_0[1-4]")) %>% 
+  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/prograt_maxratiotrial_c01_16_missingraw.xlsx") # 462 animals to fix, 1306 pointsprogratio_maxratio_df_c01_16_qc %>% 
+
+# subset animals that have mismatched raw and excel data and raw files that are not accounted for in the excel data 
+progratio_maxratio_df_c01_16_qc %>% subset(!is.na(cohort)) %>% 
+  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/prograt_maxratiotrial_c01_16_qc.xlsx") # 462 animals to fix, 1306 pointsprogratio_maxratio_df_c01_16_qc %>% 
+
 
 # rawfiles_maxratio <- extractfromfilename(rawfiles_maxratio)
 # rawfiles_maxratio %>% summary() seems like the machine generated two trials of data, so we will remove the initial one with the next line
@@ -1071,23 +1141,23 @@ progratio_maxratio_df_c01_16 <- rbindlist(progratio_maxratio_rm, fill = T) %>%
 #          "inactivepresses" = "V2") # again there are 30 NA's  
 
 # join to create final raw df
-progratio <- left_join(progratio_maxratio_df, progratio_presses_df, by = "filename") # 10/28 bring to Alen's attention -- these cases for which there are only timeout lines and no pre-timeout value so no maxratio value 
-progratio_raw <- progratio %>% 
-  #  dplyr::filter(!grepl("error", filename), !is.na(activepresses)) %>%
-  extractfromfilename() %>%
-  group_by(labanimalid) %>% 
-  mutate(session = as.character(dplyr::row_number())) %>% 
-  ungroup() %>% 
-  WFUjoin.raw() %>% 
-  select(shipmentcohort, labanimalid, rfid, date, time, session, maxratio, everything())  %>% 
-  select(-filename, filename) %>%
-  arrange(labanimalid, session)  # 100% present data
-
-aggregate(session ~ labanimalid, data = progratio_raw, max) %>% mutate(session = as.numeric(session)) %>% select(session) %>% table()
-progratio_subjects_tempremove <- aggregate(session ~ labanimalid, data = progratio_raw, max) %>% mutate(session = as.numeric(session)) %>% subset(session != 4) %>% select(labanimalid) %>% unlist() %>% as.character()
-
-progratio_raw_upload <- progratio_raw %>% subset(!labanimalid %in% progratio_subjects_tempremove)
-
+# progratio <- left_join(progratio_maxratio_df, progratio_presses_df, by = "filename") # 10/28 bring to Alen's attention -- these cases for which there are only timeout lines and no pre-timeout value so no maxratio value 
+# progratio_raw <- progratio %>% 
+#   #  dplyr::filter(!grepl("error", filename), !is.na(activepresses)) %>%
+#   extractfromfilename() %>%
+#   group_by(labanimalid) %>% 
+#   mutate(session = as.character(dplyr::row_number())) %>% 
+#   ungroup() %>% 
+#   WFUjoin.raw() %>% 
+#   select(shipmentcohort, labanimalid, rfid, date, time, session, maxratio, everything())  %>% 
+#   select(-filename, filename) %>%
+#   arrange(labanimalid, session)  # 100% present data
+# 
+# aggregate(session ~ labanimalid, data = progratio_raw, max) %>% mutate(session = as.numeric(session)) %>% select(session) %>% table()
+# progratio_subjects_tempremove <- aggregate(session ~ labanimalid, data = progratio_raw, max) %>% mutate(session = as.numeric(session)) %>% subset(session != 4) %>% select(labanimalid) %>% unlist() %>% as.character()
+# 
+# progratio_raw_upload <- progratio_raw %>% subset(!labanimalid %in% progratio_subjects_tempremove)
+# 
 # mutate(labanimalid = gsub('(U)([[:digit:]]{1})$', '\\10\\2', labanimalid)) %>%
 # arrange(labanimalid)
 # reorder based on labanimalid  

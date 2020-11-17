@@ -458,10 +458,38 @@ Jhou_ProgRatio_xl_df <- Jhou_ProgRatio_xl %>% mutate(labanimalid = toupper(laban
 
 
 
+## extract the jhou_progratio each trial
+Jhou_ProgRatio_trials_xl <- Jhou_Excel[["Progressive ratio"]][, c(1, 2, 4)]
+colnames(Jhou_ProgRatio_trials_xl) <- c("labanimalid", "session", "maxratio_leverpresses")
+Jhou_ProgRatio_trials_xl <- Jhou_ProgRatio_trials_xl %>% 
+  mutate(labanimalid = toupper(labanimalid)) %>% 
+  mutate(labanimalid = str_extract(labanimalid, "U\\d+")) %>% 
+  fill(labanimalid) %>% 
+  mutate_at(vars("session", "maxratio_leverpresses"), as.numeric) %>% 
+  dplyr::filter(complete.cases(.)) 
 
+## qc for duplicated session 
+Jhou_ProgRatio_trials_xl %>% janitor::get_dupes(labanimalid, session)
 
-
-
+# manually correct (marked red on xl sheet)
+Jhou_ProgRatio_trials_xl_df <- Jhou_ProgRatio_trials_xl %>% 
+  distinct() %>% # remove double U552
+  subset(!(labanimalid == "U228"&session == "3"&maxratio_leverpresses == "77")) %>% 
+  subset(!(labanimalid == "U228"&session == "4"&maxratio_leverpresses == "95")) %>% 
+  
+  subset(!(labanimalid == "U233"&session == "2"&maxratio_leverpresses == "50")) %>% 
+  subset(!(labanimalid == "U233"&session == "3"&maxratio_leverpresses == "62")) %>% 
+  subset(!(labanimalid == "U233"&session == "4"&maxratio_leverpresses == "95")) %>% 
+  
+  subset(!(labanimalid == "U278"&session == "4"&maxratio_leverpresses == "9")) %>% 
+  
+  subset(!(labanimalid == "U279"&session == "1"&maxratio_leverpresses == "77")) %>% 
+  
+  subset(!(labanimalid == "U297"&session == "2"&maxratio_leverpresses == "2")) %>% 
+  mutate(session = replace(session, labanimalid %in% c("U668","U669","U670","U671","U672")&session == "5", "4")) %>% 
+  mutate(session = as.numeric(session))
+  
+  
 
 
 ## XX QC AFTER CONFERENCE 
