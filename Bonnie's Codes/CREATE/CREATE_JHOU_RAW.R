@@ -296,112 +296,112 @@ runwayhab_merge_df %>%  filter_if(is.numeric, any_vars(is.na(.))) %>% as.data.fr
 
 
 
-setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
-
-# reach time and qc the times from in files
-
-
-
-## ***************************************************************************************************************************************
-readrunway <- function(x){
-  runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
-  runway$filename <- x
-  return(runway)
-}
-
-
-runwayfiles <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #6249 files 
-runwayfiles_clean_c01_16 <- runwayfiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T) %>% grep("U([1-9]|[1-9][0-9]|[1-6][0-9][0-9]|70[0-9]|71[0-2])", ., ignore.case = T, value = T) # 6241
-
-# runway_reach_c01_16 <- lapply(runwayfiles_clean_c01_16, function(x){
-#   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
-#   runway$filename <- x
-#   return(runway)}) 
-# runway_reach_c01_16_df <- runway_reach_c01_16 %>% rbindlist(fill = T) %>% # run on runwayfiles_clean[3000:3100] for test # 12/3 - 36 warnings of returning NULL data table # 2/13 - 42 warnings
-#   rename("reachtime" = "V1")
-
-# location2 and location3 (use to sub loc2 when na) time + add loc1 (1/2/20)
-readrunwayloc1_3 <- function(x){
-  runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
-  runwayloc1$filename <- x
-
-  runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
-  runwayloc2$filename <- x
-
-  runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
-  runwayloc3$filename <- x
-
-  runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
-
-  runwayreached <- fread(paste0("grep -P -m 1 \"REACHED GOAL BOX\" ", "'", x, "'"))
-  runwayreached$filename <- x
-  if(!(ncol(runwayreached) == 1&nrow(runwayreached)==1)){
-    runwayreached <- runwayreached[ , c("V1", "V2", "filename")] # keep the value and tag
-  }
-
-  runwaylocs_reached <- merge(runwaylocs, runwayreached, by = "filename")
-  return(runwaylocs_reached)
-}
-runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16[1:1000], readrunwayloc1_3) # test with runwayfiles_clean[1:10]
-runway_loc1_3_c01_16_2 <- c(runway_loc1_3_c01_16, 
-                            lapply(runwayfiles_clean_c01_16[c(1001:1686,1688:2000)], readrunwayloc1_3)) # formatted this way because of the conflicted copy
-
-runway_loc1_3_c01_16_2 <- c(runway_loc1_3_c01_16_2, 
-                            lapply("./U32/2018-0730-0912_32_RUNWAY (Jhou Lab'\\\''s conflicted copy 2019-11-04).txt", readrunwayloc1_3))
-
-runway_loc1_3_c01_16_3 <- c(runway_loc1_3_c01_16_2,
-                            lapply(runwayfiles_clean_c01_16[2001:3000], readrunwayloc1_3))
-runway_loc1_3_c01_16_4 <- c(runway_loc1_3_c01_16_3, 
-                            lapply(runwayfiles_clean_c01_16[3001:4000], readrunwayloc1_3))
-
-runway_loc1_3_c01_16_5 <- c(runway_loc1_3_c01_16_4,
-                            lapply(runwayfiles_clean_c01_16[4001:5000], readrunwayloc1_3))
-
-runway_loc1_3_c01_16_6 <- c(runway_loc1_3_c01_16_5, 
-                            lapply(runwayfiles_clean_c01_16[5001:6000], readrunwayloc1_3))
-
-runway_loc1_3_c01_16_7 <- c(runway_loc1_3_c01_16_6, 
-                            lapply(runwayfiles_clean_c01_16[6001:6241], readrunwayloc1_3))
-
-
-# grep(" ", runwayfiles_clean_c01_16) 
-runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16_7 %>% lapply(function(x){
-  x <- x %>% t() %>% as.data.frame() %>% mutate_all(as.character) %>%
-    mutate(V1 = ifelse(V1 == "LOCATION", paste(V1, lead(V1)), V1)) %>%
-    mutate(V2 = ifelse(grepl("LOCATION|REACHED|txt", V1), V1, NA)) %>% 
-    fill(V2, .direction = "up") %>% mutate(V1 = as.numeric(V1)) %>% 
-    mutate(V1 = ifelse(grepl("txt", V2), V2, V1),
-           V2 = ifelse(grepl("txt", V2), "filename", V2)) %>% 
-    subset(!is.na(V1)) %>% 
-    subset(!is.na(V2)) %>% group_by(V2) %>% 
-    dplyr::slice(tail(row_number(), 1)) %>% ungroup() %>% 
-    spread(V2, V1) %>% janitor::clean_names() %>% 
-    mutate(labanimalid = str_extract(filename, "U\\d+"))
-  return(x)
-}) %>% rbindlist(fill = T) 
-
-runway_latency_c01_16_7_df <- runway_loc1_3_c01_16_7_df %>% 
-  mutate(date_time = str_extract(filename, "\\d{4}-\\d{4}-\\d{4}"),  
-         date = gsub("^(\\d{4}-\\d{4})-.*", "\\1", date_time) %>% as.Date("%Y-%m%d")) %>% 
-  group_by(labanimalid) %>% 
-  arrange(date_time) %>%
-  ungroup() %>% 
-  mutate_at(vars(matches("reached|location_[123]")), as.numeric) %>% 
-  mutate(latency = ifelse(!is.na(location_2), reached - location_2, reached - location_3)) %>% 
-  mutate(latency = as.numeric(latency) %>% round()) ## XX round latency 
-
-## check date of file by checking age
-runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
-  left_join(Jhou_Runway_xl_df[, c("cohort", "jhou_cohort", "labanimalid", "rfid", "dob", "sex")], by = "labanimalid") %>% 
-  mutate(age = difftime(as.POSIXct(date), as.POSIXct(dob), units = "days") %>% as.numeric)
-
-## runway_latency_c01_16_6_df %>% subset(age < 10) %>% dim
-
-## add time out latency
-runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
-  mutate(latency = replace(latency, (as.numeric(jhou_cohort)<=3.4&reached>=600)|(as.numeric(jhou_cohort)>=3.5&reached>=900), 900))
-
-
+    setwd("~/Dropbox (Palmer Lab)/U01 folder/Runway")
+    
+    # reach time and qc the times from in files
+    
+    
+    
+    ## ***************************************************************************************************************************************
+    readrunway <- function(x){
+      runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
+      runway$filename <- x
+      return(runway)
+    }
+    
+    
+    runwayfiles <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #6249 files 
+    runwayfiles_clean_c01_16 <- runwayfiles %>% grep("error|invalid",., invert = T, ignore.case = T, value = T) %>% grep("U([1-9]|[1-9][0-9]|[1-6][0-9][0-9]|70[0-9]|71[0-2])", ., ignore.case = T, value = T) # 6241
+    
+    # runway_reach_c01_16 <- lapply(runwayfiles_clean_c01_16, function(x){
+    #   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
+    #   runway$filename <- x
+    #   return(runway)}) 
+    # runway_reach_c01_16_df <- runway_reach_c01_16 %>% rbindlist(fill = T) %>% # run on runwayfiles_clean[3000:3100] for test # 12/3 - 36 warnings of returning NULL data table # 2/13 - 42 warnings
+    #   rename("reachtime" = "V1")
+    
+    # location2 and location3 (use to sub loc2 when na) time + add loc1 (1/2/20)
+    readrunwayloc1_3 <- function(x){
+      runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
+      runwayloc1$filename <- x
+    
+      runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
+      runwayloc2$filename <- x
+    
+      runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
+      runwayloc3$filename <- x
+    
+      runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
+    
+      runwayreached <- fread(paste0("grep -P -m 1 \"REACHED GOAL BOX\" ", "'", x, "'"))
+      runwayreached$filename <- x
+      if(!(ncol(runwayreached) == 1&nrow(runwayreached)==1)){
+        runwayreached <- runwayreached[ , c("V1", "V2", "filename")] # keep the value and tag
+      }
+    
+      runwaylocs_reached <- merge(runwaylocs, runwayreached, by = "filename")
+      return(runwaylocs_reached)
+    }
+    runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16[1:1000], readrunwayloc1_3) # test with runwayfiles_clean[1:10]
+    runway_loc1_3_c01_16_2 <- c(runway_loc1_3_c01_16, 
+                                lapply(runwayfiles_clean_c01_16[c(1001:1686,1688:2000)], readrunwayloc1_3)) # formatted this way because of the conflicted copy
+    
+    runway_loc1_3_c01_16_2 <- c(runway_loc1_3_c01_16_2, 
+                                lapply("./U32/2018-0730-0912_32_RUNWAY (Jhou Lab'\\\''s conflicted copy 2019-11-04).txt", readrunwayloc1_3))
+    
+    runway_loc1_3_c01_16_3 <- c(runway_loc1_3_c01_16_2,
+                                lapply(runwayfiles_clean_c01_16[2001:3000], readrunwayloc1_3))
+    runway_loc1_3_c01_16_4 <- c(runway_loc1_3_c01_16_3, 
+                                lapply(runwayfiles_clean_c01_16[3001:4000], readrunwayloc1_3))
+    
+    runway_loc1_3_c01_16_5 <- c(runway_loc1_3_c01_16_4,
+                                lapply(runwayfiles_clean_c01_16[4001:5000], readrunwayloc1_3))
+    
+    runway_loc1_3_c01_16_6 <- c(runway_loc1_3_c01_16_5, 
+                                lapply(runwayfiles_clean_c01_16[5001:6000], readrunwayloc1_3))
+    
+    runway_loc1_3_c01_16_7 <- c(runway_loc1_3_c01_16_6, 
+                                lapply(runwayfiles_clean_c01_16[6001:6241], readrunwayloc1_3))
+    
+    
+    # grep(" ", runwayfiles_clean_c01_16) 
+    runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16_7 %>% lapply(function(x){
+      x <- x %>% t() %>% as.data.frame() %>% mutate_all(as.character) %>%
+        mutate(V1 = ifelse(V1 == "LOCATION", paste(V1, lead(V1)), V1)) %>%
+        mutate(V2 = ifelse(grepl("LOCATION|REACHED|txt", V1), V1, NA)) %>% 
+        fill(V2, .direction = "up") %>% mutate(V1 = as.numeric(V1)) %>% 
+        mutate(V1 = ifelse(grepl("txt", V2), V2, V1),
+               V2 = ifelse(grepl("txt", V2), "filename", V2)) %>% 
+        subset(!is.na(V1)) %>% 
+        subset(!is.na(V2)) %>% group_by(V2) %>% 
+        dplyr::slice(tail(row_number(), 1)) %>% ungroup() %>% 
+        spread(V2, V1) %>% janitor::clean_names() %>% 
+        mutate(labanimalid = str_extract(filename, "U\\d+"))
+      return(x)
+    }) %>% rbindlist(fill = T) 
+    
+    runway_latency_c01_16_7_df <- runway_loc1_3_c01_16_7_df %>% 
+      mutate(date_time = str_extract(filename, "\\d{4}-\\d{4}-\\d{4}"),  
+             date = gsub("^(\\d{4}-\\d{4})-.*", "\\1", date_time) %>% as.Date("%Y-%m%d")) %>% 
+      group_by(labanimalid) %>% 
+      arrange(date_time) %>%
+      ungroup() %>% 
+      mutate_at(vars(matches("reached|location_[123]")), as.numeric) %>% 
+      mutate(latency = ifelse(!is.na(location_2), reached - location_2, reached - location_3)) %>% 
+      mutate(latency = as.numeric(latency) %>% round()) ## XX round latency 
+    
+    ## check date of file by checking age
+    runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
+      left_join(Jhou_Runway_xl_df[, c("cohort", "jhou_cohort", "labanimalid", "rfid", "dob", "sex")], by = "labanimalid") %>% 
+      mutate(age = difftime(as.POSIXct(date), as.POSIXct(dob), units = "days") %>% as.numeric)
+    
+    ## runway_latency_c01_16_6_df %>% subset(age < 10) %>% dim
+    
+    ## add time out latency
+    runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
+      mutate(latency = replace(latency, (as.numeric(jhou_cohort)<=3.4&reached>=600)|(as.numeric(jhou_cohort)>=3.5&reached>=900), 900))
+    
+    
 
 ## generate xl with negative age
 runway_latency_c01_16_7_df %>% subset(age < 0) %>% select(labanimalid, rfid, sex, filename, date, dob, age) %>% 
@@ -421,7 +421,7 @@ runwayfiles_clean_c01_16 %>% as.data.frame() %>%
   subset(!resolution %in% c("EXCLUDE_ALL_BEHAVIORS", "EXCLUDE_RUNWAY") ) %>% 
   write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE/runway_c01_16_missingraw.xlsx")
 
-
+  
 numtrialqc <- Jhou_Runway_trials_C01_16_df %>% 
   mutate(numtrials = rowSums(!is.na(select(., matches("cocaine_\\d"))))) %>% 
   distinct(cohort, labanimalid, numtrials) %>% 
@@ -456,7 +456,7 @@ runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filenam
   spread(cocainetrial, latency_xl) %>% # give them the reference file 
   mutate(labanimalid_num = parse_number(labanimalid)) %>% 
   arrange(cohort, labanimalid_num) %>% select(-labanimalid_num) %>% 
-  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n247.xlsx") # 462 animals to fix, 1306 points
+  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n247.xlsx") # 229 animals to fix, 405 points (rerun on 11/19/2020 and got diff number of animals)
 
 ## for jhou email graphics
 # runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename)))  %>% 
@@ -493,6 +493,124 @@ runway_c01_16_qc %>%
   mutate(cocainetrial = paste0("cocaine_", str_pad(parse_number(cocainetrial), 2, "left", "0"))) %>% # so that the columns are in order
   spread(cocainetrial, latency_raw) %>% 
   select(-labanimalid, -sex) %>% dplyr::filter(complete.cases(.)) %>% select(cohort) %>% table()
+
+## qc the timeout
+runway_latency_c01_16_7_df %>% 
+  mutate(latency_notimeout = ifelse(!is.na(location_2), reached - location_2, reached - location_3)) %>% 
+  mutate(latency_notimeout = as.numeric(latency_notimeout) %>% round()) %>% select(labanimalid, latency, latency_notimeout) %>% 
+  gather("w_wo_timeout", "latency", -labanimalid) %>% 
+  subset(labanimalid %in% runway_pass_c01_16$labanimalid) %>% 
+  group_by(labanimalid, w_wo_timeout) %>% summarize(mean = mean(latency, na.rm = T)) %>% ungroup() %>% 
+  ggplot() + geom_density(aes(x = mean, color = w_wo_timeout))
+runway_latency_c01_16_7_df %>% 
+  mutate(latency_notimeout = ifelse(!is.na(location_2), reached - location_2, reached - location_3)) %>% 
+  mutate(latency_notimeout = as.numeric(latency_notimeout) %>% round()) %>% select(labanimalid, latency, latency_notimeout) %>% 
+  gather("w_wo_timeout", "latency", -labanimalid) %>% 
+  subset(labanimalid %in% runway_pass_c01_16$labanimalid) %>% 
+  group_by(labanimalid, w_wo_timeout) %>% summarize(mean = mean(latency, na.rm = T)) %>% ungroup() %>% 
+  ggplot() + geom_histogram(aes(x = mean, fill = w_wo_timeout))
+runway_latency_c01_16_7_df %>% 
+  mutate(latency_notimeout = ifelse(!is.na(location_2), reached - location_2, reached - location_3)) %>% 
+  mutate(latency_notimeout = as.numeric(latency_notimeout) %>% round()) %>% select(labanimalid, latency, latency_notimeout) %>% 
+  group_by(labanimalid) %>% 
+  mutate(cocainetrial = paste0("cocaine_", row_number() %>% as.character)) %>% 
+  ungroup() %>% 
+  mutate(cocainetrial = paste0("cocaine_", str_pad(parse_number(cocainetrial), 2, "left", "0"))) %>% # so that the columns are in order
+  subset(!grepl("0[123]", cocainetrial)) %>% 
+  group_by(labanimalid) %>% 
+  summarize(avg_4_last_latency = mean(latency, na.rm = T),
+            avg_4_last_latency_notimeout = mean(latency_notimeout, na.rm = T)) %>% 
+  ungroup() %>% 
+  gather("w_wo_timeout", "latency", -labanimalid) %>% 
+  ggplot() + geom_density(aes(x = latency, color = w_wo_timeout))
+
+runway_latency_c01_16_7_df %>% 
+  mutate(latency_notimeout = ifelse(!is.na(location_2), reached - location_2, reached - location_3)) %>% 
+  mutate(latency_notimeout = as.numeric(latency_notimeout) %>% round()) %>% select(labanimalid, latency, latency_notimeout) %>% 
+  group_by(labanimalid) %>% 
+  mutate(cocainetrial = paste0("cocaine_", row_number() %>% as.character)) %>% 
+  ungroup() %>% 
+  mutate(cocainetrial = paste0("cocaine_", str_pad(parse_number(cocainetrial), 2, "left", "0"))) %>% # so that the columns are in order
+  subset(!grepl("0[123]", cocainetrial)) %>% 
+  group_by(labanimalid) %>% 
+  summarize(avg_4_last_latency = mean(latency, na.rm = T),
+            avg_4_last_latency_notimeout = mean(latency_notimeout, na.rm = T)) %>% 
+  ungroup() %>% 
+  gather("w_wo_timeout", "latency", -labanimalid) %>% 
+  ggplot() + geom_histogram(aes(x = latency, fill = w_wo_timeout))
+
+runway_c01_16_qc %>% 
+  subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+  subset(labanimalid %in% c(runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+                              group_by(labanimalid) %>% 
+                              mutate(QC = n_distinct(latency_QC)) %>% 
+                              ungroup() %>% 
+                              distinct(labanimalid, latency_QC, QC) %>% subset(latency_QC == "pass"&QC == 1) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  select(cohort, labanimalid, sex, cocainetrial, latency_raw) %>% 
+  spread(cocainetrial, latency_raw) %>% 
+  mutate(avg_4_last = rowMeans(select(., -cohort, -labanimalid, -sex, -matches("cocaine_[123]")), na.rm = T)) %>% 
+  mutate(avg_4_last_na = ifelse(cocaine_1 <= 120, avg_4_last, NA)) %>% 
+  select(cohort, labanimalid, sex, cocaine_1, avg_4_last, avg_4_last_na) 
+
+## qc the pass animals new phenotypes
+runway_c01_16_qc %>% 
+  subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+  subset(labanimalid %in% c(runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+                              group_by(labanimalid) %>% 
+                              mutate(QC = n_distinct(latency_QC)) %>% 
+                              ungroup() %>% 
+                              distinct(labanimalid, latency_QC, QC) %>% subset(latency_QC == "pass"&QC == 1) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  select(cohort, labanimalid, sex, cocainetrial, latency_raw) %>% 
+  spread(cocainetrial, latency_raw) %>% 
+  mutate(avg_trials4_7 = rowMeans(select(., matches("cocaine_[4567]")), na.rm = T),
+         avg_trials8_12 = rowMeans(select(., matches("cocaine_([89]|1[012])"))),
+         avg_trials4_last = rowMeans(select(., -cohort, -labanimalid, -sex, -matches("cocaine_[123]")), na.rm = T),
+         avg_trials4_last_na = ifelse(cocaine_1 <= 120, avg_trials4_last, NA)) %>% 
+  select(cohort, labanimalid, sex, matches("avg")) %>% 
+  gather("trait", "average latency", -cohort, -labanimalid, -sex) %>%
+  ggplot() + geom_density(aes(x = `average latency`, color = trait)) + facet_wrap(~sex)
+
+
+runway_c01_16_qc %>% 
+  subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+  subset(labanimalid %in% c(runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+                              group_by(labanimalid) %>% 
+                              mutate(QC = n_distinct(latency_QC)) %>% 
+                              ungroup() %>% 
+                              distinct(labanimalid, latency_QC, QC) %>% subset(latency_QC == "pass"&QC == 1) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  select(cohort, labanimalid, sex, cocainetrial, latency_raw) %>% 
+  spread(cocainetrial, latency_raw) %>% 
+  mutate(avg_trials4_7 = rowMeans(select(., matches("cocaine_[4567]")), na.rm = T),
+         avg_trials8_12 = rowMeans(select(., matches("cocaine_([89]|1[012])"))),
+         avg_trials4_last = rowMeans(select(., -cohort, -labanimalid, -sex, -matches("cocaine_[123]")), na.rm = T),
+         avg_trials4_last_na = ifelse(cocaine_1 <= 120, avg_trials4_last, NA)) %>% 
+  select(cohort, labanimalid, sex, matches("avg")) %>% 
+  gather("trait", "average latency", -cohort, -labanimalid, -sex) %>%
+  ggplot() + geom_density(aes(x = `average latency`, color = trait)) +  theme(text = element_text(size=20))
+
+runway_c01_16_qc %>% 
+  subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+  subset(labanimalid %in% c(runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+                              group_by(labanimalid) %>% 
+                              mutate(QC = n_distinct(latency_QC)) %>% 
+                              ungroup() %>% 
+                              distinct(labanimalid, latency_QC, QC) %>% subset(latency_QC == "pass"&QC == 1) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  select(cohort, labanimalid, sex, cocainetrial, latency_raw) %>% 
+  spread(cocainetrial, latency_raw) %>% select(cohort, labanimalid, cocaine_1) %>% 
+  rename("trial 1 latency" = "cocaine_1") %>% ggplot() + geom_histogram(aes(x = `trial 1 latency`)) + scale_x_continuous(breaks = seq(0, 940, by = 40)) +  theme(text = element_text(size=20))
+
+## qc latency timeout
+runway_latency_c01_16_7_df %>% subset(labanimalid %in% c(runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+                                                           group_by(labanimalid) %>% 
+                                                           mutate(QC = n_distinct(latency_QC)) %>% 
+                                                           ungroup() %>% 
+                                                           distinct(labanimalid, latency_QC, QC) %>% subset(latency_QC == "pass"&QC == 1) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  mutate(jhou_cohort_group = ifelse(as.numeric(jhou_cohort)<=3.4, "<3.5", ">=3.5")) %>% ggplot() + geom_density(aes(x = reached, color = jhou_cohort_group)) + 
+  scale_x_continuous(breaks = seq(0, 3500, by = 100)) +  theme(text = element_text(size=20), axis.text.x = element_text(angle = 45))
+
+
+
+
 
 
 
