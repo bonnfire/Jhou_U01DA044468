@@ -1207,7 +1207,7 @@ progratio_mean_maxratio_df_c01_16_qc <- progratio_mean_maxratio_df_c01_16 %>%
 # if the mean is wrong, compare/qc the raw vs excel trial by trial
 progratio_mean_maxratio_df_c01_16_qc %>% subset(is.na(mean_leverpresses_maxratio_QC)|mean_leverpresses_maxratio_QC == "fail") %>% dim
 
-
+## XX rename, so it can be assigned elsewhere
 progratio_maxratio_df_c01_16_qc <- progratio_maxratio_df_c01_16 %>% subset(labanimalid %in% c(progratio_mean_maxratio_df_c01_16_qc %>% subset(is.na(mean_leverpresses_maxratio_QC)|mean_leverpresses_maxratio_QC == "fail") %>% distinct(labanimalid) %>% unlist() %>% as.character)) %>% 
   group_by(labanimalid) %>% 
   arrange(date_time, .by_group = T) %>%
@@ -1240,6 +1240,35 @@ progratio_maxratio_df_c01_16_qc %>% subset(!is.na(cohort)) %>%
   openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/prograt_maxratiotrial_c01_16_qc.xlsx") # 462 animals to fix, 1306 pointsprogratio_maxratio_df_c01_16_qc %>% 
 
 
+## all passes 
+progratio_maxratio_df_c01_16_pass <- progratio_maxratio_df_c01_16 %>% 
+  group_by(labanimalid) %>% 
+  arrange(date_time, .by_group = T) %>%
+  mutate(session = row_number()) %>% 
+  ungroup() %>% 
+  rename("maxratio_leverpresses_raw" = "maxratio_leverpresses") %>% 
+  full_join(Jhou_ProgRatio_trials_xl_df %>% 
+              subset(labanimalid %in% c(progratio_mean_maxratio_df_c01_16_qc %>% subset(is.na(mean_leverpresses_maxratio_QC)|mean_leverpresses_maxratio_QC == "fail") %>% distinct(labanimalid) %>% unlist() %>% as.character)) %>% 
+              rename("maxratio_leverpresses_xl" = "maxratio_leverpresses"), 
+            by = c("labanimalid", "session")) %>% 
+  mutate(maxratio_leverpresses_QC_diff = maxratio_leverpresses_xl - maxratio_leverpresses_raw,
+         maxratio_leverpresses_QC = ifelse(maxratio_leverpresses_QC_diff %in% c(0, -1, 1), "pass", "fail")) %>% 
+  group_by(labanimalid) %>% 
+  mutate(QC = n_distinct(maxratio_leverpresses_QC)) %>% 
+  ungroup() %>% 
+  distinct(labanimalid, maxratio_leverpresses_QC, QC) %>% subset(maxratio_leverpresses_QC == "pass"&QC == 1) 
+
+# %>% select(labanimalid) %>% unlist() %>% as.character)
+  
+
+
+runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename))) %>% 
+  group_by(labanimalid) %>% 
+  mutate(QC = n_distinct(latency_QC)) %>% 
+  ungroup() %>% 
+  distinct(labanimalid, latency_QC, QC) %>% subset(latency_QC == "pass"&QC == 1) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  
+  
 # rawfiles_maxratio <- extractfromfilename(rawfiles_maxratio)
 # rawfiles_maxratio %>% summary() seems like the machine generated two trials of data, so we will remove the initial one with the next line
 # rawfiles_maxratio <- rawfiles_maxratio[!(rawfiles_maxratio$labanimalid=="U187" & rawfiles_maxratio$maxratio==2),]
