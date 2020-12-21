@@ -434,7 +434,7 @@ Jhou_ProgPun_Excel <- lapply(Jhou_ProgPun_nored_split, function(x){
 ################################
 setwd("~/Dropbox (Palmer Lab)/U01 folder")
 
-Jhou_ProgRatio_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 40:41, 55:56)]
+Jhou_ProgRatio_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 40:42, 56:57)]
 names(Jhou_ProgRatio_xl) <- Jhou_ProgRatio_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
 
 Jhou_ProgRatio_xl <- Jhou_ProgRatio_xl %>% 
@@ -447,6 +447,8 @@ Jhou_ProgRatio_xl <- Jhou_ProgRatio_xl %>%
          jhou_cohort = as.character(as.numeric(jhou_cohort)),
          comments = replace(comments, grepl("Yellow", comments), NA),
          mean_leverpresses_maxratio = as.numeric(mean_leverpresses_maxratio))
+
+# for cohorts 01-16 WFU_Jhou_test_df <- read.csv("~/Desktop/Database/csv files/u01_tom_jhou/mastertable_c01_16_jhou.csv") %>% mutate_if(is.factor, as.character) %>% mutate(rfid = as.character(rfid))
 
 Jhou_ProgRatio_xl_df <- Jhou_ProgRatio_xl %>% mutate(labanimalid = toupper(labanimalid)) %>% 
   subset(grepl("U\\d+", labanimalid)&!is.na(rfid)) %>% 
