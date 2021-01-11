@@ -623,11 +623,26 @@ runway_latency_spread_failedhab <- runway_latency_spread %>%
   left_join(Jhou_Runway_xl_df[, c("labanimalid", "comments", "resolution")], by = c("labanimalid")) %>%
   mutate(avg_4_last_na = replace(avg_4_last_na, grepl("EXCLUDE_ALL_BEHAVIORS|EXCLUDE_RUNWAY", resolution)|grepl("Never habituated", comments), NA)) %>% 
   mutate(avg_4_last = replace(avg_4_last, grepl("EXCLUDE_ALL_BEHAVIORS|EXCLUDE_RUNWAY", resolution)|grepl("Never habituated", comments), NA)) %>%
-  select(cohort, jhou_cohort, rfid, labanimalid, sex, comments, resolution, avg_4_last, avg_4_last_na, age_1, matches("cocaine"))
+  mutate(latency_cat_250 = case_when(
+    avg_4_last_na <= 250 ~ "low_avoider",
+    avg_4_last_na >= 500 ~ "high_avoider", 
+    is.na(avg_4_last_na) ~ NA_character_
+  )) %>%  
+  mutate(latency_cat_300 = case_when(
+    avg_4_last_na <= 300 ~ "low_avoider",
+    avg_4_last_na >= 500 ~ "high_avoider", 
+    is.na(avg_4_last_na) ~ NA_character_
+  )) %>% 
+  select(cohort, jhou_cohort, rfid, labanimalid, sex, comments, resolution, avg_4_last_na, latency_cat_250, latency_cat_300, age_1) %>% 
+  subset(parse_number(cohort) < 17) %>% 
+  
+  
+
+# runway_latency_spread_failedhab$latency_cat %>% table(exclude = NULL) %>% prop.table()
 
 runway_latency_spread_failedhab %>% naniar::vis_miss()
-
-openxlsx::write.xlsx(runway_latency_spread_failedhab, file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_latency_c01_16_wide.xlsx")
+openxlsx::write.xlsx(runway_latency_spread_failedhab, file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_latency_c01_16_gwas.xlsx")
+# openxlsx::write.xlsx(runway_latency_spread_failedhab, file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_latency_c01_16_wide.xlsx") # changed runway_latency_spread_failedhab object for gwas 01/11/2021
 
 
 runway_latency_spread_failedhab %>% 
@@ -635,7 +650,7 @@ runway_latency_spread_failedhab %>%
   gather("trait", "average latency", -cohort, -labanimalid, -sex) %>%
   ggplot() + geom_density(aes(x = `average latency`, color = trait)) +  theme(text = element_text(size=20))
 
-
+# for jhou email to see the difference between using cocaine 1 and cocaine 1 and 2
 runway_latency_spread %>%    
   mutate(avg_4_last = rowMeans(select(., -cohort, -jhou_cohort, -labanimalid, -rfid, -sex, -age_1, -matches("cocaine_[123]")), na.rm = T)) %>% 
   mutate(avg_4_last_na_cocaine1_2 = ifelse(cocaine_1>180&cocaine_2>180, NA, avg_4_last),
