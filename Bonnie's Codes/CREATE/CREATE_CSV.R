@@ -12,4 +12,4 @@ write.csv(progpun_gwas, "progpun_gwas_C1_16.csv", row.names = F) # done
 write.csv(prograt_gwas, "prograt_gwas_C1_16.csv", row.names = F) # done
 write.csv(delayedpun_gwas, "delayedpun_gwas_C1_16.csv", row.names = F) # done 
 write.csv(locomotor_gwas, "locomotor_gwas_C1_16.csv", row.names = F) # done but is the messiest  
-write.csv(runway_gwas, "runway_gwas_C1_16.csv", row.names = F) # done 
+write.csv(runway_latency_spread_failedhab, "~/Desktop/Database/csv files/u01_tom_jhou/runway_gwas_C1_16.csv", row.names = F) # done 

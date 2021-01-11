@@ -150,18 +150,20 @@ readrunwayboxes <- function(x){
 }
 
 
-runway_boxes <- lapply(runwayfiles_clean, readrunwayboxes) %>% rbindlist(., fill = T) 
+runway_boxes <- lapply(runwayfiles_clean_c01_16, readrunwayboxes) %>% rbindlist(., fill = T) 
 runway_boxes_df <- runway_boxes %>% 
   rename("boxstation" = "V1", 
          "boxstationnumber" = "V2") %>% 
   mutate(labanimalid = stringr::str_extract(filename, "U[[:digit:]]+[[:alpha:]]*"),
-         cohort = stringr::str_match(filename, "Cohort \\d+"),
+         # cohort = stringr::str_match(filename, "Cohort \\d+"),
          boxstation = paste(boxstation, boxstationnumber),
          boxstation = replace(boxstation, boxstation == "NA NA", NA)) %>% 
-  merge(x = runway, y = ., by = "filename", all.x=F) %>% 
-  select(-c(sex,boxstationnumber)) %>% # replace sex information from wfu (because ``` existence makes me question the validity of the data `) 
-  left_join(., y = WFU_Jhou_test_df[, c("labanimalnumber", "sex")], by = c("wakeforestid" = "labanimalnumber")) # WFU_Jhou_test_df from u01_qc from WFU github
-
+  # merge(x = runway, y = ., by = "filename", all.x=F) %>% 
+  # select(-c(sex,boxstationnumber)) %>% # replace sex information from wfu (because ``` existence makes me question the validity of the data `) 
+  left_join(., y = Jhou_SummaryAll[, c("wfucohort", "labanimalid", "sex")], by = "labanimalid") %>%  # WFU_Jhou_test_df from u01_qc from WFU github
+  rename("cohort" = "wfucohort")
+# make sense of box vs station 
+runway_boxes_df %>% distinct(boxstation, labanimalid) %>% subset(grepl("station", boxstation))
 # # check if boxes are being used by different sexes within a cohort 
 
 boxqc_bycohort <- runway_boxes_df %>% group_by(cohort, boxstation, sex) %>% count()

@@ -624,24 +624,25 @@ runway_latency_spread_failedhab <- runway_latency_spread %>%
   mutate(avg_4_last_na = replace(avg_4_last_na, grepl("EXCLUDE_ALL_BEHAVIORS|EXCLUDE_RUNWAY", resolution)|grepl("Never habituated", comments), NA)) %>% 
   mutate(avg_4_last = replace(avg_4_last, grepl("EXCLUDE_ALL_BEHAVIORS|EXCLUDE_RUNWAY", resolution)|grepl("Never habituated", comments), NA)) %>%
   mutate(latency_cat_250 = case_when(
-    avg_4_last_na <= 250 ~ "low_avoider",
-    avg_4_last_na >= 500 ~ "high_avoider", 
+    avg_4_last_na <= 250 ~ "0",
+    avg_4_last_na >= 500 ~ "1", 
     is.na(avg_4_last_na) ~ NA_character_
   )) %>%  
   mutate(latency_cat_300 = case_when(
-    avg_4_last_na <= 300 ~ "low_avoider",
-    avg_4_last_na >= 500 ~ "high_avoider", 
+    avg_4_last_na <= 300 ~ "0",
+    avg_4_last_na >= 500 ~ "1", 
     is.na(avg_4_last_na) ~ NA_character_
   )) %>% 
   select(cohort, jhou_cohort, rfid, labanimalid, sex, comments, resolution, avg_4_last_na, latency_cat_250, latency_cat_300, age_1) %>% 
   subset(parse_number(cohort) < 17) %>% 
-  
+  left_join(jhou_runway_temp_df[, c("rfid", "runway_latency_avg_4_last", "runway_binary_0_low_1_high")], by = "rfid") %>% 
+  rename("avg_4_last_na_excel" = "runway_latency_avg_4_last", 
+         "latency_cat_excel" = "runway_binary_0_low_1_high")
   
 
 # runway_latency_spread_failedhab$latency_cat %>% table(exclude = NULL) %>% prop.table()
 
 runway_latency_spread_failedhab %>% naniar::vis_miss()
-openxlsx::write.xlsx(runway_latency_spread_failedhab, file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_latency_c01_16_gwas.xlsx")
 # openxlsx::write.xlsx(runway_latency_spread_failedhab, file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_latency_c01_16_wide.xlsx") # changed runway_latency_spread_failedhab object for gwas 01/11/2021
 
 
