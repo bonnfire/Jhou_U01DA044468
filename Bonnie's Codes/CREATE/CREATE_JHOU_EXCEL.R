@@ -151,6 +151,7 @@ Jhou_Runway_xl_df <- Jhou_Runway_xl %>% mutate(labanimalid = toupper(labanimalid
   mutate(cohort = replace(cohort, grepl("NA", cohort), NA)) %>% 
   left_join(WFU_Jhou_test_df[, c("cohort", "rfid", "sex", "dob")], by = "rfid") %>% 
   mutate(cohort = coalesce(cohort.x, cohort.y)) %>% 
+  mutate(runway_binary = as.character(runway_binary)) %>% 
   select(-cohort.x, -cohort.y) %>% 
   select(cohort, jhou_cohort, labanimalid, rfid, everything(), comments, resolution) %>% 
   select(-date)
@@ -197,31 +198,6 @@ Jhou_Runway_trials_C01_16_df %>%
 
 # select(-na, -gender) %>% 
   # select(cohort, rfid, sex, labanimalid, notes, everything()) 
-
-## extract gwas binary from "temp" excel
-jhou_runway_temp <- openxlsx::read.xlsx("~/Dropbox (Palmer Lab)/U01 folder/U01 Master sheet_temporary.xlsm") %>% 
-  mutate_all(as.character) %>% 
-  select(c(1, 2, 6, 26, 31:32, 50:51))
-
-names(jhou_runway_temp) <- jhou_runway_temp[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
-
-jhou_runway_temp <- jhou_runway_temp %>% 
-  rename("rfid" = "x16_digit_id",
-         "jhou_cohort" = "shipment_cohort",
-         "labanimalid" = "jhou_lab_id",
-         "comments" = "notes_for_humans") %>% 
-  mutate(cohort = paste0("C", str_pad(gsub("[.].*", "", jhou_cohort), 2, "left", "0")),
-         jhou_cohort = as.character(as.numeric(jhou_cohort)),
-         comments = replace(comments, grepl("Yellow", comments), NA)) %>% 
-  mutate_at(vars(matches("runway")), as.numeric)
-
-jhou_runway_temp_df <- jhou_runway_temp %>% mutate(labanimalid = toupper(labanimalid)) %>% 
-  subset(grepl("U\\d+", labanimalid)&!is.na(rfid)) %>% 
-  mutate(cohort = replace(cohort, grepl("NA", cohort), NA)) %>% 
-  left_join(WFU_Jhou_test_df[, c("cohort", "rfid", "sex", "dob")], by = "rfid") %>% 
-  mutate(cohort = coalesce(cohort.x, cohort.y)) %>% 
-  select(-cohort.x, -cohort.y) %>% 
-  select(cohort, jhou_cohort, labanimalid, rfid, everything(), comments, resolution)
 
 
 

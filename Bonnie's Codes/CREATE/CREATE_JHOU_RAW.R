@@ -635,9 +635,9 @@ runway_latency_spread_failedhab <- runway_latency_spread %>%
   )) %>% 
   select(cohort, jhou_cohort, rfid, labanimalid, sex, comments, resolution, avg_4_last_na, latency_cat_250, latency_cat_300, age_1) %>% 
   subset(parse_number(cohort) < 17) %>% 
-  left_join(jhou_runway_temp_df[, c("rfid", "runway_latency_avg_4_last", "runway_binary_0_low_1_high")], by = "rfid") %>% 
+  left_join(Jhou_Runway_xl_df[, c("rfid", "runway_latency_avg_4_last", "runway_binary")], by = "rfid") %>% 
   rename("avg_4_last_na_excel" = "runway_latency_avg_4_last", 
-         "latency_cat_excel" = "runway_binary_0_low_1_high")
+         "latency_cat_excel" = "runway_binary")
   
 
 # runway_latency_spread_failedhab$latency_cat %>% table(exclude = NULL) %>% prop.table()
