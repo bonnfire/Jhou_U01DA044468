@@ -132,7 +132,7 @@ Jhou_SummaryAll_updated %<>%
 ################################
 setwd("~/Dropbox (Palmer Lab)/U01 folder")
 
-Jhou_Runway_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 26, 35, 56:57)]
+Jhou_Runway_xl <- Jhou_Excel[["Summary all"]][, c(1, 2, 6, 26, 35:36, 57:58)]
 names(Jhou_Runway_xl) <- Jhou_Runway_xl[1,] %>% unlist() %>% as.character() %>% janitor::make_clean_names()
 
 Jhou_Runway_xl <- Jhou_Runway_xl %>% 
