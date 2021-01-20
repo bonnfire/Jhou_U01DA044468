@@ -311,7 +311,7 @@ readrunway <- function(x){
 
 
 runwayfiles <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #6313 files 
-runwayfiles_clean_c01_16 <- runwayfiles %>% grep("error|invalid|(a/)|failed",., invert = T, ignore.case = T, value = T) %>% grep("U(([1-9])|([1-9][0-9])|([1-6][0-9][0-9])|(70[0-9])|(71[0-2]))/", ., ignore.case = T, value = T) %>% grep("conflict", ., invert = T, value = T) # 6063 # selecting the animals before U712 # conflicted copy is "./U32/2018-0730-0912_32_RUNWAY (Jhou Lab's conflicted copy 2019-11-04).txt", repeated 
+runwayfiles_clean_c01_16 <- runwayfiles %>% grep("U\\d+[/]\\d{4}-\\d{4}-", ., value = T) %>% grep("error|invalid|(a/)|failed|irregular",., invert = T, ignore.case = T, value = T) %>% grep("U(([1-9])|([1-9][0-9])|([1-6][0-9][0-9])|(70[0-9])|(71[0-2]))/", ., ignore.case = T, value = T) %>% grep("conflict", ., invert = T, value = T) # 5986 # selecting the animals before U712 # conflicted copy is "./U32/2018-0730-0912_32_RUNWAY (Jhou Lab's conflicted copy 2019-11-04).txt", repeated 
 
 # runway_reach_c01_16 <- lapply(runwayfiles_clean_c01_16, function(x){
 #   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
@@ -360,6 +360,31 @@ runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16 %>% lapply(function(x){
   return(x)
 }) %>% rbindlist(fill = T) 
 
+## fix the additional sessions
+runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16_7_df %>% 
+  mutate(location_1 = replace(location_1, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "7"),
+         location_2 = replace(location_2, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "281"),
+         reached = replace(reached, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "318"),
+         
+         location_1 = replace(location_1, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "40"),
+         location_2 = replace(location_2, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "46"),
+         reached = replace(reached, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "175"),
+         
+         location_1 = replace(location_1, filename == "./U315/2019-0614-0000_315_RUNWAY_placeholder.txt", "29"),
+         location_2 = replace(location_2, filename == "./U315/2019-0614-0000_315_RUNWAY_placeholder.txt", "34"),
+         reached = replace(reached, filename == "./U315/2019-0614-0000_315_RUNWAY_placeholder.txt", "623"),
+         
+         location_1 = replace(location_1, filename == "./U325/2019-0614-0000_325_RUNWAY_placeholder.txt", "20"),
+         location_2 = replace(location_2, filename == "./U325/2019-0614-0000_325_RUNWAY_placeholder.txt", "106"),
+         reached = replace(reached, filename == "./U325/2019-0614-0000_325_RUNWAY_placeholder.txt", "191"),
+   
+         location_1 = replace(location_1, filename == "./U683/2020-0929-1609_683_RUNWAY_placeholder.txt", "173"),
+         location_3 = replace(location_2, filename == "./U683/2020-0929-1609_683_RUNWAY_placeholder.txt", "185"),
+         reached = replace(reached, filename == "./U683/2020-0929-1609_683_RUNWAY_placeholder.txt", "230"),
+  ) %>% 
+  select(-matches("location_1_"))
+
+
 runway_latency_c01_16_7_df <- runway_loc1_3_c01_16_7_df %>% 
   mutate(date_time = str_extract(filename, "\\d{4}-\\d{4}-\\d{4}"),  
          date = gsub("^(\\d{4}-\\d{4})-.*", "\\1", date_time) %>% as.Date("%Y-%m%d")) %>% 
@@ -379,7 +404,7 @@ runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>%
 
 ## add time out latency
 runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
-  mutate(latency = replace(latency, (as.numeric(jhou_cohort)<=3.4&reached>=600)|(as.numeric(jhou_cohort)>=3.5&reached>=900), 900))
+  mutate(latency = replace(latency, (as.numeric(jhou_cohort)<=3.4&latency>=600)|(as.numeric(jhou_cohort)>=3.5&latency>=900), 900))
 
 ## 12/20/2020 (after runway call, go to section after initial qc and excel generation) with object runway_latency_c01_16_7_df
 
@@ -401,7 +426,7 @@ runwayfiles_clean_c01_16 %>% as.data.frame() %>%
               subset(parse_number(cohort) < 17), ., 
             by = c("labanimalid", "cohort")) %>% 
   subset(!resolution %in% c("EXCLUDE_ALL_BEHAVIORS", "EXCLUDE_RUNWAY") ) %>% 
-  write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE/runway_c01_16_missingraw.xlsx")
+  openxlsx::write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE/runway_c01_16_missingraw.xlsx")
 
   
 numtrialqc <- Jhou_Runway_trials_C01_16_df %>% 
@@ -414,7 +439,8 @@ numtrialqc <- Jhou_Runway_trials_C01_16_df %>%
 numtrialqc %>% subset(is.na(numtrials)|is.na(n)|numtrials!=n) %>% 
   subset(parse_number(cohort) < 17) %>% 
   subset(!labanimalid %in% c(Jhou_Runway_xl_df %>% subset(resolution %in% c("EXCLUDE_ALL_BEHAVIORS", "EXCLUDE_RUNWAY")) %>% unlist() %>% as.character)) %>% 
-  write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE/runway_c01_16_mismatchfilenums.xlsx")
+  subset(!(numtrials==0&is.na(n))) %>% 
+  openxlsx::write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/CREATE/runway_c01_16_mismatchfilenums.xlsx")
 
 # while we are fixing the above animals... animals whose file numbers do match
 runway_c01_16_qc <- runway_latency_c01_16_7_df %>% 
@@ -438,7 +464,25 @@ runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filenam
   spread(cocainetrial, latency_xl) %>% # give them the reference file 
   mutate(labanimalid_num = parse_number(labanimalid)) %>% 
   arrange(cohort, labanimalid_num) %>% select(-labanimalid_num) %>% 
-  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n247.xlsx") # 229 animals to fix, 405 points (rerun on 11/19/2020 and got diff number of animals)
+  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n395.xlsx") # 490 animals to fix, 3412 points (rerun on 01/14/2021 and got diff number of animals)
+
+# create xl for all animals for which number of trials is not equal to the number of raw sessions 
+runway_latency_c01_16_7_df %>% 
+  subset(labanimalid %in% c(numtrialqc %>% subset(numtrials!=n) %>% select(labanimalid) %>% unlist() %>% as.character)) %>% 
+  mutate(labanimalid_num = parse_number(labanimalid)) %>% 
+  arrange(labanimalid_num, date_time) %>% 
+  group_by(labanimalid) %>% 
+  mutate(cocainetrial = paste0("cocaine_", row_number() %>% as.character)) %>% 
+  ungroup() %>% 
+  select(cohort, labanimalid, sex, age, cocainetrial, filename, latency, matches("location_2|reached")) %>% 
+  rename("latency_raw" = "latency") %>% 
+  left_join(numtrialqc[, c("labanimalid", "numtrials")], by = c("labanimalid")) %>% 
+  openxlsx::write.xlsx(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/cocaine_latency_c01_16_qc_n15.xlsx") # 37 animals to fix, 356 points (rerun on 01/14/2021 and got diff number of animals)
+
+
+## notes from call 
+## U68 - make placeholder
+## U112 - no resolution
 
 ## for jhou email graphics
 # runway_c01_16_qc %>% subset(!(is.na(latency_raw)&is.na(latency_xl)&is.na(filename)))  %>% 
@@ -623,6 +667,21 @@ runway_latency_spread_failedhab <- runway_latency_spread %>%
   left_join(Jhou_Runway_xl_df[, c("labanimalid", "comments", "resolution")], by = c("labanimalid")) %>%
   mutate(avg_4_last_na = replace(avg_4_last_na, grepl("EXCLUDE_ALL_BEHAVIORS|EXCLUDE_RUNWAY", resolution)|grepl("Never habituated", comments), NA)) %>% 
   mutate(avg_4_last = replace(avg_4_last, grepl("EXCLUDE_ALL_BEHAVIORS|EXCLUDE_RUNWAY", resolution)|grepl("Never habituated", comments), NA)) %>%
+  mutate(latency_cat_100 = case_when(
+    avg_4_last_na <= 100 ~ "0",
+    avg_4_last_na >= 500 ~ "1", 
+    is.na(avg_4_last_na) ~ NA_character_
+  )) %>% 
+  mutate(latency_cat_150 = case_when(
+    avg_4_last_na <= 150 ~ "0",
+    avg_4_last_na >= 500 ~ "1", 
+    is.na(avg_4_last_na) ~ NA_character_
+  )) %>% 
+  mutate(latency_cat_200 = case_when(
+    avg_4_last_na <= 200 ~ "0",
+    avg_4_last_na >= 500 ~ "1", 
+    is.na(avg_4_last_na) ~ NA_character_
+  )) %>% 
   mutate(latency_cat_250 = case_when(
     avg_4_last_na <= 250 ~ "0",
     avg_4_last_na >= 500 ~ "1", 
@@ -633,12 +692,13 @@ runway_latency_spread_failedhab <- runway_latency_spread %>%
     avg_4_last_na >= 500 ~ "1", 
     is.na(avg_4_last_na) ~ NA_character_
   )) %>% 
-  select(cohort, jhou_cohort, rfid, labanimalid, sex, comments, resolution, avg_4_last_na, latency_cat_250, latency_cat_300, age_1) %>% 
+  select(cohort, jhou_cohort, rfid, labanimalid, sex, comments, resolution, avg_4_last_na, latency_cat_100, latency_cat_150, latency_cat_200, latency_cat_250, latency_cat_300, age_1) %>% 
   subset(parse_number(cohort) < 17) %>% 
   left_join(Jhou_Runway_xl_df[, c("rfid", "runway_latency_avg_4_last", "runway_binary")], by = "rfid") %>% 
   rename("avg_4_last_na_excel" = "runway_latency_avg_4_last", 
          "latency_cat_excel" = "runway_binary")
   
+
 
 # runway_latency_spread_failedhab$latency_cat %>% table(exclude = NULL) %>% prop.table()
 
