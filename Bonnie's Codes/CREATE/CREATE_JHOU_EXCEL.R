@@ -195,9 +195,18 @@ Jhou_Runway_trials_C01_16_df %>%
   subset(is.na(gender)) %>% select(cohort, labanimalid, rfid, sex, gender) %>%
   write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_c01_16_misssinggender.xlsx")
 
-
 # select(-na, -gender) %>% 
   # select(cohort, rfid, sex, labanimalid, notes, everything()) 
+
+
+# extracting jhou data to compare session by session
+jhou_r_sessions_runway <- openxlsx::read.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Tom_Jhou_U01DA044468_Dropbox_copy/Runway/Runway_sessions-sorted by cohort.xlsx") %>% 
+  janitor::clean_names() %>% 
+  select(case_id:run_latency_excel) %>% 
+  select("labanimalid" = case_id, file, matches("_")) %>% 
+  rename_all(~paste0(., "_jhou"))
+
+
 
 
 
