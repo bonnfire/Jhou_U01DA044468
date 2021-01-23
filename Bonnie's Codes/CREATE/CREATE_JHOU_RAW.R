@@ -378,8 +378,15 @@ readrunwayloc <- function(x){
       select(-V2) %>%
       group_by(filename) %>%
       spread(V3, V1) %>%
-      ungroup() %>%
-      select(filename, "firstbeam" = 2, "secondbeam" = 3)
+      ungroup() 
+    if(names(runwaylocfirsttwo)[2] == "2"){
+      runwaylocfirsttwo <- runwaylocfirsttwo %>% 
+        select(filename, "firstbeam" = 2, "secondbeam" = 3) %>% 
+        mutate(secondbeam = firstbeam,
+               firstbeam = NA)
+    }
+    runwaylocfirsttwo <- runwaylocfirsttwo %>% ## use the first beam if beam is photobeam 2
+      select(filename, "firstbeam" = 2, "secondbeam" = 3) 
   }
   
   else if(fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'")) %>% nrow() == 1){
