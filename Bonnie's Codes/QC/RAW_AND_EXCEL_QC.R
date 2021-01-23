@@ -56,6 +56,16 @@ runway_gwas <- runway_gwas %>%
 
 
 
+## join to jhou excel session by session
+full_join(jhou_r_sessions_runway, runway_latency_c01_16_7_df %>% 
+            mutate(filename = gsub(".*/", "", filename)), by = c("file_jhou" = "filename")) %>% 
+  mutate(run_latency_raw_jhou_round = round(run_latency_raw_jhou)) %>% 
+  subset(run_latency_raw_jhou_round != latency & latency != 900) %>% 
+  subset(parse_number(cohort) < 17 & abs(run_latency_raw_jhou_round - latency)!= 1) %>% 
+  select(labanimalid, "filename" = file_jhou, run_latency_raw_jhou_round, "latency_raw_bonnie" = latency, start_latency_raw_jhou, "location_2_bonnie" = location_2, goal_latency_raw_jhou, "reached_bonnie" = "reached") %>% 
+  openxlsx::write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_sessions_qc_n13.xlsx")
+  
+
 
 
 

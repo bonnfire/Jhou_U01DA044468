@@ -311,7 +311,7 @@ readrunway <- function(x){
 
 
 runwayfiles <- list.files(path=".", pattern=".*RUNWAY.*.txt", full.names=TRUE, recursive=TRUE) #6313 files 
-runwayfiles_clean_c01_16 <- runwayfiles %>% grep("U\\d+[/]\\d{4}-\\d{4}-", ., value = T) %>% grep("error|invalid|(a/)|failed|irregular",., invert = T, ignore.case = T, value = T) %>% grep("U(([1-9])|([1-9][0-9])|([1-6][0-9][0-9])|(70[0-9])|(71[0-2]))/", ., ignore.case = T, value = T) %>% grep("conflict", ., invert = T, value = T) # 5986 # selecting the animals before U712 # conflicted copy is "./U32/2018-0730-0912_32_RUNWAY (Jhou Lab's conflicted copy 2019-11-04).txt", repeated 
+runwayfiles_clean_c01_16 <- runwayfiles %>% grep("U\\d+[/]\\d{4}-\\d{4}-", ., value = T) %>% grep("error|invalid|(a/)|failed|irregular",., invert = T, ignore.case = T, value = T) %>% grep("U(([1-9])|([1-9][0-9])|([1-6][0-9][0-9])|(70[0-9])|(71[0-2]))/", ., ignore.case = T, value = T) %>% grep("conflict|placeholder", ., invert = T, value = T) # 5986 # selecting the animals before U712 # conflicted copy is "./U32/2018-0730-0912_32_RUNWAY (Jhou Lab's conflicted copy 2019-11-04).txt", repeated 
 
 # runway_reach_c01_16 <- lapply(runwayfiles_clean_c01_16, function(x){
 #   runway <- fread(paste0("awk '/REACHED/{print $1}' ", "'", x, "'"), fill = T)
@@ -321,79 +321,182 @@ runwayfiles_clean_c01_16 <- runwayfiles %>% grep("U\\d+[/]\\d{4}-\\d{4}-", ., va
 #   rename("reachtime" = "V1")
 
 # location2 and location3 (use to sub loc2 when na) time + add loc1 (1/2/20)
-readrunwayloc1_3 <- function(x){
-  runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
-  runwayloc1$filename <- x
+# readrunwayloc1_3 <- function(x){
+#   runwayloc1 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t1\" ", "'", x, "'"))
+#   runwayloc1$filename <- x
+#   
+#   runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
+#   runwayloc2$filename <- x
+#   
+#   runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
+#   runwayloc3$filename <- x
+#   
+#   runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
+#   
+#   runwayreached <- fread(paste0("grep -P -m 1 \"REACHED GOAL BOX\" ", "'", x, "'"))
+#   runwayreached$filename <- x
+#   if(!(ncol(runwayreached) == 1&nrow(runwayreached)==1)){
+#     runwayreached <- runwayreached[ , c("V1", "V2", "filename")] # keep the value and tag
+#   }
+#   
+#   runwaylocs_reached <- merge(runwaylocs, runwayreached, by = "filename")
+#   return(runwaylocs_reached)
+# }
+# runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16, readrunwayloc1_3) # test with runwayfiles_clean[1:10]
+# runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16 %>% lapply(function(x){
+#   x <- x %>% t() %>% as.data.frame() %>% mutate_all(as.character) %>%
+#     mutate(V1 = ifelse(V1 == "LOCATION", paste(V1, lead(V1)), V1)) %>%
+#     mutate(V2 = ifelse(grepl("LOCATION|REACHED|txt", V1), V1, NA)) %>% 
+#     fill(V2, .direction = "up") %>% mutate(V1 = as.numeric(V1)) %>% 
+#     mutate(V1 = ifelse(grepl("txt", V2), V2, V1),
+#            V2 = ifelse(grepl("txt", V2), "filename", V2)) %>% 
+#     subset(!is.na(V1)) %>% 
+#     subset(!is.na(V2)) %>% group_by(V2) %>% 
+#     dplyr::slice(tail(row_number(), 1)) %>% ungroup() %>% 
+#     spread(V2, V1) %>% janitor::clean_names() %>% 
+#     mutate(labanimalid = str_extract(filename, "U\\d+"))
+#   return(x)
+# }) %>% rbindlist(fill = T) 
+
+
+
+## rewriting function for the first location and the second
+readrunwayloc <- function(x){
   
-  runwayloc2 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t2\" ", "'", x, "'"))
-  runwayloc2$filename <- x
+  if(fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'")) %>% nrow() == 0){
+    runwaylocfirsttwo <- data.frame(filename = x)
+    runwaylocfirsttwo <- runwaylocfirsttwo %>% 
+      mutate(firstbeam = NA, secondbeam = NA) %>%
+      select(filename, firstbeam, secondbeam)
+  }
   
-  runwayloc3 <- fread(paste0("grep -P -m 1 \"LOCATION\\s\\t3\" ", "'", x, "'"))
-  runwayloc3$filename <- x
   
-  runwaylocs <- merge(runwayloc1, merge(runwayloc2, runwayloc3, by = "filename"), by = "filename")
+  else if(fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'")) %>% nrow() == 2){
+    runwaylocfirsttwo <- fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'"))
+    runwaylocfirsttwo$filename <- x
+    runwaylocfirsttwo <- runwaylocfirsttwo %>%
+      select(-V2) %>%
+      group_by(filename) %>%
+      spread(V3, V1) %>%
+      ungroup() %>%
+      select(filename, "firstbeam" = 2, "secondbeam" = 3)
+  }
+  
+  else if(fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'")) %>% nrow() == 1){
+    runwaylocfirsttwo <- fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'"))
+    runwaylocfirsttwo$filename <- x
+    runwaylocfirsttwo <- runwaylocfirsttwo %>%
+      mutate(secondbeam = NA) %>%
+      select(filename, "firstbeam" = 1, secondbeam)
+  }
   
   runwayreached <- fread(paste0("grep -P -m 1 \"REACHED GOAL BOX\" ", "'", x, "'"))
   runwayreached$filename <- x
   if(!(ncol(runwayreached) == 1&nrow(runwayreached)==1)){
-    runwayreached <- runwayreached[ , c("V1", "V2", "filename")] # keep the value and tag
+    runwayreached <- runwayreached[ , c("V1", "V2", "filename")] %>% 
+      select("reachedgoal" = 1, filename)# keep the value and tag
   }
   
-  runwaylocs_reached <- merge(runwaylocs, runwayreached, by = "filename")
+  runwaylocs_reached <- merge(runwaylocfirsttwo, runwayreached, by = "filename")
   return(runwaylocs_reached)
 }
-runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16, readrunwayloc1_3) # test with runwayfiles_clean[1:10]
+runway_loc1_3_c01_16 <- lapply(runwayfiles_clean_c01_16, readrunwayloc) # test with runwayfiles_clean[1:10]
+
 
 # grep(" ", runwayfiles_clean_c01_16) 
-runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16 %>% lapply(function(x){
-  x <- x %>% t() %>% as.data.frame() %>% mutate_all(as.character) %>%
-    mutate(V1 = ifelse(V1 == "LOCATION", paste(V1, lead(V1)), V1)) %>%
-    mutate(V2 = ifelse(grepl("LOCATION|REACHED|txt", V1), V1, NA)) %>% 
-    fill(V2, .direction = "up") %>% mutate(V1 = as.numeric(V1)) %>% 
-    mutate(V1 = ifelse(grepl("txt", V2), V2, V1),
-           V2 = ifelse(grepl("txt", V2), "filename", V2)) %>% 
-    subset(!is.na(V1)) %>% 
-    subset(!is.na(V2)) %>% group_by(V2) %>% 
-    dplyr::slice(tail(row_number(), 1)) %>% ungroup() %>% 
-    spread(V2, V1) %>% janitor::clean_names() %>% 
-    mutate(labanimalid = str_extract(filename, "U\\d+"))
-  return(x)
-}) %>% rbindlist(fill = T) 
+runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16 %>% 
+  rbindlist(fill = T) 
 
+# add placeholder files
 ## fix the additional sessions
-runway_loc1_3_c01_16_7_df <- runway_loc1_3_c01_16_7_df %>% 
-  mutate(location_1 = replace(location_1, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "7"),
-         location_2 = replace(location_2, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "281"),
-         reached = replace(reached, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "318"),
-         
-         location_1 = replace(location_1, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "40"),
-         location_2 = replace(location_2, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "46"),
-         reached = replace(reached, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "175"),
-         
-         location_1 = replace(location_1, filename == "./U315/2019-0614-0000_315_RUNWAY_placeholder.txt", "29"),
-         location_2 = replace(location_2, filename == "./U315/2019-0614-0000_315_RUNWAY_placeholder.txt", "34"),
-         reached = replace(reached, filename == "./U315/2019-0614-0000_315_RUNWAY_placeholder.txt", "623"),
-         
-         location_1 = replace(location_1, filename == "./U325/2019-0614-0000_325_RUNWAY_placeholder.txt", "20"),
-         location_2 = replace(location_2, filename == "./U325/2019-0614-0000_325_RUNWAY_placeholder.txt", "106"),
-         reached = replace(reached, filename == "./U325/2019-0614-0000_325_RUNWAY_placeholder.txt", "191"),
-   
-         location_1 = replace(location_1, filename == "./U683/2020-0929-1609_683_RUNWAY_placeholder.txt", "173"),
-         location_3 = replace(location_2, filename == "./U683/2020-0929-1609_683_RUNWAY_placeholder.txt", "185"),
-         reached = replace(reached, filename == "./U683/2020-0929-1609_683_RUNWAY_placeholder.txt", "230"),
-  ) %>% 
-  select(-matches("location_1_"))
+readrunwayloc_placeholder <- function(x){
+  
+  if(fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'")) %>% nrow() == 0){
+    runwaylocfirsttwo <- data.frame(filename = x)
+    runwaylocfirsttwo <- runwaylocfirsttwo %>% 
+      mutate(firstbeam = NA, secondbeam = NA) %>%
+      select(filename, firstbeam, secondbeam)
+  }
+  
+  
+  else if(fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'")) %>% nrow() == 2){
+    runwaylocfirsttwo <- fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'"))
+    runwaylocfirsttwo$filename <- x
+    runwaylocfirsttwo <- runwaylocfirsttwo %>%
+      select(-V2) %>%
+      group_by(filename) %>%
+      spread(V3, V1) %>%
+      ungroup() %>%
+      select(filename, "firstbeam" = 2, "secondbeam" = 3)
+  }
+  
+  else if(fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'")) %>% nrow() == 1){
+    runwaylocfirsttwo <- fread(paste0("grep -P -m 2 \"LOCATION\\s\\t\" ", "'", x, "'"))
+    runwaylocfirsttwo$filename <- x
+    runwaylocfirsttwo <- runwaylocfirsttwo %>%
+      mutate(secondbeam = NA) %>%
+      select(filename, "firstbeam" = 1, secondbeam)
+  }
+
+  
+  if( fread(paste0("grep -P -m 1 \"REACHED GOAL\" ", "'", x, "'")) %>% nrow() == 0){
+    runwayreached <- data.frame(filename = x)
+    runwayreached <- runwayreached %>% 
+      mutate(reachedgoal = NA) %>%
+      select(filename, reachedgoal)
+  }
+  
+  else if(fread(paste0("grep -P -m 1 \"REACHED GOAL\" ", "'", x, "'")) %>% nrow() != 0){
+  runwayreached <- fread(paste0("grep -P -m 1 \"REACHED GOAL\" ", "'", x, "'"))
+  runwayreached$filename <- x
+  if(!(ncol(runwayreached) == 1&nrow(runwayreached)==1)){
+    runwayreached <- runwayreached[ , c("V1", "V2", "filename")] %>%
+      select("reachedgoal" = 1, filename)# keep the value and tag
+  }
+  }
+
+  runwaylocs_reached <- merge(runwaylocfirsttwo, runwayreached, by = "filename")
+  return(runwaylocs_reached)
+  
+}
 
 
-runway_latency_c01_16_7_df <- runway_loc1_3_c01_16_7_df %>% 
+runway_placeholder <- lapply( grep("placeholder", runwayfiles, value = T), readrunwayloc_placeholder) %>% 
+  rbindlist(fill = T)
+
+runway_placeholder <- runway_placeholder %>% 
+  mutate(secondbeam = replace(secondbeam, filename == "./U72/2018-1023-9999_72_RUNWAY_placeholder.txt", "333"),
+         
+         firstbeam = replace(firstbeam, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "7"),
+         secondbeam = replace(secondbeam, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "281"),
+         reachedgoal = replace(reachedgoal, filename == "./U94/2018-1126-0000_94_RUNWAY_placeholder.txt", "318"),
+         
+         firstbeam = replace(firstbeam, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "40"),
+         secondbeam = replace(secondbeam, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "46"),
+         reachedgoal = replace(reachedgoal, filename == "./U112/2018-1204-0000_112_RUNWAY_placeholder.txt", "175"),
+         
+         firstbeam = replace(firstbeam, filename == "./U121/2018-1205-0000_121_RUNWAY_placeholder.txt", "18"),
+         secondbeam = replace(secondbeam, filename == "./U121/2018-1205-0000_121_RUNWAY_placeholder.txt", "22"),
+
+         secondbeam = replace(secondbeam, filename == "./U315/2019-0614-0000_315_RUNWAY_placeholder.txt", "34"),
+
+         secondbeam = replace(secondbeam, filename == "./U325/2019-0614-0000_325_RUNWAY_placeholder.txt", "106"),
+         
+         secondbeam = replace(secondbeam, filename == "./U683/2020-0929-1609_683_RUNWAY_placeholder.txt", "185"),
+         
+  ) 
+
+
+runway_latency_c01_16_7_df <- runway_loc1_3_c01_16_7_df %>%
+  rbind(runway_placeholder) %>% 
   mutate(date_time = str_extract(filename, "\\d{4}-\\d{4}-\\d{4}"),  
-         date = gsub("^(\\d{4}-\\d{4})-.*", "\\1", date_time) %>% as.Date("%Y-%m%d")) %>% 
+         date = gsub("^(\\d{4}-\\d{4})-.*", "\\1", date_time) %>% as.Date("%Y-%m%d"),
+         labanimalid = str_extract(filename, "U\\d+")) %>% 
   group_by(labanimalid) %>% 
   arrange(date_time) %>%
   ungroup() %>% 
   mutate_at(vars(matches("reached|location_[123]")), as.numeric) %>% 
-  mutate(latency = ifelse(!is.na(location_2), reached - location_2, reached - location_3)) %>% 
-  mutate(latency = as.numeric(latency) %>% round()) ## XX round latency 
+  mutate(latency = reachedgoal - secondbeam %>% as.numeric %>% round)
 
 ## check date of file by checking age
 runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
@@ -404,7 +507,8 @@ runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>%
 
 ## add time out latency
 runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>% 
-  mutate(latency = replace(latency, (as.numeric(jhou_cohort)<=3.4&latency>=600)|(as.numeric(jhou_cohort)>=3.5&latency>=900), 900))
+  mutate(latency_to = latency) %>% 
+  mutate(latency_to = replace(latency_to, (as.numeric(jhou_cohort)<=3.4&latency_to>=600)|(as.numeric(jhou_cohort)>=3.5&latency_to>=900), 900))
 
 ## 12/20/2020 (after runway call, go to section after initial qc and excel generation) with object runway_latency_c01_16_7_df
 
