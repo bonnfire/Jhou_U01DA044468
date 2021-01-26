@@ -521,6 +521,15 @@ runway_latency_c01_16_7_df <- runway_latency_c01_16_7_df %>%
 
 
 
+### 01/27/2021
+# full_join(jhou_r_sessions_runway, runway_latency_c01_16_7_df %>% 
+#             mutate(filename = gsub(".*/", "", filename)), by = c("file_jhou" = "filename")) %>% 
+#   mutate(run_latency_raw_jhou_round = round(run_latency_raw_jhou)) %>% 
+#   subset(run_latency_raw_jhou_round != latency & latency != 900) %>% 
+#   subset(parse_number(cohort) < 17 & !(abs(run_latency_raw_jhou_round - latency<= 1)) %>% 
+#            select(labanimalid, "filename" = file_jhou, run_latency_raw_jhou_round, "latency_raw_bonnie" = latency, start_latency_raw_jhou, "location_2_bonnie" = secondbeam, goal_latency_raw_jhou, "reached_bonnie" = reachedgoal) %>% View()
+
+
 ## generate xl with negative age (12/18/2020, fixed all)
 # runway_latency_c01_16_7_df %>% subset(age < 0) %>% select(labanimalid, rfid, sex, filename, date, dob, age) %>% 
 #   write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Jhou_U01DA044468/Bonnie's Codes/QC/runway_c01_16_negativeage.xlsx")
