@@ -81,6 +81,11 @@ Jhou_SummaryAll <- Jhou_SummaryAll %>%
   mutate(wfucohort = factor(wfucohort, levels = sort(unique(as.numeric(Jhou_SummaryAll$wfucohort)))))
 
 
+## extract the compromised animals
+## MOVED CODE TO SUMEMR TEMP
+
+
+
 ################################
 ###(update) Summary All ######## # since 12/11 the file is no longer there
 ################################
